@@ -757,6 +757,21 @@
   .log-line.search-current { background: var(--highlight-focus); border-left-color: var(--accent-purple); }
   .log-line.level-ERROR,.log-line.level-CRITICAL { background: var(--level-error-bg); }
   .log-line.level-WARNING { background: var(--level-warn-bg); }
+  /* Continuation / stack trace lines */
+  .log-line.continuation { background: transparent !important; }
+  .log-line.continuation .lc { color: var(--text-muted) !important; font-size: 11px; padding-left: 8px; }
+  .log-line.continuation.hidden-trace { display: none; }
+  /* Stack trace toggle */
+  .stack-toggle {
+    display: flex; align-items: center; gap: 6px;
+    padding: 2px 10px 2px 52px;
+    font-size: 10px; font-family: var(--font-mono);
+    color: var(--accent-teal);
+    cursor: pointer; user-select: none;
+    background: none; border: none; width: 100%; text-align: left;
+    transition: opacity 0.12s;
+  }
+  .stack-toggle:hover { opacity: 0.7; }
   .log-line .ln {
     min-width: 52px; color: var(--text-muted);
     font-size: 10px; user-select: none;
@@ -871,6 +886,115 @@
     transform: scaleX(0);
     transition: transform 0.3s;
   }
+
+  /* ── SIMILAR OVERLAY (full-screen viewer) ── */
+  #similar-overlay {
+    position: fixed; inset: 0;
+    z-index: 450;
+    display: flex; flex-direction: column;
+    background: var(--bg-base);
+  }
+  #similar-overlay.hidden { display: none; }
+  #similar-overlay-header {
+    height: 52px;
+    background: var(--bg-surface);
+    border-bottom: 1px solid var(--accent-teal);
+    display: flex; align-items: center; gap: 12px;
+    padding: 0 14px;
+    flex-shrink: 0;
+  }
+  #similar-overlay-left {
+    display: flex; align-items: center; gap: 10px; flex: 1; min-width: 0;
+  }
+  #similar-overlay-icon { font-size: 18px; flex-shrink: 0; }
+  #similar-logger-wrap { flex: 1; min-width: 0; }
+  #similar-logger-label {
+    font-size: 9px; font-weight: 700; letter-spacing: 1px;
+    text-transform: uppercase; color: var(--accent-teal);
+    margin-bottom: 2px;
+  }
+  #similar-logger-input {
+    width: 100%; max-width: 520px;
+    background: var(--bg-elevated);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    padding: 5px 10px;
+    font-size: 12px; font-family: var(--font-mono);
+    color: var(--text-primary); outline: none;
+    transition: border-color 0.15s;
+  }
+  #similar-logger-input:focus { border-color: var(--accent-teal); }
+  #similar-overlay-nav {
+    display: flex; align-items: center; gap: 6px; flex-shrink: 0;
+  }
+  #similar-nav-count {
+    font-size: 11px; font-family: var(--font-mono);
+    color: var(--text-muted); min-width: 70px; text-align: right;
+  }
+  #btn-similar-prev, #btn-similar-next {
+    width: 28px; height: 28px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    background: var(--bg-elevated);
+    color: var(--text-secondary); font-size: 12px;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer; transition: all 0.12s;
+  }
+  #btn-similar-prev:hover, #btn-similar-next:hover {
+    border-color: var(--accent-teal); color: var(--accent-teal);
+  }
+  #btn-similar-prev:disabled, #btn-similar-next:disabled { opacity: 0.3; cursor: not-allowed; }
+  #similar-overlay-right {
+    display: flex; align-items: center; gap: 6px; flex-shrink: 0;
+  }
+  #btn-similar-minimise, #btn-similar-close {
+    width: 28px; height: 28px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    background: var(--bg-elevated);
+    color: var(--text-muted); font-size: 13px;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer; transition: all 0.12s;
+  }
+  #btn-similar-minimise:hover { border-color: var(--accent-teal); color: var(--accent-teal); }
+  #btn-similar-close:hover { border-color: var(--level-error); color: var(--level-error); }
+  #similar-overlay-body {
+    flex: 1; display: flex; overflow: hidden; position: relative;
+  }
+  #similar-log-content {
+    flex: 1; overflow-y: scroll; overflow-x: auto;
+    font-family: var(--font-mono); font-size: 12px; line-height: 1.7;
+    position: relative;
+    /* Hide native scrollbar — we use a custom one */
+    scrollbar-width: none;
+  }
+  #similar-log-content::-webkit-scrollbar { display: none; }
+  #similar-log-sizer { position: relative; }
+  #similar-log-rows { position: relative; top: 0; left: 0; right: 0; }
+  /* Custom scrollbar */
+  #similar-scrollbar-track {
+    width: 14px; flex-shrink: 0;
+    background: var(--bg-elevated);
+    border-left: 1px solid var(--border);
+    position: relative; overflow: hidden; cursor: pointer;
+  }
+  #similar-scrollbar-thumb {
+    position: absolute; left: 2px; right: 2px;
+    background: var(--border);
+    border-radius: 4px; min-height: 20px;
+    cursor: grab; transition: background 0.12s;
+  }
+  #similar-scrollbar-thumb:hover, #similar-scrollbar-thumb.dragging { background: var(--accent-teal); }
+  #similar-scrollbar-markers { position: absolute; inset: 0; pointer-events: none; }
+  .ssb-marker {
+    position: absolute; left: 1px; right: 1px; height: 3px;
+    background: var(--accent-teal); opacity: 0.7; border-radius: 1px;
+  }
+  .ssb-marker.current { background: var(--accent-purple); opacity: 1; height: 4px; }
+  /* Similar line highlighting in viewer */
+  .log-line.sim-match { background: var(--highlight-similar); border-left: 2px solid var(--accent-teal); }
+  .log-line.sim-current { background: var(--highlight-focus) !important; border-left: 2px solid var(--accent-purple) !important; }
+
   /* PWA INSTALL BANNER */
   #pwa-banner {
     position: fixed;
@@ -1135,6 +1259,39 @@
     <button id="btn-pwa-install">Install</button>
     <button id="btn-pwa-dismiss">Not now</button>
     <button id="btn-pwa-never">Don't show again</button>
+  </div>
+</div>
+
+<!-- SIMILAR OVERLAY -->
+<div id="similar-overlay" class="hidden">
+  <div id="similar-overlay-header">
+    <div id="similar-overlay-left">
+      <span id="similar-overlay-icon">🔍</span>
+      <div id="similar-logger-wrap">
+        <div id="similar-logger-label">Similar entries containing</div>
+        <input id="similar-logger-input" type="text" autocomplete="off" spellcheck="false" placeholder="Enter term…">
+      </div>
+    </div>
+    <div id="similar-overlay-nav">
+      <span id="similar-nav-count"></span>
+      <button id="btn-similar-prev" title="Previous match">▲</button>
+      <button id="btn-similar-next" title="Next match">▼</button>
+    </div>
+    <div id="similar-overlay-right">
+      <button id="btn-similar-minimise" title="Minimise to button">─</button>
+      <button id="btn-similar-close" title="Close">✕</button>
+    </div>
+  </div>
+  <div id="similar-overlay-body">
+    <div id="similar-log-content">
+      <div id="similar-log-sizer">
+        <div id="similar-log-rows"></div>
+      </div>
+    </div>
+    <div id="similar-scrollbar-track">
+      <div id="similar-scrollbar-thumb"></div>
+      <div id="similar-scrollbar-markers"></div>
+    </div>
   </div>
 </div>
 
@@ -1448,6 +1605,9 @@ const LEVEL_NORM = {
   VERBOSE:'VERBOSE',VERB:'VERBOSE',TRACE:'VERBOSE',DEBUG:'DEBUG',DBG:'DEBUG'
 };
 
+// Matches stack trace / exception continuation lines
+const CONTINUATION_RE = /^(\\s+at\\s|---\\s*(End of|inner exception)|\\s*--->\\s|[A-Za-z][\\w.]*Exception[:\\s]|[A-Za-z][\\w.]*Error[:\\s])/;
+
 function escHtml(s) {
   return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
     .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
@@ -1464,10 +1624,11 @@ function stripTimestampAndLevel(text) {
 function parseFile(raw, filename) {
   const rawLines = raw.split('\\n');
   const lines = [];
-  let lastLevel=null, lastTs=null, lastLogger=null;
+  let lastLevel=null, lastTs=null, lastLogger=null, lastParentLineNo=null;
   for (let i=0; i<rawLines.length; i++) {
-    const text = rawLines[i];
+    const text = rawLines[i].replace(/\\r$/, '');
     let ts=null, level=null, logger=null;
+
     for (const p of TS_PATTERNS) {
       const m = text.match(p);
       if (m) { ts = new Date(m[1].replace(',','.')); break; }
@@ -1476,19 +1637,36 @@ function parseFile(raw, filename) {
     if (lm) level = LEVEL_NORM[lm[1].toUpperCase()] || null;
     const lgm = text.match(LOGGER_RE);
     if (lgm) logger = lgm[1];
+
+    // A continuation line has no timestamp AND matches stack trace patterns
+    const isContinuation = !ts && CONTINUATION_RE.test(text);
+
+    // Inherit timestamp and logger for all lines
     if (!ts && lastTs) ts = lastTs;
-    if (!level && lastLevel) level = lastLevel;
     if (!logger && lastLogger) logger = lastLogger;
-    if (ts) lastTs = ts;
-    if (level) lastLevel = level;
-    if (logger) lastLogger = logger;
+
+    // Only inherit level for non-continuation lines
+    if (!isContinuation) {
+      if (!level && lastLevel) level = lastLevel;
+      if (level) lastLevel = level;
+      if (ts) lastTs = ts;
+      if (logger) lastLogger = logger;
+      lastParentLineNo = i + 1;
+    } else {
+      // Continuation lines get timestamp/logger but NOT level (for filtering)
+      if (ts) lastTs = ts;
+      if (logger) lastLogger = logger;
+    }
+
     const stripped = stripTimestampAndLevel(text);
     lines.push({
       lineNo: i+1,
       text,
       safeHtml: escHtml(text),
       strippedHtml: escHtml(stripped),
-      level,
+      level: isContinuation ? null : level,
+      isContinuation,
+      parentLineNo: isContinuation ? lastParentLineNo : null,
       ts: ts ? ts.getTime() : null,
       logger,
       _file: filename
@@ -1631,9 +1809,9 @@ function applyFilter() {
   let entries = data.merged;
   if (state.activeLevel !== 'ALL') {
     const want = state.activeLevel === 'ERROR' ? ['ERROR','CRITICAL'] : [state.activeLevel];
-    entries = entries.filter(l => want.includes(l.level));
+    entries = entries.filter(l => !l.isContinuation && want.includes(l.level));
   } else {
-    entries = entries.filter(l => l.level !== null);
+    entries = entries.filter(l => !l.isContinuation && l.level !== null);
   }
 
   document.getElementById('result-count').textContent = `${entries.length.toLocaleString()} entries`;
@@ -1648,7 +1826,14 @@ const RS_PAGE = 80; // rows per render batch
 function renderResults(entries, data) {
   const list = document.getElementById('results-list');
   list.innerHTML = '';
-  RS.entries = entries;
+  // Sort most recent first — entries with timestamps descending, then preserve order for untimed
+  const sorted = [...entries].sort((a, b) => {
+    if (a.ts && b.ts) return b.ts - a.ts;
+    if (a.ts) return -1;
+    if (b.ts) return 1;
+    return 0;
+  });
+  RS.entries = sorted;
   RS.data = data;
   RS.renderedEnd = 0;
 
@@ -1675,24 +1860,10 @@ function renderResultsBatch() {
   const end     = Math.min(entries.length, start + RS_PAGE);
   if (start >= entries.length) return;
 
-  // Group header tracking — only emit header when file changes
-  let lastFile = start > 0 ? entries[start - 1]._file : null;
-
   const frag = document.createDocumentFragment();
 
   for (let i = start; i < end; i++) {
     const entry = entries[i];
-
-    if (entry._file !== lastFile) {
-      // Count total for this file in the full entries array
-      const fileTotal = entries.filter(e => e._file === entry._file).length;
-      const gh = document.createElement('div');
-      gh.className = 'result-group-header';
-      gh.textContent = `📄 ${entry._file} (${fileTotal})`;
-      frag.appendChild(gh);
-      lastFile = entry._file;
-    }
-
     const item = document.createElement('div');
     item.className = 'result-item';
     const level = entry.level || '?';
@@ -1791,9 +1962,11 @@ function vsMeasureLineHeight() {
 
 function buildLineEl(l, i) {
   const div = document.createElement('div');
-  const level = l.level || '';
+  // Continuation lines never get level colouring
+  const level = l.isContinuation ? '' : (l.level || '');
   let cls = 'log-line';
   if (level) cls += ' level-' + level;
+  if (l.isContinuation) cls += ' continuation hidden-trace';
   if (l.lineNo === VS.focusLineNo) cls += ' focus-line';
   if (VS.highlightSimilar && VS.similarLogger && l.logger === VS.similarLogger && l.lineNo !== VS.focusLineNo) cls += ' similar-line';
   if (VS.searchMatchIndices.includes(i)) {
@@ -1809,6 +1982,53 @@ function buildLineEl(l, i) {
   }
   div.innerHTML = `<span class="ln">${l.lineNo}</span><span class="lc">${html}</span>`;
   return div;
+}
+
+function injectStackToggles(container) {
+  // Remove any existing toggles first to avoid duplicates on re-render
+  container.querySelectorAll('.stack-toggle').forEach(t => t.remove());
+
+  const children = Array.from(container.children);
+  let groupStart = null;
+  let count = 0;
+
+  const insertToggle = (beforeEl, lineCount) => {
+    const btn = document.createElement('button');
+    btn.className = 'stack-toggle';
+    btn.dataset.expanded = 'false';
+    btn.dataset.count = lineCount;
+    btn.textContent = `▶ Show stack trace (${lineCount} lines)`;
+    btn.addEventListener('click', function() {
+      const expanded = this.dataset.expanded === 'true';
+      let cur = this.nextSibling;
+      while (cur && cur.classList && cur.classList.contains('continuation')) {
+        cur.classList.toggle('hidden-trace', expanded);
+        cur = cur.nextSibling;
+      }
+      this.dataset.expanded = expanded ? 'false' : 'true';
+      const cnt = parseInt(this.dataset.count);
+      this.textContent = expanded
+        ? `▶ Show stack trace (${cnt} lines)`
+        : `▼ Hide stack trace (${cnt} lines)`;
+    });
+    container.insertBefore(btn, beforeEl);
+  };
+
+  children.forEach((el, idx) => {
+    const isCont = el.classList && el.classList.contains('continuation');
+    if (isCont) {
+      if (groupStart === null) groupStart = el;
+      count++;
+    } else {
+      if (groupStart !== null) {
+        insertToggle(groupStart, count);
+        groupStart = null;
+        count = 0;
+      }
+    }
+  });
+  // Handle trailing group
+  if (groupStart !== null) insertToggle(groupStart, count);
 }
 
 function vsInit(lines, focusLineNo) {
@@ -1845,6 +2065,7 @@ function vsInit(lines, focusLineNo) {
   }
   rows.innerHTML = '';
   rows.appendChild(frag);
+  injectStackToggles(rows);
 
   // Store rendered range so the scroll handler knows what's loaded
   VS._renderedStart = start;
@@ -1900,6 +2121,8 @@ function vsRender() {
     VS._renderedEnd = newEnd;
     changed = true;
   }
+
+  if (changed) injectStackToggles(rows);
 }
 
 function vsRenderVirtual() {
@@ -2006,6 +2229,7 @@ function scrollToSearchIndex(idx) {
     for (let i = start; i <= end; i++) frag.appendChild(buildLineEl(lines[i], i));
     rows.innerHTML = '';
     rows.appendChild(frag);
+    injectStackToggles(rows);
     VS._renderedStart = start;
     VS._renderedEnd   = end;
     const newEl = rows.querySelector(`[data-idx="${lineIdx}"]`);
@@ -2026,11 +2250,308 @@ document.querySelectorAll('.tw-btn').forEach(btn => {
 });
 
 // HIGHLIGHT SIMILAR
-document.getElementById('btn-highlight-similar').addEventListener('click', () => {
-  state.highlightSimilar = !state.highlightSimilar;
-  document.getElementById('btn-highlight-similar').classList.toggle('active', state.highlightSimilar);
-  VS.highlightSimilar = state.highlightSimilar;
+// ═══════════════════════════════════════════════════════════════
+//  SIMILAR OVERLAY — full-screen viewer with match navigation
+// ═══════════════════════════════════════════════════════════════
+const SIM = {
+  lines: [],           // all lines from the active file
+  matchIndices: [],    // indices of matching lines
+  currentIdx: 0,       // which match is focused
+  lineHeight: 0,
+  term: '',
+  _raf: null,
+  _thumbDragging: false,
+  _thumbStartY: 0,
+  _thumbStartScroll: 0,
+};
+
+const simOverlay  = document.getElementById('similar-overlay');
+const simContent  = document.getElementById('similar-log-content');
+const simSizer    = document.getElementById('similar-log-sizer');
+const simRows     = document.getElementById('similar-log-rows');
+const simInput    = document.getElementById('similar-logger-input');
+const simCount    = document.getElementById('similar-nav-count');
+const simMarkers  = document.getElementById('similar-scrollbar-markers');
+const simThumb    = document.getElementById('similar-scrollbar-thumb');
+const simTrack    = document.getElementById('similar-scrollbar-track');
+
+// ── Open overlay ──
+function openSimilarOverlay(logger) {
+  if (!currentViewerLines || !currentViewerLines.length) return;
+
+  SIM.lines = currentViewerLines;
+  SIM.term  = logger || '';
+  simInput.value = SIM.term;
+
+  simOverlay.classList.remove('hidden');
+  document.getElementById('btn-highlight-similar').classList.add('active');
+
+  simMeasureLineHeight();
+  simBuildView();
+  simInput.focus();
+  simInput.select();
+}
+
+function simMeasureLineHeight() {
+  const probe = document.createElement('div');
+  probe.className = 'log-line';
+  probe.style.visibility = 'hidden'; probe.style.position = 'absolute';
+  probe.innerHTML = '<span class="ln">1</span><span class="lc">x</span>';
+  simRows.appendChild(probe);
+  SIM.lineHeight = probe.getBoundingClientRect().height || 20.4;
+  simRows.removeChild(probe);
+}
+
+// ── Build / rebuild the view after term changes ──
+function simBuildView() {
+  const termL = SIM.term.toLowerCase().trim();
+  SIM.matchIndices = [];
+
+  SIM.lines.forEach((l, i) => {
+    if (!l.isContinuation && termL && l.text.toLowerCase().includes(termL)) {
+      SIM.matchIndices.push(i);
+    }
+  });
+
+  simCount.textContent = SIM.matchIndices.length
+    ? `${SIM.currentIdx + 1} / ${SIM.matchIndices.length}`
+    : (termL ? '0 matches' : '');
+
+  // Size the sizer
+  simSizer.style.height = (SIM.lines.length * SIM.lineHeight) + 'px';
+  simRows.style.top = '0px';
+
+  // Render initial window around first match (or top)
+  const anchor = SIM.matchIndices.length > 0 ? SIM.matchIndices[0] : 0;
+  SIM.currentIdx = 0;
+  simRenderWindow(anchor);
+  simScrollToIdx(SIM.matchIndices.length > 0 ? SIM.matchIndices[0] : 0);
+  simUpdateScrollbar();
+  simBuildMarkers();
+}
+
+// ── Render a window of lines centred on anchor ──
+function simRenderWindow(anchor) {
+  const WINDOW = 400;
+  const start = Math.max(0, anchor - Math.floor(WINDOW / 2));
+  const end   = Math.min(SIM.lines.length - 1, start + WINDOW - 1);
+  const termL = SIM.term.toLowerCase().trim();
+  const termSafe = escHtml(SIM.term);
+
+  const frag = document.createDocumentFragment();
+  for (let i = start; i <= end; i++) {
+    const l = SIM.lines[i];
+    const div = document.createElement('div');
+    const level = l.isContinuation ? '' : (l.level || '');
+    let cls = 'log-line';
+    if (level) cls += ' level-' + level;
+    if (l.isContinuation) cls += ' continuation';
+    const matchIdx = SIM.matchIndices.indexOf(i);
+    if (matchIdx >= 0) {
+      cls += matchIdx === SIM.currentIdx ? ' sim-current' : ' sim-match';
+    }
+    div.className = cls;
+    div.dataset.simIdx = i;
+    div.dataset.lineNo = l.lineNo;
+    let html = l.safeHtml;
+    if (termL && l.text.toLowerCase().includes(termL)) {
+      html = html.replace(new RegExp(escRegex(termSafe), 'gi'),
+        m => `<span class="search-highlight">${m}</span>`);
+    }
+    div.innerHTML = `<span class="ln">${l.lineNo}</span><span class="lc">${html}</span>`;
+    frag.appendChild(div);
+  }
+
+  simRows.innerHTML = '';
+  simRows.appendChild(frag);
+  injectStackToggles(simRows);
+  SIM._renderedStart = start;
+  SIM._renderedEnd   = end;
+}
+
+// ── Scroll content to a line index ──
+function simScrollToIdx(lineIdx) {
+  if (lineIdx < 0 || lineIdx >= SIM.lines.length) return;
+  void simContent.offsetHeight;
+  const target = Math.max(0, lineIdx * SIM.lineHeight - simContent.clientHeight / 2);
+  simContent.scrollTop = target;
+  requestAnimationFrame(() => simUpdateScrollbar());
+}
+
+// ── Navigate between matches ──
+function simNavigate(dir) {
+  if (!SIM.matchIndices.length) return;
+  SIM.currentIdx = (SIM.currentIdx + dir + SIM.matchIndices.length) % SIM.matchIndices.length;
+  simCount.textContent = `${SIM.currentIdx + 1} / ${SIM.matchIndices.length}`;
+
+  const lineIdx = SIM.matchIndices[SIM.currentIdx];
+  // Re-render window centred on new match
+  simRenderWindow(lineIdx);
+  simScrollToIdx(lineIdx);
+  simBuildMarkers();
+}
+
+// ── Custom scrollbar ──
+function simUpdateScrollbar() {
+  const scrollH  = simContent.scrollHeight;
+  const clientH  = simContent.clientHeight;
+  const scrollT  = simContent.scrollTop;
+  if (scrollH <= clientH) { simThumb.style.display = 'none'; return; }
+  simThumb.style.display = '';
+  const trackH   = simTrack.clientHeight;
+  const thumbH   = Math.max(20, (clientH / scrollH) * trackH);
+  const thumbTop = (scrollT / (scrollH - clientH)) * (trackH - thumbH);
+  simThumb.style.height = thumbH + 'px';
+  simThumb.style.top    = thumbTop + 'px';
+}
+
+function simBuildMarkers() {
+  simMarkers.innerHTML = '';
+  const trackH = simTrack.clientHeight;
+  const total  = SIM.lines.length;
+  SIM.matchIndices.forEach((lineIdx, mi) => {
+    const m = document.createElement('div');
+    m.className = 'ssb-marker' + (mi === SIM.currentIdx ? ' current' : '');
+    m.style.top = ((lineIdx / total) * trackH) + 'px';
+    simMarkers.appendChild(m);
+  });
+}
+
+// Extend rendered window on scroll
+function simOnScroll() {
+  if (SIM._raf) cancelAnimationFrame(SIM._raf);
+  SIM._raf = requestAnimationFrame(() => {
+    simUpdateScrollbar();
+    const scrollTop = simContent.scrollTop;
+    const viewH     = simContent.clientHeight;
+    const scrollH   = simContent.scrollHeight;
+    const EXTEND    = 300;
+    const termL     = SIM.term.toLowerCase().trim();
+    const termSafe  = escHtml(SIM.term);
+
+    if (scrollTop < scrollH * 0.1 && SIM._renderedStart > 0) {
+      const newStart = Math.max(0, SIM._renderedStart - EXTEND);
+      const frag = document.createDocumentFragment();
+      for (let i = newStart; i < SIM._renderedStart; i++) {
+        const l = SIM.lines[i];
+        const div = document.createElement('div');
+        const level = l.isContinuation ? '' : (l.level || '');
+        let cls = 'log-line';
+        if (level) cls += ' level-' + level;
+        if (l.isContinuation) cls += ' continuation';
+        const matchIdx = SIM.matchIndices.indexOf(i);
+        if (matchIdx >= 0) cls += matchIdx === SIM.currentIdx ? ' sim-current' : ' sim-match';
+        div.className = cls; div.dataset.simIdx = i; div.dataset.lineNo = l.lineNo;
+        let html = l.safeHtml;
+        if (termL && l.text.toLowerCase().includes(termL))
+          html = html.replace(new RegExp(escRegex(termSafe),'gi'), m => `<span class="search-highlight">${m}</span>`);
+        div.innerHTML = `<span class="ln">${l.lineNo}</span><span class="lc">${html}</span>`;
+        frag.appendChild(div);
+      }
+      simRows.insertBefore(frag, simRows.firstChild);
+      SIM._renderedStart = newStart;
+      injectStackToggles(simRows);
+    }
+
+    if (scrollTop + viewH > scrollH * 0.9 && SIM._renderedEnd < SIM.lines.length - 1) {
+      const newEnd = Math.min(SIM.lines.length - 1, SIM._renderedEnd + EXTEND);
+      const frag = document.createDocumentFragment();
+      for (let i = SIM._renderedEnd + 1; i <= newEnd; i++) {
+        const l = SIM.lines[i];
+        const div = document.createElement('div');
+        const level = l.isContinuation ? '' : (l.level || '');
+        let cls = 'log-line';
+        if (level) cls += ' level-' + level;
+        if (l.isContinuation) cls += ' continuation';
+        const matchIdx = SIM.matchIndices.indexOf(i);
+        if (matchIdx >= 0) cls += matchIdx === SIM.currentIdx ? ' sim-current' : ' sim-match';
+        div.className = cls; div.dataset.simIdx = i; div.dataset.lineNo = l.lineNo;
+        let html = l.safeHtml;
+        if (termL && l.text.toLowerCase().includes(termL))
+          html = html.replace(new RegExp(escRegex(termSafe),'gi'), m => `<span class="search-highlight">${m}</span>`);
+        div.innerHTML = `<span class="ln">${l.lineNo}</span><span class="lc">${html}</span>`;
+        frag.appendChild(div);
+      }
+      simRows.appendChild(frag);
+      SIM._renderedEnd = newEnd;
+      injectStackToggles(simRows);
+    }
+  });
+}
+simContent.addEventListener('scroll', simOnScroll, { passive: true });
+
+// Custom scrollbar thumb drag
+simThumb.addEventListener('mousedown', e => {
+  SIM._thumbDragging = true;
+  SIM._thumbStartY      = e.clientY;
+  SIM._thumbStartScroll = simContent.scrollTop;
+  simThumb.classList.add('dragging');
+  e.preventDefault();
+});
+document.addEventListener('mousemove', e => {
+  if (!SIM._thumbDragging) return;
+  const trackH  = simTrack.clientHeight;
+  const thumbH  = simThumb.offsetHeight;
+  const scrollH = simContent.scrollHeight;
+  const clientH = simContent.clientHeight;
+  const ratio   = (scrollH - clientH) / (trackH - thumbH);
+  simContent.scrollTop = SIM._thumbStartScroll + (e.clientY - SIM._thumbStartY) * ratio;
+});
+document.addEventListener('mouseup', () => {
+  SIM._thumbDragging = false;
+  simThumb.classList.remove('dragging');
+});
+// Click on track to jump
+simTrack.addEventListener('click', e => {
+  if (e.target === simThumb) return;
+  const rect   = simTrack.getBoundingClientRect();
+  const ratio  = (e.clientY - rect.top) / rect.height;
+  simContent.scrollTop = ratio * (simContent.scrollHeight - simContent.clientHeight);
+});
+
+// Input — rebuild on change
+let simDebounce = null;
+simInput.addEventListener('input', () => {
+  clearTimeout(simDebounce);
+  simDebounce = setTimeout(() => {
+    SIM.term = simInput.value;
+    SIM.currentIdx = 0;
+    simBuildView();
+  }, 250);
+});
+simInput.addEventListener('keydown', e => {
+  if (e.key === 'Enter') { e.shiftKey ? simNavigate(-1) : simNavigate(1); e.preventDefault(); }
+  if (e.key === 'Escape') { document.getElementById('btn-similar-close').click(); }
+});
+
+// Navigation buttons
+document.getElementById('btn-similar-prev').addEventListener('click', () => simNavigate(-1));
+document.getElementById('btn-similar-next').addEventListener('click', () => simNavigate(1));
+
+// Minimise — hides overlay, Similar button stays active
+document.getElementById('btn-similar-minimise').addEventListener('click', () => {
+  simOverlay.classList.add('hidden');
+  document.getElementById('btn-highlight-similar').classList.add('active');
+  document.getElementById('btn-highlight-similar').title = 'Re-open Similar overlay';
+});
+
+// Close — dismisses entirely
+document.getElementById('btn-similar-close').addEventListener('click', () => {
+  simOverlay.classList.add('hidden');
+  document.getElementById('btn-highlight-similar').classList.remove('active');
+  document.getElementById('btn-highlight-similar').title = 'Find similar entries';
+  state.highlightSimilar = false;
+  VS.highlightSimilar = false;
   vsRedrawVisible();
+});
+
+// Similar button — opens or re-opens
+document.getElementById('btn-highlight-similar').addEventListener('click', () => {
+  if (!simOverlay.classList.contains('hidden')) {
+    document.getElementById('btn-similar-close').click();
+    return;
+  }
+  openSimilarOverlay(state.focusedLogger || '');
 });
 
 // VIEWER SEARCH
@@ -2144,6 +2665,7 @@ function runGlobalSearch(term) {
   Object.entries(state.loadedData).forEach(([compId, data]) => {
     if (state.searchExcluded.has(compId)) return;
     for (const line of data.merged) {
+      if (line.isContinuation) continue;
       if (line.text.toLowerCase().includes(termL)) {
         results.push({ compId, data, line });
       }
@@ -2188,44 +2710,36 @@ function runGlobalSearch(term) {
     return;
   }
 
-  // Group by component
-  const groups = {};
-  results.forEach(r => {
-    if (!groups[r.compId]) groups[r.compId] = { compName: r.data.compDef.name, items: [] };
-    groups[r.compId].items.push(r);
+  // Sort most recent first
+  results.sort((a, b) => {
+    if (a.line.ts && b.line.ts) return b.line.ts - a.line.ts;
+    if (a.line.ts) return -1;
+    if (b.line.ts) return 1;
+    return 0;
   });
 
-  Object.entries(groups).forEach(([compId, group]) => {
-    const gh = document.createElement('div');
-    gh.className = 'result-group-header';
-    gh.textContent = `${group.compName} (${group.items.length})`;
-    list.appendChild(gh);
-
-    group.items.forEach(r => {
-      const item = document.createElement('div');
-      item.className = 'result-item';
-      const level = r.line.level || '?';
-      item.innerHTML = `
-        <div class="ri-meta">
-          <span class="level-badge ${level}">${level}</span>
-          <span class="ri-line">L${r.line.lineNo}</span>
-          <span class="ri-file">${r.line._file}</span>
-        </div>
-        <div class="ri-msg">${r.line.strippedHtml || escHtml(r.line.text)}</div>
-      `;
-      item.addEventListener('click', () => {
-        document.querySelectorAll('.result-item').forEach(i => i.classList.remove('focused'));
-        item.classList.add('focused');
-        // Only update the viewer — do NOT call activateComponent (would clear results)
-        openInViewer(r.line, r.data);
-        // Highlight the correct sidebar item without triggering applyFilter
-        document.querySelectorAll('.component-item').forEach(el => {
-          el.classList.toggle('active', el.dataset.compId === r.compId);
-        });
-        state.activeCompId = r.compId;
+  results.forEach(r => {
+    const item = document.createElement('div');
+    item.className = 'result-item';
+    const level = r.line.level || '?';
+    item.innerHTML = `
+      <div class="ri-meta">
+        <span class="level-badge ${level}">${level}</span>
+        <span class="ri-line">L${r.line.lineNo}</span>
+        <span class="ri-file">${r.line._file}</span>
+      </div>
+      <div class="ri-msg">${r.line.strippedHtml || escHtml(r.line.text)}</div>
+    `;
+    item.addEventListener('click', () => {
+      document.querySelectorAll('.result-item').forEach(i => i.classList.remove('focused'));
+      item.classList.add('focused');
+      openInViewer(r.line, r.data);
+      document.querySelectorAll('.component-item').forEach(el => {
+        el.classList.toggle('active', el.dataset.compId === r.compId);
       });
-      list.appendChild(item);
+      state.activeCompId = r.compId;
     });
+    list.appendChild(item);
   });
 
   if (results.length === 500) {
@@ -2281,6 +2795,9 @@ document.getElementById('btn-home').addEventListener('click', () => {
   state.globalSearchTerm = '';
   state.searchExcluded.clear();
   Object.keys(pendingFiles).forEach(k => delete pendingFiles[k]);
+  // Close similar overlay if open
+  document.getElementById('similar-overlay').classList.add('hidden');
+  document.getElementById('btn-highlight-similar').classList.remove('active');
 
   // Reset UI
   document.querySelectorAll('.product-btn').forEach(b => b.classList.remove('selected'));
