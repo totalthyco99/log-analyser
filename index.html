@@ -1152,14 +1152,14 @@
               <div class="upload-zone" id="upload-zone" style="flex:1;margin-bottom:0">
                 <div class="uz-icon">📂</div>
                 <div>Drop log files here or <strong>click to browse</strong></div>
-                <div class="uz-sub">Files are automatically matched to their component by filename</div>
+                <div class="uz-sub">Files are automatically matched to their component by filename — including rolled logs (.log.1, .log.2 etc.)</div>
               </div>
               <button class="wizard-btn primary" id="btn-analyse" disabled
                 style="width:90px;flex-shrink:0;white-space:normal;text-align:center;line-height:1.4;padding:12px 10px">
                 Analyse Logs →
               </button>
             </div>
-            <input type="file" id="file-input" multiple accept=".log,.csv,.txt" style="display:none">
+            <input type="file" id="file-input" multiple style="display:none">
             <div id="component-grid" class="component-grid"></div>
           </div>
 
@@ -1567,7 +1567,7 @@ function handleFileList(fileList) {
         `⚠ "${file.name}" couldn't be matched to a component — check the filename`;
       setTimeout(() => {
         if (uz.querySelector('.uz-sub'))
-          uz.querySelector('.uz-sub').textContent = 'Files are automatically matched to their component by filename';
+          uz.querySelector('.uz-sub').textContent = 'Files are automatically matched to their component by filename — including rolled logs (.log.1, .log.2 etc.)';
       }, 4000);
       return;
     }
@@ -2803,7 +2803,6 @@ document.getElementById('btn-home').addEventListener('click', () => {
   document.querySelectorAll('.product-btn').forEach(b => b.classList.remove('selected'));
   document.getElementById('wizard-step2').style.display = 'none';
   document.getElementById('component-grid').innerHTML = '';
-  document.getElementById('upload-slots').innerHTML = '';
   document.getElementById('sidebar-components').innerHTML = '<div class="no-files-msg">No files loaded yet.</div>';
   document.getElementById('results-list').innerHTML = '<div class="empty-state"><div class="empty-state-icon">🔍</div><div>Select a level filter to see entries</div></div>';
   document.getElementById('log-content-sizer').style.height = '';
