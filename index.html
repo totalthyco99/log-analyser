@@ -924,6 +924,16 @@
     transition: border-color 0.15s;
   }
   #similar-logger-input:focus { border-color: var(--accent-teal); }
+  #similar-overlay-filename {
+    font-size: 11px; font-family: var(--font-mono);
+    color: var(--text-secondary);
+    background: var(--bg-elevated);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 3px 10px;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    max-width: 260px; flex-shrink: 0;
+  }
   #similar-overlay-nav {
     display: flex; align-items: center; gap: 6px; flex-shrink: 0;
   }
@@ -1272,6 +1282,7 @@
         <input id="similar-logger-input" type="text" autocomplete="off" spellcheck="false" placeholder="Enter term…">
       </div>
     </div>
+    <div id="similar-overlay-filename"></div>
     <div id="similar-overlay-nav">
       <span id="similar-nav-count"></span>
       <button id="btn-similar-prev" title="Previous match">▲</button>
@@ -2283,6 +2294,10 @@ function openSimilarOverlay(logger) {
   SIM.term  = logger || '';
   simInput.value = SIM.term;
 
+  // Show the filename being reviewed
+  const filename = document.getElementById('viewer-file-label').textContent || '';
+  document.getElementById('similar-overlay-filename').textContent = filename ? `📄 ${filename}` : '';
+
   simOverlay.classList.remove('hidden');
   document.getElementById('btn-highlight-similar').classList.add('active');
 
@@ -2372,10 +2387,12 @@ function simRenderWindow(anchor) {
 // ── Scroll content to a line index ──
 function simScrollToIdx(lineIdx) {
   if (lineIdx < 0 || lineIdx >= SIM.lines.length) return;
-  void simContent.offsetHeight;
-  const target = Math.max(0, lineIdx * SIM.lineHeight - simContent.clientHeight / 2);
-  simContent.scrollTop = target;
-  requestAnimationFrame(() => simUpdateScrollbar());
+  // Find the rendered element and scroll it into view — no pixel maths
+  const el = simRows.querySelector(`[data-sim-idx="${lineIdx}"]`);
+  if (el) {
+    el.scrollIntoView({ block: 'center' });
+    requestAnimationFrame(() => simUpdateScrollbar());
+  }
 }
 
 // ── Navigate between matches ──
