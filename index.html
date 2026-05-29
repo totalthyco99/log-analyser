@@ -1005,7 +1005,123 @@
   .log-line.sim-match { background: var(--highlight-similar); border-left: 2px solid var(--accent-teal); }
   .log-line.sim-current { background: var(--highlight-focus) !important; border-left: 2px solid var(--accent-purple) !important; }
 
-  /* PWA INSTALL BANNER */
+  /* ── GUIDED TOUR ── */
+  #tour-backdrop {
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,0.55);
+    z-index: 850;
+    pointer-events: none;
+    animation: tour-fade-in 0.2s ease;
+    /* clip-path set dynamically by JS to cut out the target element */
+  }
+  @keyframes tour-fade-in { from { opacity:0 } to { opacity:1 } }
+  #tour-spotlight {
+    position: fixed;
+    border-radius: var(--radius-md);
+    border: 2px solid var(--accent-teal);
+    z-index: 860;
+    pointer-events: none;
+    animation: tour-pulse 2s infinite;
+  }
+  @keyframes tour-pulse {
+    0%,100% { border-color: var(--accent-teal); box-shadow: 0 0 0 0 rgba(45,212,191,0.4); }
+    50%      { border-color: var(--accent-teal); box-shadow: 0 0 0 4px rgba(45,212,191,0.15); }
+  }
+  #tour-card {
+    position: fixed;
+    width: 340px;
+    background: var(--bg-surface);
+    border: 1px solid var(--accent-teal);
+    border-radius: var(--radius-xl);
+    padding: 20px;
+    z-index: 900;
+    box-shadow: var(--shadow-lg);
+    animation: tour-slide-in 0.2s ease;
+  }
+  @keyframes tour-slide-in { from { opacity:0; transform:translateY(8px) } to { opacity:1; transform:translateY(0) } }
+  .tour-card-header {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 10px;
+  }
+  .tour-step-num {
+    font-size: 10px; font-weight: 700; letter-spacing: 1px;
+    text-transform: uppercase; color: var(--accent-teal);
+  }
+  #btn-tour-skip {
+    width: 22px; height: 22px;
+    border: 1px solid var(--border); border-radius: var(--radius-sm);
+    background: var(--bg-elevated); color: var(--text-muted);
+    font-size: 11px; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    transition: all 0.12s;
+  }
+  #btn-tour-skip:hover { border-color: var(--level-error); color: var(--level-error); }
+  .tour-title {
+    font-size: 15px; font-weight: 800;
+    color: var(--text-primary); margin-bottom: 8px;
+  }
+  .tour-body {
+    font-size: 12px; color: var(--text-secondary);
+    line-height: 1.65; margin-bottom: 16px;
+  }
+  .tour-body code {
+    background: var(--bg-elevated); border-radius: 3px;
+    padding: 1px 5px; font-family: var(--font-mono); font-size: 11px;
+    color: var(--accent-teal);
+  }
+  .tour-body strong { color: var(--text-primary); }
+  .tour-body em { color: var(--text-secondary); font-style: italic; }
+  .tour-footer {
+    display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  }
+  .tour-dots { display: flex; gap: 5px; align-items: center; }
+  .tour-dot {
+    width: 6px; height: 6px; border-radius: 50%;
+    background: var(--border); transition: background 0.15s;
+  }
+  .tour-dot.active { background: var(--accent-teal); width: 18px; border-radius: 3px; }
+  .tour-actions { display: flex; gap: 6px; }
+  .tour-btn {
+    padding: 6px 14px; border-radius: var(--radius-md);
+    font-family: var(--font-ui); font-size: 12px; font-weight: 700;
+    cursor: pointer; transition: all 0.15s;
+  }
+  .tour-btn.primary {
+    background: linear-gradient(135deg, var(--brand-purple), var(--brand-teal));
+    color: #fff; border: none;
+  }
+  .tour-btn.primary:hover { opacity: 0.88; transform: translateY(-1px); }
+  .tour-btn.secondary {
+    background: var(--bg-elevated); border: 1px solid var(--border);
+    color: var(--text-secondary);
+  }
+  .tour-btn.secondary:hover { border-color: var(--accent-teal); color: var(--text-primary); }
+  /* Replay button in header */
+  #btn-tour-replay {
+    width: 32px; height: 32px;
+    border-radius: var(--radius-md);
+    border: 1px solid var(--border);
+    background: var(--bg-elevated);
+    color: var(--text-secondary);
+    font-size: 15px;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer; transition: all 0.15s;
+  }
+  #btn-tour-replay:hover { background: var(--bg-hover); color: var(--text-primary); border-color: var(--accent-teal); }
+  #btn-feedback, #btn-github {
+    height: 32px;
+    border-radius: var(--radius-md);
+    border: 1px solid var(--border);
+    background: var(--bg-elevated);
+    color: var(--text-secondary);
+    font-size: 12px; font-weight: 600;
+    font-family: var(--font-ui);
+    padding: 0 10px;
+    display: flex; align-items: center; gap: 5px;
+    cursor: pointer; transition: all 0.15s; white-space: nowrap;
+  }
+  #btn-feedback:hover { background: var(--bg-hover); color: var(--text-primary); border-color: var(--accent-teal); }
+  #btn-github:hover   { background: var(--bg-hover); color: var(--text-primary); border-color: var(--accent-purple); }
   #pwa-banner {
     position: fixed;
     bottom: 24px;
@@ -1094,6 +1210,9 @@
     </button>
     <div class="divider"></div>
     <div class="spacer"></div>
+    <button id="btn-github" title="View on GitHub" onclick="window.open('https://github.com/totalthyco99/log-analyser','_blank')">⭐ GitHub</button>
+    <button id="btn-feedback" title="Submit feedback via GitHub Issues" onclick="window.open('https://github.com/totalthyco99/log-analyser/issues/new?labels=feedback&title=Feedback%3A+&body=**What+would+you+like+to+share%3F**%0A%0A','_blank')">💬 Feedback</button>
+    <button id="btn-tour-replay" title="Replay guided tour">❓</button>
     <button id="btn-theme" title="Toggle light/dark mode">🌙</button>
   </header>
 
@@ -2849,14 +2968,24 @@ document.getElementById('btn-add-more').addEventListener('click', () => {
 // ═══════════════════════════════════════════════════════════════
 //  THEME TOGGLE
 // ═══════════════════════════════════════════════════════════════
+(function() {
+  const saved = localStorage.getItem('theme');
+  if (saved) {
+    document.documentElement.dataset.theme = saved;
+    document.getElementById('btn-theme').textContent = saved === 'dark' ? '☀️' : '🌙';
+  } else {
+    document.getElementById('btn-theme').textContent = '☀️';
+  }
+})();
+
 document.getElementById('btn-theme').addEventListener('click', () => {
   const html = document.documentElement;
   const isDark = html.dataset.theme === 'dark';
-  html.dataset.theme = isDark ? 'light' : 'dark';
+  const next = isDark ? 'light' : 'dark';
+  html.dataset.theme = next;
   document.getElementById('btn-theme').textContent = isDark ? '🌙' : '☀️';
+  localStorage.setItem('theme', next);
 });
-// Set correct initial icon (starts dark, so show sun = "switch to light")
-document.getElementById('btn-theme').textContent = '☀️';
 
 // ═══════════════════════════════════════════════════════════════
 //  UTILS
@@ -2874,7 +3003,8 @@ function escRegex(s) {
 //  RESIZABLE PANELS
 // ═══════════════════════════════════════════════════════════════
 function initResizer(resizerId, leftEl, getRightEl, minLeft, minRight) {
-  const rz = document.getElementById(resizerId);
+  const rz      = document.getElementById(resizerId);
+  const storeKey = 'panel-width-' + resizerId;
   let dragging = false, startX = 0, startW = 0;
 
   rz.addEventListener('mousedown', e => {
@@ -2892,8 +3022,7 @@ function initResizer(resizerId, leftEl, getRightEl, minLeft, minRight) {
     const delta = e.clientX - startX;
     const newW = Math.max(minLeft, startW + delta);
     const containerW = leftEl.parentElement.offsetWidth;
-    const rightMin = minRight;
-    if (containerW - newW - 5 < rightMin) return;
+    if (containerW - newW - 5 < minRight) return;
     leftEl.style.width = newW + 'px';
   });
 
@@ -2903,20 +3032,16 @@ function initResizer(resizerId, leftEl, getRightEl, minLeft, minRight) {
     rz.classList.remove('dragging');
     document.body.style.cursor = '';
     document.body.style.userSelect = '';
+    // Persist the new width
+    localStorage.setItem(storeKey, leftEl.offsetWidth);
   });
-}
 
-// Strip timestamp and level prefix from a log line for display in results
-function stripTimestampAndLevel(text) {
-  // Remove log4net style: "2026-01-01 12:00:00,123 [CID:x] [C:x] [TID:x] LEVEL  "
-  let s = text.replace(/^\d{4}-\d{2}-\d{2}[\sT]\d{2}:\d{2}:\d{2}[,\.]\d+\s*/,'');
-  // Remove bracketed blocks like [CID:] [C:] [TID:54]
-  s = s.replace(/(\[[^\]]{0,30}\]\s*)+/g, '');
-  // Remove leading level word
-  s = s.replace(/^(ERROR|CRITICAL|WARNING|WARN|INFO|INFORMATION|VERBOSE|DEBUG)\s*/i, '');
-  // Remove leftover leading dashes/spaces
-  s = s.replace(/^[\s\-–]+/, '');
-  return s.trim() || text;
+  // Restore saved width if available
+  const saved = localStorage.getItem(storeKey);
+  if (saved) {
+    const w = parseInt(saved);
+    if (w >= minLeft) leftEl.style.width = w + 'px';
+  }
 }
 
 // Boot resizers after analyser is shown
@@ -2992,6 +3117,373 @@ if ('serviceWorker' in navigator) {
     hideBanner();
   });
 })();
+
+// ═══════════════════════════════════════════════════════════════
+//  GUIDED TOUR
+// ═══════════════════════════════════════════════════════════════
+const TOUR_KEY = 'tour-completed-v1';
+
+const TOUR_STEPS = [
+  {
+    id: 'welcome',
+    title: '👋 Welcome to Log Analyser',
+    body: 'Would you like a quick guided tour of the main features? It only takes about a minute. You can skip at any time, or replay it later using the <strong>❓</strong> button in the top right.',
+    target: null,
+    position: 'center',
+    isPrompt: true,
+  },
+  {
+    id: 'product',
+    title: '1 — Select a product',
+    body: 'Start by choosing the product whose logs you want to analyse. This determines which components and log files are available.',
+    target: '.product-grid',
+    position: 'below',
+    setup: () => tourEnsureWizard(),
+  },
+  {
+    id: 'upload',
+    title: '2 — Drop your log files',
+    body: 'Drop one or more log files onto the upload zone. The tool automatically matches each file to its component by filename — including rolled logs like <code>SS.log.1</code>, <code>SS.log.2</code> etc.',
+    target: '#upload-zone',
+    position: 'below',
+    setup: () => tourEnsureWizardWithProduct(),
+  },
+  {
+    id: 'info-btn',
+    title: '3 — Find your log files',
+    body: 'Not sure where a log file lives? Hover the <strong>ⓘ</strong> button next to any component to see its typical path on the server.',
+    target: '#component-grid',
+    position: 'below',
+    setup: () => tourEnsureWizardWithProduct(),
+  },
+  {
+    id: 'sidebar',
+    title: '4 — Sidebar & universal search',
+    body: 'Each loaded component appears in the sidebar. Click one to focus it. The search bar at the top searches across <em>all</em> loaded files — press Enter to run, Escape to clear.',
+    target: '#sidebar',
+    position: 'right',
+    setup: () => tourEnsureAnalyser(),
+  },
+  {
+    id: 'filters',
+    title: '5 — Filter by log level',
+    body: 'Use the level buttons to filter entries by ERROR, WARNING, INFO, VERBOSE, DEBUG and more. Stack trace lines are excluded automatically — only the actual log entry appears.',
+    target: '#top-bar',
+    position: 'below',
+    setup: () => tourEnsureAnalyser(),
+  },
+  {
+    id: 'results',
+    title: '6 — Filtered results',
+    body: 'Matching entries appear here sorted most-recent-first, with level, line number and source file. Click any entry to jump to it in the log viewer.',
+    target: '#results-panel',
+    position: 'right',
+    setup: () => tourEnsureAnalyser(),
+  },
+  {
+    id: 'resize',
+    title: '7 — Resizable panels',
+    body: 'The sidebar, results panel, and log viewer can all be resized. Hover over the thin divider between any two panels — the cursor changes to a resize arrow. Drag to adjust.',
+    target: '#content-area',
+    position: 'above',
+    setup: () => tourEnsureAnalyser(),
+  },
+  {
+    id: 'viewer',
+    title: '8 — Log viewer',
+    body: 'The full log file opens here with the selected line highlighted. Use the <strong>±</strong> time window buttons to narrow to ±15m / 30m / 1h / 4h around the selected entry. Stack traces are collapsed by default.',
+    target: '#log-viewer',
+    position: 'left',
+    setup: () => tourEnsureAnalyser(),
+  },
+  {
+    id: 'similar',
+    title: '9 — Similar entries',
+    body: 'Click <strong>Similar</strong> to open a full-screen overlay showing all lines containing the same logger string. Edit the term to broaden or narrow it, then use ▲▼ to navigate. Scrollbar markers show where every match is.',
+    target: '#btn-highlight-similar',
+    position: 'below',
+    setup: () => tourEnsureAnalyser(),
+  },
+  {
+    id: 'scrub',
+    title: '10 — Scrub PII before sharing',
+    body: 'Highlight any text in the log viewer, then click <strong>Scrub PII & Copy</strong>. A preview shows every replacement — IPs, usernames, domain\\user pairs, SIDs, GUIDs and more — before anything is copied.',
+    target: '#scrub-bar',
+    position: 'above',
+    setup: () => tourEnsureAnalyser(),
+  },
+  {
+    id: 'theme',
+    title: '11 — Light & dark mode',
+    body: 'Toggle between light and dark mode using the button in the top right. Your preference is remembered.',
+    target: '#btn-theme',
+    position: 'below-left',
+    setup: () => tourEnsureAnalyser(),
+  },
+  {
+    id: 'done',
+    title: '✅ You\'re all set!',
+    body: 'That\'s everything. Replay this tour any time with the <strong>❓</strong> button in the header. Happy log hunting!',
+    target: null,
+    position: 'center',
+    setup: () => tourEnsureAnalyser(),
+  },
+];
+
+// ── Tour state setup helpers ──
+function tourEnsureWizard() {
+  if (document.getElementById('wizard').style.display === 'none') {
+    document.getElementById('analyser').style.display = 'none';
+    document.getElementById('wizard').style.display = 'flex';
+  }
+}
+
+function tourEnsureWizardWithProduct() {
+  tourEnsureWizard();
+  // Select SS if no product selected yet
+  if (!state.product) {
+    state.product = 'ss';
+    document.querySelectorAll('.product-btn').forEach(b =>
+      b.classList.toggle('selected', b.dataset.product === 'ss'));
+    renderComponentStep();
+  }
+}
+
+function tourEnsureAnalyser() {
+  // If analyser not visible, inject minimal mock data and switch to it
+  if (document.getElementById('analyser').style.display !== 'flex') {
+    tourInjectMockData();
+  }
+}
+
+function tourInjectMockData() {
+  state.product = 'ss';
+  const comp = PRODUCTS.ss.components[0]; // Main Application
+  const mockLines = [];
+  const base = Date.now() - 60000;
+  const levels = ['INFO','ERROR','WARNING','VERBOSE','DEBUG'];
+  const loggers = ['Thycotic.AppCore.Logging.SystemLogger','Thycotic.ihawu.Business.Logic.MessageQueue','Thycotic.AppCore.Services.BackgroundWorker'];
+  for (let i = 0; i < 60; i++) {
+    const level = levels[i % levels.length];
+    const logger = loggers[i % loggers.length];
+    const ts = base + i * 1000;
+    const text = `${new Date(ts).toISOString().replace('T',' ').replace('Z',',')}000 [CID:] [C:] [TID:Worker-${i}] ${level}  ${logger} - Tour demo log entry ${i + 1}`;
+    mockLines.push({
+      lineNo: i + 1, text,
+      safeHtml: text.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'),
+      strippedHtml: `${logger} - Tour demo log entry ${i + 1}`,
+      level, isContinuation: false, parentLineNo: null,
+      ts, logger, _file: 'SS.log',
+    });
+  }
+  state.loadedData = {
+    'ss-main': {
+      compDef: comp,
+      files: [{ name: 'SS.log', size: 0, lines: mockLines }],
+      merged: [...mockLines],
+    }
+  };
+  state.activeCompId = 'ss-main';
+  currentViewerLines = mockLines;
+
+  document.getElementById('wizard').style.display = 'none';
+  document.getElementById('analyser').style.display = 'flex';
+  initResizers();
+  renderSidebar();
+  activateComponent('ss-main');
+}
+
+// ── Core tour engine ──
+let tourStep = 0;
+let tourRAF  = null;
+let tourCurrentTarget = null;
+let tourCurrentStep   = null;
+
+function startTour() {
+  tourStep = 0;
+  showTourStep();
+}
+
+function showTourStep() {
+  closeTourStep();
+  const step = TOUR_STEPS[tourStep];
+  tourCurrentStep = step;
+
+  // Run any setup needed for this step
+  if (step.setup) step.setup();
+
+  // Build card
+  const card = document.createElement('div');
+  card.id = 'tour-card';
+
+  const contentSteps = TOUR_STEPS.filter(s => !s.isPrompt && s.id !== 'done');
+  const progress = contentSteps.map((_, i) => {
+    const actualIdx = i + 1;
+    return `<div class="tour-dot${actualIdx === tourStep ? ' active' : ''}"></div>`;
+  }).join('');
+
+  card.innerHTML = `
+    <div class="tour-card-header">
+      <div class="tour-step-num">${step.isPrompt ? 'Guided Tour' : `${tourStep} of ${TOUR_STEPS.length - 2}`}</div>
+      <button id="btn-tour-skip" title="Skip tour">✕</button>
+    </div>
+    <div class="tour-title">${step.title}</div>
+    <div class="tour-body">${step.body}</div>
+    <div class="tour-footer">
+      <div class="tour-dots">${step.isPrompt ? '' : progress}</div>
+      <div class="tour-actions">
+        ${step.isPrompt ? `
+          <button class="tour-btn secondary" id="btn-tour-skip-text">Skip tour</button>
+          <button class="tour-btn primary" id="btn-tour-next">Take the tour →</button>
+        ` : `
+          ${tourStep > 1 ? '<button class="tour-btn secondary" id="btn-tour-back">← Back</button>' : ''}
+          <button class="tour-btn primary" id="btn-tour-next">
+            ${tourStep === TOUR_STEPS.length - 1 ? 'Finish 🎉' : 'Next →'}
+          </button>
+        `}
+      </div>
+    </div>
+  `;
+  document.body.appendChild(card);
+
+  // Backdrop + spotlight (updated live by rAF loop)
+  if (step.target) {
+    const backdrop = document.createElement('div');
+    backdrop.id = 'tour-backdrop';
+    document.body.appendChild(backdrop);
+    const spotlight = document.createElement('div');
+    spotlight.id = 'tour-spotlight';
+    document.body.appendChild(spotlight);
+  }
+
+  // Wire buttons
+  document.getElementById('btn-tour-skip').addEventListener('click', endTour);
+  const skipTextBtn = document.getElementById('btn-tour-skip-text');
+  if (skipTextBtn) skipTextBtn.addEventListener('click', endTour);
+  document.getElementById('btn-tour-next').addEventListener('click', () => {
+    if (tourStep === TOUR_STEPS.length - 1) endTour();
+    else { tourStep++; showTourStep(); }
+  });
+  const backBtn = document.getElementById('btn-tour-back');
+  if (backBtn) backBtn.addEventListener('click', () => { tourStep--; showTourStep(); });
+
+  // Start live position loop
+  tourUpdatePositions();
+}
+
+function tourUpdatePositions() {
+  const step     = tourCurrentStep;
+  const card     = document.getElementById('tour-card');
+  const backdrop = document.getElementById('tour-backdrop');
+  const spotlight= document.getElementById('tour-spotlight');
+  if (!card) return;
+
+  const vw  = window.innerWidth;
+  const vh  = window.innerHeight;
+  const pad = 16;
+  const cw  = card.offsetWidth  || 340;
+  const ch  = card.offsetHeight || 200;
+
+  let targetRect = null;
+  if (step && step.target) {
+    const el = document.querySelector(step.target);
+    if (el) targetRect = el.getBoundingClientRect();
+  }
+
+  // Update backdrop cutout + spotlight
+  if (targetRect && backdrop && spotlight) {
+    const p  = 6;
+    const t  = Math.max(0, targetRect.top    - p);
+    const l  = Math.max(0, targetRect.left   - p);
+    const b  = Math.min(vh, targetRect.bottom + p);
+    const r  = Math.min(vw, targetRect.right  + p);
+
+    backdrop.style.clipPath = `polygon(
+      0px 0px, ${vw}px 0px, ${vw}px ${vh}px, 0px ${vh}px,
+      0px ${t}px, ${l}px ${t}px, ${l}px ${b}px, ${r}px ${b}px,
+      ${r}px ${t}px, 0px ${t}px
+    )`;
+
+    spotlight.style.top    = t + 'px';
+    spotlight.style.left   = l + 'px';
+    spotlight.style.width  = (r - l) + 'px';
+    spotlight.style.height = (b - t) + 'px';
+
+    // Position card relative to spotlight, avoiding overlap
+    let top, left;
+    const spaceBelow = vh - b;
+    const spaceAbove = t;
+    const spaceRight = vw - r;
+    const spaceLeft  = l;
+
+    switch (step.position) {
+      case 'below':
+        top  = b + 14;
+        left = l + (r - l - cw) / 2;
+        // If not enough room below, flip above
+        if (top + ch > vh - pad) { top = t - ch - 14; }
+        break;
+      case 'above':
+        top  = t - ch - 14;
+        left = l + (r - l - cw) / 2;
+        if (top < pad) { top = b + 14; }
+        break;
+      case 'right':
+        top  = t + (b - t - ch) / 2;
+        left = r + 14;
+        if (left + cw > vw - pad) { left = l - cw - 14; }
+        break;
+      case 'left':
+        top  = t + (b - t - ch) / 2;
+        left = l - cw - 14;
+        if (left < pad) { left = r + 14; }
+        break;
+      case 'below-left':
+        top  = b + 14;
+        left = r - cw;
+        break;
+      default:
+        top  = b + 14;
+        left = l + (r - l - cw) / 2;
+    }
+
+    left = Math.max(pad, Math.min(left, vw - cw - pad));
+    top  = Math.max(pad, Math.min(top,  vh - ch - pad));
+    card.style.top  = top  + 'px';
+    card.style.left = left + 'px';
+  } else {
+    // Centre card
+    card.style.top  = ((vh - ch) / 2) + 'px';
+    card.style.left = ((vw - cw) / 2) + 'px';
+  }
+
+  tourRAF = requestAnimationFrame(tourUpdatePositions);
+}
+
+function closeTourStep() {
+  if (tourRAF) { cancelAnimationFrame(tourRAF); tourRAF = null; }
+  document.getElementById('tour-backdrop')?.remove();
+  document.getElementById('tour-spotlight')?.remove();
+  document.getElementById('tour-card')?.remove();
+  tourCurrentStep   = null;
+  tourCurrentTarget = null;
+}
+
+function endTour() {
+  closeTourStep();
+  localStorage.setItem(TOUR_KEY, 'done');
+  // Return to home screen and clear mock data
+  document.getElementById('btn-home').click();
+}
+
+// Auto-start on first visit only — localStorage remembers completion
+window.addEventListener('load', () => {
+  if (!localStorage.getItem(TOUR_KEY)) {
+    setTimeout(startTour, 800);
+  }
+});
+
+document.getElementById('btn-tour-replay').addEventListener('click', startTour);
 
 // ═══════════════════════════════════════════════════════════════
 //  BOOT
