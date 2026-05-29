@@ -1,0 +1,2327 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Log Analyser</title>
+<link rel="icon" type="image/x-icon" href="favicon.ico">
+<link rel="icon" type="image/png" sizes="32x32" href="icon-32.png">
+<link rel="icon" type="image/png" sizes="16x16" href="icon-16.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#6B21A8">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+  /* ── TOKENS ── */
+  :root {
+    --brand-purple: #6B21A8;
+    --brand-teal:   #0D9488;
+    --brand-teal-bright: #14B8A6;
+
+    /* DARK theme (default) */
+    --bg-base:      #0D0D12;
+    --bg-surface:   #13131A;
+    --bg-elevated:  #1A1A24;
+    --bg-hover:     #22222E;
+    --bg-active:    #2A1F40;
+    --border:       #2A2A3A;
+    --border-accent:#4C1D95;
+
+    --text-primary:   #F0EEFF;
+    --text-secondary: #9E99B8;
+    --text-muted:     #5A5575;
+    --text-code:      #C8C2FF;
+
+    --accent-purple:  #A855F7;
+    --accent-teal:    #2DD4BF;
+    --accent-teal-dim:#0F766E;
+
+    --level-error:    #F87171;
+    --level-error-bg: rgba(239,68,68,0.10);
+    --level-warn:     #FBBF24;
+    --level-warn-bg:  rgba(251,191,36,0.10);
+    --level-info:     #60A5FA;
+    --level-info-bg:  rgba(96,165,250,0.08);
+    --level-verbose:  #A78BFA;
+    --level-verbose-bg: rgba(167,139,250,0.08);
+    --level-debug:    #6B7280;
+    --level-debug-bg: rgba(107,114,128,0.08);
+    --level-critical: #FF4444;
+    --level-critical-bg: rgba(255,68,68,0.15);
+
+    --highlight-similar: rgba(45,212,191,0.15);
+    --highlight-search:  rgba(168,85,247,0.25);
+    --highlight-focus:   rgba(168,85,247,0.35);
+
+    --shadow-sm: 0 1px 3px rgba(0,0,0,0.4);
+    --shadow-md: 0 4px 16px rgba(0,0,0,0.5);
+    --shadow-lg: 0 8px 32px rgba(0,0,0,0.6);
+
+    --radius-sm: 4px;
+    --radius-md: 8px;
+    --radius-lg: 12px;
+    --radius-xl: 16px;
+
+    --sidebar-w: 260px;
+    --header-h:  56px;
+    --font-mono: 'JetBrains Mono', monospace;
+    --font-ui:   'Syne', sans-serif;
+  }
+
+  [data-theme="light"] {
+    --bg-base:      #F4F3FF;
+    --bg-surface:   #FFFFFF;
+    --bg-elevated:  #EDE9FE;
+    --bg-hover:     #DDD6FE;
+    --bg-active:    #C4B5FD;
+    --border:       #D1C8F5;
+    --border-accent:#7C3AED;
+
+    --text-primary:   #1A1033;
+    --text-secondary: #4B4580;
+    --text-muted:     #8B80B8;
+    --text-code:      #3D2D8A;
+
+    --accent-purple:  #7C3AED;
+    --accent-teal:    #0D9488;
+    --accent-teal-dim:#CCFBF1;
+
+    --level-error:    #DC2626;
+    --level-error-bg: rgba(220,38,38,0.08);
+    --level-warn:     #D97706;
+    --level-warn-bg:  rgba(217,119,6,0.08);
+    --level-info:     #2563EB;
+    --level-info-bg:  rgba(37,99,235,0.06);
+    --level-verbose:  #7C3AED;
+    --level-verbose-bg: rgba(124,58,237,0.06);
+    --level-debug:    #6B7280;
+    --level-debug-bg: rgba(107,114,128,0.06);
+    --level-critical: #991B1B;
+    --level-critical-bg: rgba(153,27,27,0.10);
+
+    --highlight-similar: rgba(13,148,136,0.12);
+    --highlight-search:  rgba(124,58,237,0.18);
+    --highlight-focus:   rgba(124,58,237,0.25);
+
+    --shadow-sm: 0 1px 3px rgba(0,0,0,0.10);
+    --shadow-md: 0 4px 16px rgba(0,0,0,0.12);
+    --shadow-lg: 0 8px 32px rgba(0,0,0,0.16);
+  }
+
+  /* ── RESET ── */
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; overflow: hidden; }
+  body {
+    font-family: var(--font-ui);
+    background: var(--bg-base);
+    color: var(--text-primary);
+    font-size: 14px;
+    line-height: 1.5;
+    transition: background 0.2s, color 0.2s;
+  }
+  button { cursor: pointer; font-family: var(--font-ui); border: none; background: none; color: inherit; }
+  input { font-family: var(--font-mono); }
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: var(--bg-surface); }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+  ::-webkit-scrollbar-thumb:hover { background: var(--accent-purple); }
+
+  /* ── LAYOUT ── */
+  #app { display: flex; flex-direction: column; height: 100vh; }
+
+  /* RESIZER */
+  .resizer {
+    width: 5px;
+    background: var(--border);
+    cursor: col-resize;
+    flex-shrink: 0;
+    transition: background 0.15s;
+    position: relative;
+    z-index: 10;
+  }
+  .resizer:hover, .resizer.dragging { background: var(--accent-teal); }
+
+  /* HEADER */
+  #header {
+    height: var(--header-h);
+    background: var(--bg-surface);
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    padding: 0 16px;
+    gap: 12px;
+    flex-shrink: 0;
+    z-index: 100;
+  }
+  #header .logo {
+    display: flex; align-items: center; gap: 10px;
+    font-family: var(--font-ui);
+    font-weight: 800;
+    font-size: 17px;
+    letter-spacing: -0.3px;
+    color: var(--text-primary);
+    flex-shrink: 0;
+    cursor: pointer;
+    background: none;
+    border: none;
+    padding: 4px 8px;
+    border-radius: var(--radius-md);
+    transition: background 0.15s;
+  }
+  #header .logo:hover { background: var(--bg-hover); }
+  #header .logo-icon {
+    width: 28px; height: 28px;
+    background: linear-gradient(135deg, var(--brand-purple), var(--brand-teal));
+    border-radius: var(--radius-sm);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 14px;
+  }
+  #header .logo-sub {
+    font-size: 11px;
+    font-weight: 400;
+    color: var(--text-muted);
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+  }
+  #header .divider { width: 1px; height: 24px; background: var(--border); flex-shrink: 0; }
+  #header .spacer { flex: 1; }
+  #btn-theme {
+    width: 32px; height: 32px;
+    border-radius: var(--radius-md);
+    border: 1px solid var(--border);
+    background: var(--bg-elevated);
+    color: var(--text-secondary);
+    font-size: 15px;
+    display: flex; align-items: center; justify-content: center;
+    transition: all 0.15s;
+  }
+  #btn-theme:hover { background: var(--bg-hover); color: var(--text-primary); border-color: var(--accent-purple); }
+
+  /* BODY */
+  #body { display: flex; flex: 1; overflow: hidden; }
+
+  /* SIDEBAR */
+  #sidebar {
+    width: 260px;
+    min-width: 140px;
+    max-width: 480px;
+    background: var(--bg-surface);
+    border-right: none;
+    display: flex;
+    flex-direction: column;
+    flex-shrink: 0;
+    overflow: hidden;
+  }
+  #sidebar-search-wrap {
+    padding: 10px;
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+    position: relative;
+  }
+  #sidebar-search-wrap:hover::after {
+    content: 'Searches across all loaded log files';
+    position: absolute;
+    top: calc(100% + 4px);
+    left: 10px; right: 10px;
+    background: var(--bg-base);
+    border: 1px solid var(--border);
+    color: var(--text-muted);
+    font-family: var(--font-ui);
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.3px;
+    padding: 5px 8px;
+    border-radius: var(--radius-sm);
+    text-align: center;
+    z-index: 50;
+    pointer-events: none;
+    box-shadow: var(--shadow-sm);
+  }
+  #sidebar-search {
+    width: 100%;
+    background: var(--bg-elevated);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    padding: 7px 10px 7px 30px;
+    font-size: 12px;
+    color: var(--text-primary);
+    outline: none;
+    transition: border-color 0.15s;
+    font-family: var(--font-mono);
+  }
+  #sidebar-search:focus { border-color: var(--accent-purple); }
+  #sidebar-search::placeholder { color: var(--text-muted); }
+  .search-wrap-inner { position: relative; }
+  .search-wrap-inner::before {
+    content: '⌕';
+    position: absolute; left: 8px; top: 50%; transform: translateY(-50%);
+    color: var(--text-muted); font-size: 14px; pointer-events: none;
+  }
+  #sidebar-components { flex: 1; overflow-y: auto; padding: 8px 0; }
+  .sidebar-section-label {
+    padding: 8px 12px 4px;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: var(--text-muted);
+  }
+  .component-item {
+    display: flex; align-items: center; gap: 8px;
+    padding: 7px 12px;
+    cursor: pointer;
+    border-radius: var(--radius-sm);
+    margin: 0 6px;
+    transition: background 0.12s;
+    position: relative;
+  }
+  .component-item:hover { background: var(--bg-hover); }
+  .component-item.active {
+    background: var(--bg-active);
+    border-left: 2px solid var(--accent-teal);
+    padding-left: 10px;
+  }
+  .component-item .comp-icon {
+    width: 22px; height: 22px;
+    border-radius: var(--radius-sm);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 11px;
+    flex-shrink: 0;
+  }
+  .component-item .comp-name { font-size: 12px; font-weight: 600; flex: 1; }
+  .component-item .comp-count {
+    font-size: 10px; font-family: var(--font-mono);
+    background: var(--bg-elevated);
+    border-radius: 10px;
+    padding: 1px 6px;
+    color: var(--text-muted);
+  }
+  .component-item .comp-search-check {
+    width: 16px; height: 16px;
+    border-radius: 3px;
+    border: 1.5px solid var(--accent-teal);
+    background: var(--accent-teal);
+    display: none;
+    align-items: center; justify-content: center;
+    font-size: 10px; color: #000;
+    flex-shrink: 0;
+    cursor: pointer;
+    transition: all 0.12s;
+  }
+  .component-item .comp-search-check.excluded {
+    background: transparent;
+    color: transparent;
+  }
+  .search-mode-active .component-item .comp-search-check { display: flex; }
+  .search-mode-active .component-item { cursor: default; }
+  .search-mode-active .component-item:hover { background: var(--bg-hover); }
+
+  /* MAIN */
+  #main { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+
+  /* WELCOME / WIZARD */
+  #wizard {
+    flex: 1; display: flex; flex-direction: column;
+    align-items: center; justify-content: flex-start;
+    padding: 32px 20px 40px;
+    overflow-y: auto;
+  }
+  .wizard-card {
+    background: var(--bg-surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-xl);
+    padding: 28px 32px;
+    width: 100%;
+    max-width: 720px;
+    box-shadow: var(--shadow-md);
+    flex-shrink: 0;
+  }
+  .wizard-title {
+    font-size: 22px; font-weight: 800;
+    color: var(--text-primary);
+    margin-bottom: 4px;
+  }
+  .wizard-subtitle { font-size: 13px; color: var(--text-secondary); margin-bottom: 24px; }
+  .wizard-step-label {
+    font-size: 10px; font-weight: 700; letter-spacing: 1.5px;
+    text-transform: uppercase;
+    color: var(--accent-teal);
+    margin-bottom: 12px;
+  }
+  .product-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 10px; margin-bottom: 24px; }
+  .product-btn {
+    padding: 14px 12px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    background: var(--bg-elevated);
+    color: var(--text-primary);
+    font-family: var(--font-ui);
+    font-size: 13px;
+    font-weight: 600;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.15s;
+    display: flex; flex-direction: column; align-items: center; gap: 6px;
+  }
+  .product-btn .product-icon { font-size: 22px; }
+  .product-btn:hover { border-color: var(--accent-teal); background: var(--bg-hover); }
+  .product-btn.selected { border-color: var(--accent-teal); background: var(--bg-active); color: var(--accent-teal); box-shadow: 0 0 0 2px var(--accent-teal-dim); }
+  .component-grid { display: flex; flex-direction: column; gap: 6px; margin-bottom: 24px; }
+  .comp-row {
+    display: flex; align-items: center; gap: 10px;
+    padding: 10px 12px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    background: var(--bg-elevated);
+    cursor: pointer;
+    transition: all 0.15s;
+    position: relative;
+  }
+  .comp-row:hover { border-color: var(--accent-teal); background: var(--bg-hover); }
+  .comp-row.selected { border-color: var(--accent-teal); background: var(--bg-active); }
+  .comp-row .comp-check {
+    width: 18px; height: 18px;
+    border: 1.5px solid var(--border);
+    border-radius: 4px;
+    background: var(--bg-surface);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 11px;
+    flex-shrink: 0;
+    transition: all 0.12s;
+  }
+  .comp-row.selected .comp-check { background: var(--accent-teal); border-color: var(--accent-teal); color: #000; }
+  .comp-row .comp-info { flex: 1; min-width: 0; }
+  .comp-row .comp-info .ci-name { font-size: 13px; font-weight: 600; }
+  .comp-row .comp-info .ci-file { font-size: 11px; font-family: var(--font-mono); color: var(--text-muted); }
+  .comp-row .comp-info .ci-desc { font-size: 11px; color: var(--text-secondary); margin-top: 1px; }
+  /* tooltip - scoped only to info-btn */
+  .info-btn[data-tooltip] { position: relative; }
+  .info-btn[data-tooltip]:hover::after {
+    content: attr(data-tooltip);
+    position: absolute;
+    bottom: calc(100% + 8px);
+    right: 0;
+    background: var(--bg-base);
+    border: 1px solid var(--accent-teal);
+    color: var(--text-primary);
+    font-family: var(--font-mono);
+    font-size: 11px;
+    padding: 6px 10px;
+    border-radius: var(--radius-md);
+    white-space: pre;
+    z-index: 1000;
+    box-shadow: var(--shadow-lg);
+    pointer-events: none;
+    max-width: 420px;
+    line-height: 1.6;
+  }
+  .info-btn[data-tooltip]:hover::before {
+    content: '📂 Log path:';
+    position: absolute;
+    bottom: calc(100% + 30px);
+    right: 0;
+    background: var(--bg-base);
+    border: 1px solid var(--accent-teal);
+    border-bottom: none;
+    color: var(--accent-teal);
+    font-family: var(--font-ui);
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    padding: 4px 10px 2px;
+    border-radius: var(--radius-md) var(--radius-md) 0 0;
+    white-space: nowrap;
+    z-index: 1001;
+    pointer-events: none;
+  }
+
+  /* info button */
+  .info-btn {
+    width: 22px; height: 22px;
+    border-radius: 50%;
+    border: 1.5px solid var(--accent-teal);
+    background: transparent;
+    color: var(--accent-teal);
+    font-size: 12px;
+    font-weight: 700;
+    font-family: var(--font-ui);
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+    cursor: default;
+    transition: background 0.15s, color 0.15s;
+    line-height: 1;
+    position: relative;
+  }
+  .info-btn:hover {
+    background: var(--accent-teal);
+    color: var(--bg-base);
+  }
+
+  /* UPLOAD ZONE */
+  .upload-zone {
+    border: 2px dashed var(--border);
+    border-radius: var(--radius-lg);
+    padding: 20px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.15s;
+    color: var(--text-secondary);
+    font-size: 13px;
+    margin-bottom: 20px;
+  }
+  .upload-zone:hover, .upload-zone.drag-over { border-color: var(--accent-teal); background: var(--bg-hover); color: var(--text-primary); }
+  .upload-zone .uz-icon { font-size: 28px; margin-bottom: 6px; }
+  .upload-zone .uz-sub { font-size: 11px; color: var(--text-muted); margin-top: 3px; }
+  .upload-slots { display: flex; flex-direction: column; gap: 6px; margin-bottom: 20px; }
+  .upload-slot {
+    display: flex; align-items: center; gap: 8px;
+    padding: 8px 12px;
+    background: var(--bg-elevated);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    font-size: 12px;
+  }
+  .upload-slot .us-icon { font-size: 16px; }
+  .upload-slot .us-name { flex: 1; font-family: var(--font-mono); color: var(--text-primary); }
+  .upload-slot .us-size { color: var(--text-muted); font-family: var(--font-mono); font-size: 11px; }
+  .upload-slot .us-remove { color: var(--level-error); padding: 2px 6px; font-size: 13px; transition: opacity 0.12s; }
+  .upload-slot .us-remove:hover { opacity: 0.7; }
+
+  .wizard-btn {
+    padding: 10px 20px;
+    border-radius: var(--radius-md);
+    font-family: var(--font-ui);
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.15s;
+    display: inline-flex; align-items: center; gap: 6px;
+  }
+  .wizard-btn.primary {
+    background: linear-gradient(135deg, var(--brand-purple), var(--brand-teal));
+    color: #fff;
+    border: none;
+  }
+  .wizard-btn.primary:hover { opacity: 0.9; transform: translateY(-1px); box-shadow: var(--shadow-md); }
+  .wizard-btn.primary:disabled { opacity: 0.35; cursor: not-allowed; transform: none; }
+  .wizard-btn.secondary {
+    background: var(--bg-elevated);
+    border: 1px solid var(--border);
+    color: var(--text-secondary);
+  }
+  .privacy-banner {
+    display: flex; align-items: flex-start; gap: 10px;
+    background: var(--bg-elevated);
+    border: 1px solid var(--accent-teal-dim);
+    border-left: 3px solid var(--accent-teal);
+    border-radius: var(--radius-md);
+    padding: 12px 14px;
+    margin-bottom: 24px;
+    font-size: 12px;
+    color: var(--text-secondary);
+    line-height: 1.6;
+  }
+  .privacy-banner .pb-icon { font-size: 18px; flex-shrink: 0; margin-top: 1px; }
+  .privacy-banner strong { color: var(--accent-teal); font-weight: 700; }
+
+  /* ── ANALYSER VIEW ── */
+  #analyser { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+
+  /* TOP BAR */
+  #top-bar {
+    height: 44px;
+    background: var(--bg-surface);
+    border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; gap: 8px;
+    padding: 0 12px;
+    flex-shrink: 0;
+  }
+  .level-filter-btn {
+    padding: 4px 10px;
+    border-radius: 20px;
+    font-size: 11px;
+    font-weight: 600;
+    font-family: var(--font-mono);
+    border: 1px solid transparent;
+    transition: all 0.12s;
+    cursor: pointer;
+  }
+  .level-filter-btn[data-level="ALL"] { background: var(--bg-elevated); color: var(--text-secondary); border-color: var(--border); }
+  .level-filter-btn[data-level="ALL"].active { background: var(--accent-purple); color: #fff; border-color: var(--accent-purple); }
+  .level-filter-btn[data-level="ERROR"],.level-filter-btn[data-level="CRITICAL"] { background: var(--level-error-bg); color: var(--level-error); border-color: var(--level-error); opacity: 0.5; }
+  .level-filter-btn[data-level="ERROR"].active,.level-filter-btn[data-level="CRITICAL"].active { opacity: 1; }
+  .level-filter-btn[data-level="WARNING"] { background: var(--level-warn-bg); color: var(--level-warn); border-color: var(--level-warn); opacity: 0.5; }
+  .level-filter-btn[data-level="WARNING"].active { opacity: 1; }
+  .level-filter-btn[data-level="INFO"] { background: var(--level-info-bg); color: var(--level-info); border-color: var(--level-info); opacity: 0.5; }
+  .level-filter-btn[data-level="INFO"].active { opacity: 1; }
+  .level-filter-btn[data-level="VERBOSE"] { background: var(--level-verbose-bg); color: var(--level-verbose); border-color: var(--level-verbose); opacity: 0.5; }
+  .level-filter-btn[data-level="VERBOSE"].active { opacity: 1; }
+  .level-filter-btn[data-level="DEBUG"] { background: var(--level-debug-bg); color: var(--level-debug); border-color: var(--level-debug); opacity: 0.5; }
+  .level-filter-btn[data-level="DEBUG"].active { opacity: 1; }
+  .topbar-divider { width: 1px; height: 20px; background: var(--border); flex-shrink: 0; }
+  .topbar-count { font-size: 11px; color: var(--text-muted); font-family: var(--font-mono); white-space: nowrap; }
+  .topbar-spacer { flex: 1; }
+  #btn-add-more {
+    padding: 5px 10px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    background: var(--bg-elevated);
+    color: var(--text-secondary);
+    font-size: 11px; font-weight: 600;
+    transition: all 0.12s;
+  }
+  #btn-add-more:hover { border-color: var(--accent-teal); color: var(--text-primary); }
+
+  /* CONTENT AREA */
+  #content-area { flex: 1; display: flex; overflow: hidden; }
+
+  /* RESULTS PANEL */
+  #results-panel {
+    width: 340px;
+    min-width: 180px;
+    max-width: 600px;
+    border-right: none;
+    display: flex; flex-direction: column;
+    flex-shrink: 0;
+    overflow: hidden;
+  }
+  #results-header {
+    padding: 8px 10px;
+    border-bottom: 1px solid var(--border);
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    display: flex; align-items: center; gap: 6px;
+    flex-shrink: 0;
+  }
+  #results-list { flex: 1; overflow-y: auto; }
+  .result-group-header {
+    padding: 6px 10px 3px;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.8px;
+    text-transform: uppercase;
+    color: var(--accent-teal);
+    border-top: 1px solid var(--border);
+    background: var(--bg-surface);
+    position: sticky; top: 0; z-index: 1;
+  }
+  .result-item {
+    padding: 7px 10px;
+    border-bottom: 1px solid rgba(255,255,255,0.03);
+    cursor: pointer;
+    transition: background 0.1s;
+    display: flex; flex-direction: column; gap: 2px;
+  }
+  .result-item:hover { background: var(--bg-hover); }
+  .result-item.focused { background: var(--highlight-focus); }
+  .result-item .ri-meta {
+    display: flex; align-items: center; gap: 6px;
+    font-size: 10px; font-family: var(--font-mono); color: var(--text-muted);
+  }
+  .result-item .ri-line { color: var(--accent-teal); }
+  .result-item .ri-file { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 160px; }
+  .level-badge {
+    font-size: 9px; font-weight: 700; font-family: var(--font-mono);
+    padding: 1px 5px; border-radius: 3px;
+    flex-shrink: 0;
+  }
+  .level-badge.ERROR,.level-badge.CRITICAL { background: var(--level-error-bg); color: var(--level-error); }
+  .level-badge.WARNING { background: var(--level-warn-bg); color: var(--level-warn); }
+  .level-badge.INFO { background: var(--level-info-bg); color: var(--level-info); }
+  .level-badge.VERBOSE { background: var(--level-verbose-bg); color: var(--level-verbose); }
+  .level-badge.DEBUG { background: var(--level-debug-bg); color: var(--level-debug); }
+  .result-item .ri-msg {
+    font-size: 11px; font-family: var(--font-mono);
+    color: var(--text-secondary);
+    white-space: pre-wrap;
+    word-break: break-word;
+    line-height: 1.5;
+  }
+  .empty-state {
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    height: 200px; color: var(--text-muted); font-size: 12px; gap: 8px;
+    text-align: center; padding: 20px;
+  }
+  .empty-state-icon { font-size: 28px; }
+
+  /* LOG VIEWER */
+  #log-viewer {
+    flex: 1; display: flex; flex-direction: column; overflow: hidden;
+    background: var(--bg-base);
+  }
+  #viewer-toolbar {
+    padding: 6px 10px;
+    background: var(--bg-surface);
+    border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; gap: 8px;
+    flex-shrink: 0; flex-wrap: wrap;
+  }
+  #viewer-file-label {
+    font-size: 11px; font-family: var(--font-mono);
+    color: var(--text-secondary);
+    padding: 3px 8px;
+    background: var(--bg-elevated);
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--border);
+    max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .viewer-search-wrap { position: relative; flex: 1; min-width: 140px; }
+  #viewer-search {
+    width: 100%;
+    background: var(--bg-elevated);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    padding: 5px 8px 5px 26px;
+    font-size: 11px; font-family: var(--font-mono);
+    color: var(--text-primary); outline: none;
+    transition: border-color 0.15s;
+  }
+  #viewer-search:focus { border-color: var(--accent-purple); }
+  #viewer-search::placeholder { color: var(--text-muted); }
+  .viewer-search-wrap::before {
+    content: '⌕'; position: absolute; left: 7px; top: 50%; transform: translateY(-50%);
+    color: var(--text-muted); font-size: 13px; pointer-events: none;
+  }
+  #viewer-search-count { font-size: 11px; font-family: var(--font-mono); color: var(--text-muted); white-space: nowrap; }
+  #btn-prev-match, #btn-next-match {
+    width: 24px; height: 24px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    background: var(--bg-elevated);
+    color: var(--text-secondary);
+    font-size: 12px;
+    display: flex; align-items: center; justify-content: center;
+    transition: all 0.12s;
+  }
+  #btn-prev-match:hover, #btn-next-match:hover { border-color: var(--accent-purple); color: var(--text-primary); }
+
+  /* TIME WINDOW */
+  .time-window-wrap {
+    display: flex; align-items: center; gap: 4px;
+    flex-shrink: 0;
+  }
+  .time-window-label { font-size: 10px; color: var(--text-muted); font-weight: 600; letter-spacing: 0.5px; }
+  .tw-btn {
+    padding: 3px 7px;
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    font-size: 10px; font-family: var(--font-mono); font-weight: 600;
+    color: var(--text-muted);
+    background: var(--bg-elevated);
+    transition: all 0.12s; cursor: pointer;
+  }
+  .tw-btn:hover { border-color: var(--accent-teal); color: var(--accent-teal); }
+  .tw-btn.active { background: var(--accent-teal-dim); border-color: var(--accent-teal); color: var(--accent-teal); }
+  #btn-highlight-similar {
+    padding: 4px 10px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    background: var(--bg-elevated);
+    color: var(--text-secondary);
+    font-size: 11px; font-weight: 600;
+    transition: all 0.12s;
+    white-space: nowrap;
+  }
+  #btn-highlight-similar:hover { border-color: var(--accent-teal); color: var(--accent-teal); }
+  #btn-highlight-similar.active { background: var(--highlight-similar); border-color: var(--accent-teal); color: var(--accent-teal); }
+
+  /* LOG CONTENT */
+  #log-content {
+    flex: 1; overflow-y: auto; overflow-x: auto;
+    font-family: var(--font-mono);
+    font-size: 12px;
+    line-height: 1.7;
+    position: relative;
+  }
+  #log-content-sizer {
+    position: relative;
+  }
+  #log-content-rows {
+    position: absolute;
+    left: 0; right: 0;
+  }
+  .log-line {
+    display: flex;
+    padding: 0 10px;
+    border-left: 2px solid transparent;
+    transition: background 0.1s;
+  }
+  .log-line:hover { background: var(--bg-hover); }
+  .log-line.focus-line { background: var(--highlight-focus) !important; border-left-color: var(--accent-purple); }
+  .log-line.similar-line { background: var(--highlight-similar); border-left-color: var(--accent-teal); }
+  .log-line.search-match { background: var(--highlight-search); }
+  .log-line.search-current { background: var(--highlight-focus); border-left-color: var(--accent-purple); }
+  .log-line.level-ERROR,.log-line.level-CRITICAL { background: var(--level-error-bg); }
+  .log-line.level-WARNING { background: var(--level-warn-bg); }
+  .log-line .ln {
+    min-width: 52px; color: var(--text-muted);
+    font-size: 10px; user-select: none;
+    padding-right: 10px; text-align: right;
+    flex-shrink: 0; padding-top: 1px;
+  }
+  .log-line .lc { flex: 1; white-space: pre-wrap; word-break: break-word; color: var(--text-code); }
+  .log-line.level-ERROR .lc,.log-line.level-CRITICAL .lc { color: var(--level-error); }
+  .log-line.level-WARNING .lc { color: var(--level-warn); }
+  .log-line.level-INFO .lc { color: var(--text-code); }
+  .log-line.level-VERBOSE .lc { color: var(--level-verbose); }
+  .log-line.level-DEBUG .lc { color: var(--level-debug); }
+  .search-highlight { background: rgba(168,85,247,0.5); border-radius: 2px; }
+  .viewer-placeholder {
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    height: 100%; color: var(--text-muted); font-size: 12px; gap: 10px; font-family: var(--font-mono);
+  }
+  .viewer-placeholder-icon { font-size: 36px; }
+
+  /* PII SCRUB BAR */
+  #scrub-bar {
+    padding: 8px 12px;
+    background: var(--bg-surface);
+    border-top: 1px solid var(--border);
+    display: flex; align-items: center; gap: 8px;
+    flex-shrink: 0;
+  }
+  #scrub-bar .scrub-label { font-size: 11px; color: var(--text-muted); flex: 1; }
+  #btn-scrub {
+    padding: 6px 14px;
+    border-radius: var(--radius-md);
+    font-size: 12px; font-weight: 700;
+    background: linear-gradient(135deg, var(--brand-purple), var(--brand-teal));
+    color: #fff; border: none;
+    transition: all 0.15s;
+    white-space: nowrap;
+  }
+  #btn-scrub:disabled { opacity: 0.3; cursor: not-allowed; }
+  #btn-scrub:not(:disabled):hover { opacity: 0.9; transform: translateY(-1px); box-shadow: var(--shadow-md); }
+
+  /* SCRUB MODAL */
+  #scrub-modal {
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,0.65);
+    z-index: 500;
+    display: flex; align-items: center; justify-content: center;
+    padding: 20px;
+    backdrop-filter: blur(4px);
+  }
+  #scrub-modal.hidden { display: none; }
+  .scrub-modal-card {
+    background: var(--bg-surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-xl);
+    padding: 24px;
+    width: 100%; max-width: 640px;
+    box-shadow: var(--shadow-lg);
+    display: flex; flex-direction: column; gap: 14px;
+  }
+  .scrub-modal-title { font-size: 16px; font-weight: 800; }
+  .scrub-modal-subtitle { font-size: 12px; color: var(--text-secondary); margin-top: -8px; }
+  .scrub-changes { display: flex; flex-direction: column; gap: 4px; max-height: 120px; overflow-y: auto; }
+  .scrub-change-item {
+    display: flex; align-items: center; gap: 8px;
+    font-size: 11px; font-family: var(--font-mono);
+    padding: 3px 0;
+    border-bottom: 1px solid var(--border);
+  }
+  .scrub-change-item .sci-original { color: var(--level-error); text-decoration: line-through; opacity: 0.8; flex: 1; }
+  .scrub-change-item .sci-arrow { color: var(--text-muted); }
+  .scrub-change-item .sci-replacement { color: var(--accent-teal); flex: 1; }
+  .scrub-output-label { font-size: 11px; font-weight: 600; color: var(--text-secondary); }
+  #scrub-output {
+    width: 100%;
+    background: var(--bg-elevated);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    padding: 10px;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--text-primary);
+    min-height: 80px; max-height: 180px;
+    resize: vertical; outline: none;
+    line-height: 1.7;
+  }
+  .scrub-modal-actions { display: flex; gap: 8px; justify-content: flex-end; align-items: center; }
+  #scrub-copy-status { font-size: 11px; color: var(--accent-teal); flex: 1; }
+
+  /* search mode clear button */
+  #btn-clear-search {
+    padding: 2px 8px;
+    border-radius: 20px;
+    font-size: 10px; font-weight: 700;
+    background: var(--bg-elevated);
+    border: 1px solid var(--border);
+    color: var(--text-muted);
+    cursor: pointer;
+    transition: all 0.12s;
+    display: none;
+  }
+  #btn-clear-search:hover { border-color: var(--level-error); color: var(--level-error); }
+  #btn-clear-search.visible { display: inline-flex; align-items: center; gap: 4px; }
+  #results-header.search-mode { color: var(--accent-teal); }
+
+  /* PROGRESS BAR */
+  #parse-progress {
+    position: fixed; top: var(--header-h); left: 0; right: 0;
+    height: 2px;
+    background: linear-gradient(90deg, var(--brand-purple), var(--brand-teal));
+    z-index: 300;
+    transform-origin: left;
+    transform: scaleX(0);
+    transition: transform 0.3s;
+  }
+  .no-files-msg {
+    padding: 20px; text-align: center;
+    font-size: 12px; color: var(--text-muted); font-family: var(--font-mono);
+  }
+</style>
+</head>
+<body>
+
+<div id="app">
+  <!-- HEADER -->
+  <header id="header">
+    <button class="logo" id="btn-home" title="Return to home and clear loaded logs">
+      <div class="logo-icon">🔍</div>
+      <div>
+        <div>Log Analyser</div>
+        <div class="logo-sub">Unofficial Support Tool</div>
+      </div>
+    </button>
+    <div class="divider"></div>
+    <div class="spacer"></div>
+    <button id="btn-theme" title="Toggle light/dark mode">🌙</button>
+  </header>
+
+  <!-- BODY -->
+  <div id="body">
+
+    <!-- SIDEBAR -->
+    <nav id="sidebar">
+      <div id="sidebar-search-wrap">
+        <div class="search-wrap-inner"
+             title="Search across all loaded log files">
+          <input id="sidebar-search" type="text" placeholder="Search all logs…" autocomplete="off">
+        </div>
+      </div>
+      <div id="sidebar-components">
+        <div class="no-files-msg">No files loaded yet.</div>
+      </div>
+    </nav>
+
+    <div class="resizer" id="resizer-sidebar"></div>
+
+    <!-- MAIN -->
+    <main id="main">
+
+      <!-- WIZARD -->
+      <div id="wizard">
+        <div class="wizard-card">
+          <div class="wizard-title">Welcome to Log Analyser</div>
+          <div class="wizard-subtitle">Select a product, upload your log files and the tool will automatically recognise which component each file belongs to. Hover over the <strong>(i)</strong> button next to any component to see its typical log file path.</div>
+
+          <div class="privacy-banner">
+            <span class="pb-icon">🔒</span>
+            <div>
+              <strong>Your data never leaves your browser.</strong>
+              All log files are processed entirely on your device using local JavaScript — nothing is uploaded to any server, cloud service, or third party. You can use this tool safely with sensitive or production logs.
+            </div>
+          </div>
+
+          <div class="privacy-banner" style="border-left-color:var(--level-warn);border-color:var(--level-warn-bg)">
+            <span class="pb-icon">⚠️</span>
+            <div>
+              <strong style="color:var(--level-warn)">Unofficial tool.</strong>
+              This is a community-built utility and is not created, endorsed, or supported by Delinea. Product and component names are used for reference only.
+            </div>
+          </div>
+
+          <div class="wizard-step-label">Step 1 — Select Product</div>
+          <div class="product-grid">
+            <button class="product-btn" data-product="ss">
+              <span class="product-icon">🔐</span>
+              Secret Server
+            </button>
+            <button class="product-btn" data-product="platform">
+              <span class="product-icon">☁️</span>
+              Delinea Platform
+            </button>
+            <button class="product-btn" data-product="cm">
+              <span class="product-icon">🖥️</span>
+              Connection Manager
+            </button>
+          </div>
+
+          <div id="wizard-step2" style="display:none">
+            <div class="wizard-step-label">Step 2 — Upload Log Files</div>
+            <div style="display:flex;align-items:stretch;gap:10px;margin-bottom:4px">
+              <div class="upload-zone" id="upload-zone" style="flex:1;margin-bottom:0">
+                <div class="uz-icon">📂</div>
+                <div>Drop log files here or <strong>click to browse</strong></div>
+                <div class="uz-sub">Files are automatically matched to their component by filename</div>
+              </div>
+              <button class="wizard-btn primary" id="btn-analyse" disabled
+                style="width:90px;flex-shrink:0;white-space:normal;text-align:center;line-height:1.4;padding:12px 10px">
+                Analyse Logs →
+              </button>
+            </div>
+            <input type="file" id="file-input" multiple accept=".log,.csv,.txt" style="display:none">
+            <div id="component-grid" class="component-grid"></div>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- ANALYSER -->
+      <div id="analyser" style="display:none">
+        <div id="top-bar">
+          <button class="level-filter-btn active" data-level="ALL">ALL</button>
+          <button class="level-filter-btn" data-level="ERROR">ERROR</button>
+          <button class="level-filter-btn" data-level="CRITICAL">CRITICAL</button>
+          <button class="level-filter-btn" data-level="WARNING">WARNING</button>
+          <button class="level-filter-btn" data-level="INFO">INFO</button>
+          <button class="level-filter-btn" data-level="VERBOSE">VERBOSE</button>
+          <button class="level-filter-btn" data-level="DEBUG">DEBUG</button>
+          <div class="topbar-divider"></div>
+          <span class="topbar-count" id="result-count">— entries</span>
+          <div class="topbar-spacer"></div>
+          <button id="btn-add-more">+ Add More Files</button>
+        </div>
+
+        <div id="content-area">
+
+          <!-- RESULTS -->
+          <div id="results-panel">
+            <div id="results-header">
+              <span id="results-header-label">Filtered Entries</span>
+              <span style="flex:1"></span>
+              <button id="btn-clear-search">✕ Clear search</button>
+              <span id="results-header-count" style="font-family:var(--font-mono);font-size:10px;color:var(--accent-teal)"></span>
+            </div>
+            <div id="results-list">
+              <div class="empty-state">
+                <div class="empty-state-icon">🔍</div>
+                <div>Select a level filter to see entries</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="resizer" id="resizer-results"></div>
+
+          <!-- VIEWER -->
+          <div id="log-viewer">
+            <div id="viewer-toolbar">
+              <span id="viewer-file-label">No file selected</span>
+              <div class="viewer-search-wrap">
+                <input id="viewer-search" type="text" placeholder="Search in file…" autocomplete="off">
+              </div>
+              <span id="viewer-search-count"></span>
+              <button id="btn-prev-match" title="Previous match">▲</button>
+              <button id="btn-next-match" title="Next match">▼</button>
+              <div class="topbar-divider"></div>
+              <div class="time-window-wrap">
+                <span class="time-window-label">±</span>
+                <button class="tw-btn" data-minutes="15">15m</button>
+                <button class="tw-btn" data-minutes="30">30m</button>
+                <button class="tw-btn" data-minutes="60">1h</button>
+                <button class="tw-btn" data-minutes="240">4h</button>
+                <button class="tw-btn active" data-minutes="0">All</button>
+              </div>
+              <div class="topbar-divider"></div>
+              <button id="btn-highlight-similar" title="Highlight entries with same logger">Similar</button>
+            </div>
+
+            <div id="log-content">
+              <div id="log-content-sizer">
+                <div id="log-content-rows"></div>
+              </div>
+              <div class="viewer-placeholder" id="viewer-placeholder">
+                <div class="viewer-placeholder-icon">📋</div>
+                <div>Click an entry in the results panel to view the log</div>
+              </div>
+            </div>
+
+            <div id="scrub-bar">
+              <span class="scrub-label">Highlight text in the log viewer, then scrub PII before copying</span>
+              <button id="btn-scrub" disabled>🛡 Scrub PII &amp; Copy</button>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+    </main>
+  </div>
+</div>
+
+<!-- SCRUB MODAL -->
+<div id="scrub-modal" class="hidden">
+  <div class="scrub-modal-card">
+    <div>
+      <div class="scrub-modal-title">🛡 PII Scrubbing Preview</div>
+      <div class="scrub-modal-subtitle">The following replacements were made. Review before copying.</div>
+    </div>
+    <div class="scrub-changes" id="scrub-changes"></div>
+    <div class="scrub-output-label">Scrubbed output — copy from here if clipboard is unavailable</div>
+    <textarea id="scrub-output" readonly></textarea>
+    <div class="scrub-modal-actions">
+      <span id="scrub-copy-status"></span>
+      <button class="wizard-btn secondary" id="btn-scrub-close">Close</button>
+      <button class="wizard-btn primary" id="btn-scrub-copy">📋 Copy to Clipboard</button>
+    </div>
+  </div>
+</div>
+
+<!-- Parse progress bar -->
+<div id="parse-progress"></div>
+
+<script>
+// ═══════════════════════════════════════════════════════════════
+//  DATA — Products, components, log levels
+// ═══════════════════════════════════════════════════════════════
+const PRODUCTS = {
+  ss: {
+    label: 'Secret Server',
+    icon: '🔐',
+    color: '#A855F7',
+    components: [
+      { id:'ss-main',    name:'Main Application',        file:'SS.log',         desc:'Top-level IIS log; role start/stop and site activity', path:'C:\\inetpub\\wwwroot\\SecretServer\\log' },
+      { id:'ss-bssr',    name:'Background Scheduler',    file:'SS-BSSR.log',    desc:'Jobs triggered by the background scheduler', path:'C:\\inetpub\\wwwroot\\SecretServer\\log' },
+      { id:'ss-bwsr',    name:'Background Worker',       file:'SS-BWSR.log',    desc:'Heartbeat, password changing, discovery, event pipelines', path:'C:\\inetpub\\wwwroot\\SecretServer\\log' },
+      { id:'ss-ewsr',    name:'Engine Worker',           file:'SS-EWSR.log',    desc:'Processing responses from Distributed Engines', path:'C:\\inetpub\\wwwroot\\SecretServer\\log' },
+      { id:'ss-mmsr',    name:'MemoryMq / Site Connector', file:'SS-MMSR.log',  desc:'Internal site connector activity (when RabbitMQ not used)', path:'C:\\inetpub\\wwwroot\\SecretServer\\log' },
+      { id:'ss-srwsr',   name:'Session Recording Worker', file:'SS-SRWSR.log',  desc:'Processing session recordings from Secret Server', path:'C:\\inetpub\\wwwroot\\SecretServer\\log' },
+      { id:'ss-sc',      name:'Session Connector',       file:'SS-SC.log',      desc:'Session Connector on RDS server', path:'C:\\Program Files\\Thycotic Software Ltd\\Secret Server Session Connector\\log' },
+      { id:'ss-rdpwin',  name:'Protocol Handler',        file:'SS-RDPWin.log',  desc:'Protocol handler activity — RDP, SSH and more', path:'%AppData%\\Thycotic\\log' },
+      { id:'ss-de',      name:'Distributed Engine',      file:'SSDE.log',       desc:'Distributed Engine activity — discovery, heartbeat', path:'C:\\Program Files\\Thycotic Software Ltd\\Distributed Engine\\log' },
+    ],
+    levels: ['ERROR','WARNING','INFO','VERBOSE','DEBUG'],
+  },
+  platform: {
+    label: 'Delinea Platform',
+    icon: '☁️',
+    color: '#2DD4BF',
+    components: [
+      { id:'pl-engine',  name:'Platform Engine',         file:'Platform.Engine.*.log',            desc:'General Platform Engine activity', path:'C:\\ProgramData\\Delinea Engine\\log' },
+      { id:'pl-upgrade', name:'Engine Self-Upgrade',     file:'Platform.Engine.SelfUpgrade_*.log', desc:'Engine self-upgrade process', path:'C:\\ProgramData\\Delinea Engine\\log' },
+      { id:'pl-pra',     name:'PRA Workload',            file:'remote-access-service_*.log',       desc:'Privileged Remote Access — RDP/SSH proxy sessions', path:'C:\\ProgramData\\Delinea Engine\\log' },
+    ],
+    levels: ['CRITICAL','ERROR','WARNING','INFORMATION'],
+  },
+  cm: {
+    label: 'Connection Manager',
+    icon: '🖥️',
+    color: '#60A5FA',
+    components: [
+      { id:'cm-main',    name:'Connection Manager',      file:'ConnectionManager.log',             desc:'Connection Manager application activity', path:'C:\\Program Files\\Delinea\\Delinea Connection Manager' },
+    ],
+    levels: ['ERROR','WARNING','INFO','DEBUG'],
+  }
+};
+
+// Level normalisation — map variants to canonical labels
+const LEVEL_NORM = {
+  'ERROR':'ERROR','ERR':'ERROR',
+  'CRITICAL':'CRITICAL','CRIT':'CRITICAL','FATAL':'CRITICAL',
+  'WARNING':'WARNING','WARN':'WARNING',
+  'INFO':'INFO','INFORMATION':'INFO',
+  'VERBOSE':'VERBOSE','VERB':'VERBOSE','TRACE':'VERBOSE',
+  'DEBUG':'DEBUG','DBG':'DEBUG',
+};
+
+// ═══════════════════════════════════════════════════════════════
+//  STATE
+// ═══════════════════════════════════════════════════════════════
+const state = {
+  product: null,
+  selectedComponents: new Set(),
+  // { compId: { compDef, files:[{name, raw, lines:[{lineNo,text,level,ts,logger}]}] } }
+  loadedData: {},
+  activeCompId: null,
+  activeFileIndex: 0,
+  focusedLineNo: null,
+  focusedLogger: null,
+  activeLevel: 'ALL',
+  timeWindow: 0, // minutes, 0=all
+  highlightSimilar: false,
+  searchMatches: [],
+  searchIndex: 0,
+  selectedText: '',
+  globalSearchTerm: '',
+  searchExcluded: new Set(),
+};
+
+// ═══════════════════════════════════════════════════════════════
+//  PARSE
+// ═══════════════════════════════════════════════════════════════
+
+// ═══════════════════════════════════════════════════════════════
+//  PII SCRUBBING
+// ═══════════════════════════════════════════════════════════════
+const PII_RULES = [
+  { label:'IPv6',        re:/\b([0-9a-fA-F]{1,4}:){7}[0-9a-fA-F]{1,4}\b/g,                    replacement:'[IPv6_REDACTED]' },
+  { label:'IPv4',        re:/\b(\d{1,3}\.){3}\d{1,3}\b/g,                                       replacement:'[IP_REDACTED]' },
+  { label:'Email',       re:/\b[A-Za-z0-9._%+\-]+@[A-Za-z0-9.\-]+\.[A-Za-z]{2,}\b/g,          replacement:'[EMAIL_REDACTED]' },
+  { label:'Domain\\User',re:/\b[A-Za-z0-9\-_]+\\[A-Za-z0-9\-_\.]+\b/g,                         replacement:'[DOMAIN\\\\USER_REDACTED]' },
+  { label:'UPN',         re:/\b[A-Za-z0-9\-_\.]+@[A-Za-z0-9\-_]+\b(?![\w\.])/g,               replacement:'[UPN_REDACTED]' },
+  { label:'SID',         re:/\bS-1-[0-9\-]+\b/g,                                                replacement:'[SID_REDACTED]' },
+  { label:'UNC Path',    re:/\\\\[\w\-\.]+\\[\w\-\\\. $]+/g,                                    replacement:'[UNC_PATH_REDACTED]' },
+  { label:'GUID',        re:/\b[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}\b/g, replacement:'[GUID_REDACTED]' },
+  { label:'Hostname',    re:/\bhostname[=:]\s*[\w\-\.]+/gi,                                      replacement:'hostname=[HOSTNAME_REDACTED]' },
+  { label:'Username kv', re:/\b(?:user|username|login|account)[=:]\s*[\w\-\.@\\]+/gi,           replacement:'[USERNAME_KEY]=[USERNAME_REDACTED]' },
+];
+
+function scrubPII(text) {
+  const changes = [];
+  let result = text;
+  for (const rule of PII_RULES) {
+    const matches = [...result.matchAll(rule.re)];
+    for (const m of matches) {
+      if (!changes.find(c => c.original === m[0])) {
+        changes.push({ label: rule.label, original: m[0], replacement: rule.replacement });
+      }
+    }
+    result = result.replace(rule.re, rule.replacement);
+  }
+  return { scrubbed: result, changes };
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  UI — WIZARD
+// ═══════════════════════════════════════════════════════════════
+function initWizard() {
+  document.querySelectorAll('.product-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.product-btn').forEach(b => b.classList.remove('selected'));
+      btn.classList.add('selected');
+      state.product = btn.dataset.product;
+      // Clear any previously pending files when switching product
+      Object.keys(pendingFiles).forEach(k => delete pendingFiles[k]);
+      renderComponentStep();
+    });
+  });
+
+  document.getElementById('btn-analyse').addEventListener('click', analyseFiles);
+}
+
+function renderComponentStep() {
+  const prod = PRODUCTS[state.product];
+  const grid = document.getElementById('component-grid');
+  grid.innerHTML = '';
+  state.selectedComponents.clear();
+
+  prod.components.forEach(comp => {
+    const row = document.createElement('div');
+    row.className = 'comp-row';
+    row.dataset.id = comp.id;
+    row.innerHTML = `
+      <div class="comp-check" id="check-${comp.id}"></div>
+      <div class="comp-info">
+        <div class="ci-name">${comp.name}</div>
+        <div class="ci-file">${comp.file}</div>
+        <div class="ci-desc">${comp.desc}</div>
+      </div>
+      <div id="comp-files-${comp.id}" style="flex:1;min-width:0"></div>
+      <div class="info-btn" data-tooltip="${comp.path}">i</div>
+    `;
+    grid.appendChild(row);
+  });
+
+  // Wire up upload zone
+  const uploadZone = document.getElementById('upload-zone');
+  const fileInput  = document.getElementById('file-input');
+  uploadZone.onclick = () => fileInput.click();
+  uploadZone.ondragover = e => { e.preventDefault(); uploadZone.classList.add('drag-over'); };
+  uploadZone.ondragleave = () => uploadZone.classList.remove('drag-over');
+  uploadZone.ondrop = e => { e.preventDefault(); uploadZone.classList.remove('drag-over'); handleFileList(e.dataTransfer.files); };
+  fileInput.onchange = () => { handleFileList(fileInput.files); fileInput.value = ''; };
+
+  document.getElementById('wizard-step2').style.display = '';
+}
+
+function refreshComponentHighlights() {
+  const prod = PRODUCTS[state.product];
+  state.selectedComponents.clear();
+
+  prod.components.forEach(comp => {
+    const files = pendingFiles[comp.id] || [];
+    const row   = document.querySelector(`.comp-row[data-id="${comp.id}"]`);
+    const check = document.getElementById(`check-${comp.id}`);
+    const filesEl = document.getElementById(`comp-files-${comp.id}`);
+    if (!row) return;
+
+    if (files.length > 0) {
+      state.selectedComponents.add(comp.id);
+      row.classList.add('selected');
+      check.textContent = '✓';
+      filesEl.innerHTML = files.map(f =>
+        `<div style="font-size:10px;font-family:var(--font-mono);color:var(--accent-teal);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">
+          📄 ${escHtml(f.name)} <span style="color:var(--text-muted)">${formatBytes(f.size)}</span>
+          <button data-comp="${comp.id}" data-name="${escHtml(f.name)}"
+            style="color:var(--level-error);background:none;border:none;cursor:pointer;font-size:10px;padding:0 3px"
+            title="Remove">✕</button>
+        </div>`
+      ).join('');
+      // Wire remove buttons
+      filesEl.querySelectorAll('button').forEach(btn => {
+        btn.addEventListener('click', e => {
+          e.stopPropagation();
+          const cid  = btn.dataset.comp;
+          const name = btn.dataset.name;
+          pendingFiles[cid] = (pendingFiles[cid] || []).filter(f => f.name !== name);
+          refreshComponentHighlights();
+        });
+      });
+    } else {
+      row.classList.remove('selected');
+      check.textContent = '';
+      filesEl.innerHTML = '';
+    }
+  });
+
+  updateAnalyseBtn();
+}
+
+const pendingFiles = {}; // compId -> [{name, raw, size}]
+
+function formatBytes(bytes) {
+  if (!bytes) return '';
+  if (bytes < 1024) return bytes + ' B';
+  if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+  return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+}
+
+function handleFileList(fileList) {
+  const files = Array.from(fileList);
+  const prod = PRODUCTS[state.product];
+
+  // Sort components by base pattern length descending — most specific first
+  // This prevents "ss" matching before "ss-bwsr", "ss-bssr" etc.
+  const sortedComps = [...prod.components].sort((a, b) => {
+    const baseA = a.file.replace(/\*/g,'').replace(/\.log$/i,'').replace(/\.csv$/i,'').toLowerCase().trim();
+    const baseB = b.file.replace(/\*/g,'').replace(/\.log$/i,'').replace(/\.csv$/i,'').toLowerCase().trim();
+    return baseB.length - baseA.length;
+  });
+
+  files.forEach(file => {
+    const fn = file.name.toLowerCase();
+    let matched = null;
+
+    for (const comp of sortedComps) {
+      const base = comp.file
+        .replace(/\*/g, '')
+        .replace(/\.log$/i, '')
+        .replace(/\.csv$/i, '')
+        .toLowerCase()
+        .trim();
+      if (base && fn.includes(base)) { matched = comp.id; break; }
+    }
+
+    // If unmatched and only one component exists, assign to it
+    if (!matched && prod.components.length === 1) matched = prod.components[0].id;
+
+    if (!matched) {
+      const uz = document.getElementById('upload-zone');
+      uz.querySelector('.uz-sub').textContent =
+        `⚠ "${file.name}" couldn't be matched to a component — check the filename`;
+      setTimeout(() => {
+        if (uz.querySelector('.uz-sub'))
+          uz.querySelector('.uz-sub').textContent = 'Files are automatically matched to their component by filename';
+      }, 4000);
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = e => {
+      if (!pendingFiles[matched]) pendingFiles[matched] = [];
+      if (!pendingFiles[matched].find(f => f.name === file.name)) {
+        pendingFiles[matched].push({ name: file.name, raw: e.target.result, size: file.size });
+      }
+      refreshComponentHighlights();
+    };
+    reader.readAsText(file);
+  });
+}
+
+function updateAnalyseBtn() {
+  const hasAny = Object.values(pendingFiles).some(arr => arr.length > 0);
+  document.getElementById('btn-analyse').disabled = !hasAny;
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  WEB WORKER — parse files off the main thread
+// ═══════════════════════════════════════════════════════════════
+const WORKER_SRC = `
+const TS_PATTERNS = [
+  /^(\\d{4}-\\d{2}-\\d{2}[\\sT]\\d{2}:\\d{2}:\\d{2}[,\\.]\\d+)/,
+  /^(\\d{4}-\\d{2}-\\d{2}\\s+\\d{2}:\\d{2}:\\d{2})/,
+];
+const LEVEL_RE = /\\b(ERROR|ERR|CRITICAL|CRIT|FATAL|WARNING|WARN|INFO|INFORMATION|VERBOSE|VERB|DEBUG|DBG)\\b/i;
+const LOGGER_RE = /([\\w]+(?:\\.[\\w]+){1,})[\\s\\-\\u2013]/;
+const LEVEL_NORM = {
+  ERROR:'ERROR',ERR:'ERROR',CRITICAL:'CRITICAL',CRIT:'CRITICAL',FATAL:'CRITICAL',
+  WARNING:'WARNING',WARN:'WARNING',INFO:'INFO',INFORMATION:'INFO',
+  VERBOSE:'VERBOSE',VERB:'VERBOSE',TRACE:'VERBOSE',DEBUG:'DEBUG',DBG:'DEBUG'
+};
+
+function escHtml(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+
+function stripTimestampAndLevel(text) {
+  let s = text.replace(/^\\d{4}-\\d{2}-\\d{2}[\\sT]\\d{2}:\\d{2}:\\d{2}[,\\.\\d]*\\s*/,'');
+  s = s.replace(/(\\[[^\\]]{0,30}\\]\\s*)+/g, '');
+  s = s.replace(/^(ERROR|CRITICAL|WARNING|WARN|INFO|INFORMATION|VERBOSE|DEBUG)\\s*/i, '');
+  s = s.replace(/^[\\s\\-\\u2013]+/, '');
+  return s.trim() || text;
+}
+
+function parseFile(raw, filename) {
+  const rawLines = raw.split('\\n');
+  const lines = [];
+  let lastLevel=null, lastTs=null, lastLogger=null;
+  for (let i=0; i<rawLines.length; i++) {
+    const text = rawLines[i];
+    let ts=null, level=null, logger=null;
+    for (const p of TS_PATTERNS) {
+      const m = text.match(p);
+      if (m) { ts = new Date(m[1].replace(',','.')); break; }
+    }
+    const lm = text.match(LEVEL_RE);
+    if (lm) level = LEVEL_NORM[lm[1].toUpperCase()] || null;
+    const lgm = text.match(LOGGER_RE);
+    if (lgm) logger = lgm[1];
+    if (!ts && lastTs) ts = lastTs;
+    if (!level && lastLevel) level = lastLevel;
+    if (!logger && lastLogger) logger = lastLogger;
+    if (ts) lastTs = ts;
+    if (level) lastLevel = level;
+    if (logger) lastLogger = logger;
+    const stripped = stripTimestampAndLevel(text);
+    lines.push({
+      lineNo: i+1,
+      text,
+      safeHtml: escHtml(text),
+      strippedHtml: escHtml(stripped),
+      level,
+      ts: ts ? ts.getTime() : null,
+      logger,
+      _file: filename
+    });
+  }
+  return lines;
+}
+
+self.onmessage = function(e) {
+  const { compId, files } = e.data;
+  const parsed = files.map(f => ({ name:f.name, size:f.size, lines:parseFile(f.raw, f.name) }));
+  self.postMessage({ compId, parsed });
+};
+`;
+
+function makeWorker() {
+  const blob = new Blob([WORKER_SRC], { type: 'application/javascript' });
+  return new Worker(URL.createObjectURL(blob));
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  ANALYSE
+// ═══════════════════════════════════════════════════════════════
+function analyseFiles() {
+  const prod = PRODUCTS[state.product];
+  state.loadedData = {};
+
+  const compIds = [...state.selectedComponents].filter(id => (pendingFiles[id]||[]).length > 0);
+  if (!compIds.length) return;
+
+  // Show progress
+  const bar = document.getElementById('parse-progress');
+  bar.style.transform = 'scaleX(0.05)';
+
+  let completed = 0;
+  const total = compIds.length;
+
+  const allDone = () => {
+    bar.style.transform = 'scaleX(1)';
+    setTimeout(() => { bar.style.transform = 'scaleX(0)'; }, 400);
+    document.getElementById('wizard').style.display = 'none';
+    document.getElementById('analyser').style.display = 'flex';
+    initResizers();
+    renderSidebar();
+    const first = Object.keys(state.loadedData)[0];
+    if (first) activateComponent(first);
+  };
+
+  compIds.forEach(compId => {
+    const comp = prod.components.find(c => c.id === compId);
+    const files = pendingFiles[compId] || [];
+    const worker = makeWorker();
+
+    worker.onmessage = e => {
+      worker.terminate();
+      const { parsed } = e.data;
+
+      // Build merged from shallow clones so sorting doesn't reorder file.lines
+      let merged = [];
+      parsed.forEach(f => f.lines.forEach(l => merged.push({ ...l })));
+      merged.sort((a,b) => {
+        if (a.ts && b.ts) return a.ts - b.ts;
+        return 0;
+      });
+      merged.forEach((l,i) => l.mergedNo = i+1);
+
+      state.loadedData[compId] = { compDef: comp, files: parsed, merged };
+
+      completed++;
+      bar.style.transform = `scaleX(${0.05 + 0.95 * (completed/total)})`;
+      if (completed === total) allDone();
+    };
+
+    worker.postMessage({ compId, files });
+  });
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  SIDEBAR
+// ═══════════════════════════════════════════════════════════════
+function renderSidebar() {
+  const container = document.getElementById('sidebar-components');
+  container.innerHTML = '';
+  const prod = PRODUCTS[state.product];
+
+  // Group by product
+  const label = document.createElement('div');
+  label.className = 'sidebar-section-label';
+  label.textContent = prod.label;
+  container.appendChild(label);
+
+  Object.entries(state.loadedData).forEach(([compId, data]) => {
+    const comp = data.compDef;
+    const totalLines = data.merged.length;
+    const errCount = data.merged.filter(l => l.level === 'ERROR' || l.level === 'CRITICAL').length;
+
+    const item = document.createElement('div');
+    item.className = 'component-item';
+    item.dataset.compId = compId;
+    item.innerHTML = `
+      <div class="comp-search-check" data-comp="${compId}" title="Include/exclude from search">✓</div>
+      <div class="comp-icon" style="background:${prod.color}22;color:${prod.color}">${prod.icon}</div>
+      <span class="comp-name">${comp.name}</span>
+      <span class="comp-count">${errCount > 0 ? `<span style="color:var(--level-error)">${errCount}E</span>` : totalLines.toLocaleString()}</span>
+    `;
+    item.addEventListener('click', (e) => {
+      if (e.target.closest('.comp-search-check')) return; // handled separately
+      activateComponent(compId);
+    });
+    container.appendChild(item);
+  });
+}
+
+function activateComponent(compId) {
+  state.activeCompId = compId;
+  document.querySelectorAll('.component-item').forEach(el => {
+    el.classList.toggle('active', el.dataset.compId === compId);
+  });
+  // Don't overwrite search results when in search mode
+  if (!globalSearchActive) applyFilter();
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  FILTER & RESULTS
+// ═══════════════════════════════════════════════════════════════
+document.querySelectorAll('.level-filter-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.level-filter-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    state.activeLevel = btn.dataset.level;
+    applyFilter();
+  });
+});
+
+function applyFilter() {
+  if (!state.activeCompId) return;
+  const data = state.loadedData[state.activeCompId];
+  if (!data) return;
+
+  let entries = data.merged;
+  if (state.activeLevel !== 'ALL') {
+    const want = state.activeLevel === 'ERROR' ? ['ERROR','CRITICAL'] : [state.activeLevel];
+    entries = entries.filter(l => want.includes(l.level));
+  } else {
+    entries = entries.filter(l => l.level !== null);
+  }
+
+  document.getElementById('result-count').textContent = `${entries.length.toLocaleString()} entries`;
+  document.getElementById('results-header-count').textContent = entries.length.toLocaleString();
+  renderResults(entries, data);
+}
+
+// Results panel virtual state
+const RS = { entries: [], data: null, renderedEnd: 0 };
+const RS_PAGE = 80; // rows per render batch
+
+function renderResults(entries, data) {
+  const list = document.getElementById('results-list');
+  list.innerHTML = '';
+  RS.entries = entries;
+  RS.data = data;
+  RS.renderedEnd = 0;
+
+  if (entries.length === 0) {
+    list.innerHTML = '<div class="empty-state"><div class="empty-state-icon">✅</div><div>No entries for this filter</div></div>';
+    return;
+  }
+
+  renderResultsBatch();
+
+  // Extend on scroll
+  list.onscroll = () => {
+    if (list.scrollTop + list.clientHeight >= list.scrollHeight - 100) {
+      renderResultsBatch();
+    }
+  };
+}
+
+function renderResultsBatch() {
+  const list    = document.getElementById('results-list');
+  const entries = RS.entries;
+  const data    = RS.data;
+  const start   = RS.renderedEnd;
+  const end     = Math.min(entries.length, start + RS_PAGE);
+  if (start >= entries.length) return;
+
+  // Group header tracking — only emit header when file changes
+  let lastFile = start > 0 ? entries[start - 1]._file : null;
+
+  const frag = document.createDocumentFragment();
+
+  for (let i = start; i < end; i++) {
+    const entry = entries[i];
+
+    if (entry._file !== lastFile) {
+      // Count total for this file in the full entries array
+      const fileTotal = entries.filter(e => e._file === entry._file).length;
+      const gh = document.createElement('div');
+      gh.className = 'result-group-header';
+      gh.textContent = `📄 ${entry._file} (${fileTotal})`;
+      frag.appendChild(gh);
+      lastFile = entry._file;
+    }
+
+    const item = document.createElement('div');
+    item.className = 'result-item';
+    const level = entry.level || '?';
+    item.innerHTML = `
+      <div class="ri-meta">
+        <span class="level-badge ${level}">${level}</span>
+        <span class="ri-line">L${entry.lineNo}</span>
+        <span class="ri-file">${entry._file}</span>
+      </div>
+      <div class="ri-msg">${entry.strippedHtml || escHtml(entry.text)}</div>
+    `;
+    item.addEventListener('click', () => {
+      document.querySelectorAll('.result-item').forEach(i => i.classList.remove('focused'));
+      item.classList.add('focused');
+      openInViewer(entry, data);
+    });
+    frag.appendChild(item);
+  }
+
+  list.appendChild(frag);
+  RS.renderedEnd = end;
+
+  if (end < entries.length) {
+    // Show a subtle load-more indicator
+    let sentinel = list.querySelector('.rs-sentinel');
+    if (!sentinel) {
+      sentinel = document.createElement('div');
+      sentinel.className = 'rs-sentinel';
+      sentinel.style.cssText = 'text-align:center;padding:8px;font-size:10px;color:var(--text-muted);font-family:var(--font-mono)';
+      sentinel.textContent = `Showing ${end} of ${entries.length} — scroll for more`;
+      list.appendChild(sentinel);
+    } else {
+      sentinel.textContent = `Showing ${end} of ${entries.length} — scroll for more`;
+    }
+  } else {
+    const sentinel = list.querySelector('.rs-sentinel');
+    if (sentinel) sentinel.remove();
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  LOG VIEWER
+// ═══════════════════════════════════════════════════════════════
+let currentViewerLines = [];
+let currentFocusEntry  = null;
+
+function openInViewer(entry, data) {
+  // Find the file
+  const file = data.files.find(f => f.name === entry._file);
+  if (!file) return;
+
+  state.focusedLineNo  = entry.lineNo;
+  state.focusedLogger  = entry.logger;
+  state.highlightSimilar = false;
+  document.getElementById('btn-highlight-similar').classList.remove('active');
+
+  currentFocusEntry  = entry;
+  currentViewerLines = file.lines;
+
+  document.getElementById('viewer-file-label').textContent = entry._file;
+
+  renderViewerLines(file.lines, entry.lineNo, state.timeWindow);
+  document.getElementById('viewer-search').value = '';
+  state.searchMatches = [];
+  state.searchIndex   = 0;
+  updateSearchCount();
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  VIRTUAL SCROLLER
+// ═══════════════════════════════════════════════════════════════
+const VS = {
+  lines: [],          // current visible line array
+  lineHeight: 20.4,   // px — matches font-size:12px line-height:1.7
+  overscan: 30,       // extra rows above/below viewport
+  focusLineNo: null,
+  searchMatchIndices: [],  // indices into VS.lines
+  searchIndex: 0,
+  similarLogger: null,
+  highlightSimilar: false,
+  _raf: null,
+};
+
+function vsMeasureLineHeight() {
+  const rows = document.getElementById('log-content-rows');
+  const probe = document.createElement('div');
+  probe.className = 'log-line';
+  probe.style.visibility = 'hidden';
+  probe.style.position = 'absolute';
+  probe.innerHTML = '<span class="ln">1</span><span class="lc">x</span>';
+  rows.appendChild(probe);
+  const h = probe.getBoundingClientRect().height || 20.4;
+  rows.removeChild(probe);
+  return h;
+}
+
+function buildLineEl(l, i) {
+  const div = document.createElement('div');
+  const level = l.level || '';
+  let cls = 'log-line';
+  if (level) cls += ' level-' + level;
+  if (l.lineNo === VS.focusLineNo) cls += ' focus-line';
+  if (VS.highlightSimilar && VS.similarLogger && l.logger === VS.similarLogger && l.lineNo !== VS.focusLineNo) cls += ' similar-line';
+  if (VS.searchMatchIndices.includes(i)) {
+    cls += (i === VS.searchMatchIndices[VS.searchIndex]) ? ' search-current' : ' search-match';
+  }
+  div.className = cls;
+  div.dataset.idx = i;
+  div.dataset.lineNo = l.lineNo;
+  let html = l.safeHtml;
+  if (VS._searchTermSafe && VS.searchMatchIndices.includes(i)) {
+    html = html.replace(new RegExp(escRegex(VS._searchTermSafe), 'gi'),
+      m => `<span class="search-highlight">${m}</span>`);
+  }
+  div.innerHTML = `<span class="ln">${l.lineNo}</span><span class="lc">${html}</span>`;
+  return div;
+}
+
+function vsInit(lines, focusLineNo) {
+  VS.lines        = lines;
+  VS.focusLineNo  = focusLineNo;
+  VS.searchMatchIndices = [];
+  VS.searchIndex  = 0;
+  VS._searchTermSafe = null;
+  VS.lineHeight   = 0; // will measure after first render
+
+  const sizer   = document.getElementById('log-content-sizer');
+  const rows    = document.getElementById('log-content-rows');
+  const content = document.getElementById('log-content');
+  document.getElementById('viewer-placeholder').style.display = 'none';
+
+  // Find focus index
+  const focusIdx = lines.findIndex(l => l.lineNo === focusLineNo);
+  const anchor   = focusIdx >= 0 ? focusIdx : 0;
+
+  // Render a window of RENDER_WINDOW lines centred on the anchor,
+  // into a non-positioned container so the browser handles layout
+  const RENDER_WINDOW = 400;
+  const start = Math.max(0, anchor - Math.floor(RENDER_WINDOW / 2));
+  const end   = Math.min(lines.length - 1, start + RENDER_WINDOW - 1);
+
+  // Switch sizer to flow layout for initial render
+  sizer.style.height = '';
+  rows.style.position = 'relative';
+  rows.style.top = '0';
+
+  const frag = document.createDocumentFragment();
+  for (let i = start; i <= end; i++) {
+    frag.appendChild(buildLineEl(lines[i], i));
+  }
+  rows.innerHTML = '';
+  rows.appendChild(frag);
+
+  // Store rendered range so the scroll handler knows what's loaded
+  VS._renderedStart = start;
+  VS._renderedEnd   = end;
+  VS._fullRender    = false;
+
+  // Scroll the focus element into view — no maths, just DOM
+  const focusEl = rows.querySelector('.focus-line');
+  if (focusEl) {
+    focusEl.scrollIntoView({ block: 'center' });
+  } else {
+    content.scrollTop = 0;
+  }
+}
+
+function vsRender() {
+  // Called on scroll — extend rendered range if user nears edges,
+  // or do a full virtual render if the file is huge
+  if (VS._fullRender) {
+    vsRenderVirtual();
+    return;
+  }
+
+  const content = document.getElementById('log-content');
+  const rows    = document.getElementById('log-content-rows');
+  const scrollTop = content.scrollTop;
+  const viewH     = content.clientHeight;
+  const scrollH   = content.scrollHeight;
+
+  // If user scrolls within 20% of either edge, extend the rendered window
+  const nearTop    = scrollTop < scrollH * 0.1;
+  const nearBottom = scrollTop + viewH > scrollH * 0.9;
+
+  if (!nearTop && !nearBottom) return;
+
+  const EXTEND = 300;
+  let changed = false;
+
+  if (nearTop && VS._renderedStart > 0) {
+    const newStart = Math.max(0, VS._renderedStart - EXTEND);
+    const frag = document.createDocumentFragment();
+    for (let i = newStart; i < VS._renderedStart; i++) frag.appendChild(buildLineEl(VS.lines[i], i));
+    rows.insertBefore(frag, rows.firstChild);
+    VS._renderedStart = newStart;
+    changed = true;
+  }
+
+  if (nearBottom && VS._renderedEnd < VS.lines.length - 1) {
+    const newEnd = Math.min(VS.lines.length - 1, VS._renderedEnd + EXTEND);
+    const frag = document.createDocumentFragment();
+    for (let i = VS._renderedEnd + 1; i <= newEnd; i++) frag.appendChild(buildLineEl(VS.lines[i], i));
+    rows.appendChild(frag);
+    VS._renderedEnd = newEnd;
+    changed = true;
+  }
+}
+
+function vsRenderVirtual() {
+  // True virtual render for when we need the full file in view
+  const content = document.getElementById('log-content');
+  const rows    = document.getElementById('log-content-rows');
+  if (!VS.lineHeight) VS.lineHeight = vsMeasureLineHeight();
+
+  const sizer = document.getElementById('log-content-sizer');
+  sizer.style.height = (VS.lines.length * VS.lineHeight) + 'px';
+  rows.style.position = 'absolute';
+
+  const scrollTop = content.scrollTop;
+  const viewH     = content.clientHeight;
+  const firstIdx  = Math.max(0, Math.floor(scrollTop / VS.lineHeight) - VS.overscan);
+  const lastIdx   = Math.min(VS.lines.length - 1, Math.ceil((scrollTop + viewH) / VS.lineHeight) + VS.overscan);
+
+  rows.style.top = (firstIdx * VS.lineHeight) + 'px';
+
+  const frag = document.createDocumentFragment();
+  for (let i = firstIdx; i <= lastIdx; i++) frag.appendChild(buildLineEl(VS.lines[i], i));
+  rows.innerHTML = '';
+  rows.appendChild(frag);
+}
+
+function vsScroll() {
+  if (VS._raf) cancelAnimationFrame(VS._raf);
+  VS._raf = requestAnimationFrame(vsRender);
+}
+
+// Attach scroll listener once
+document.getElementById('log-content').addEventListener('scroll', vsScroll, { passive: true });
+
+function renderViewerLines(allLines, focusLineNo, windowMinutes) {
+  let lines = allLines;
+
+  if (windowMinutes > 0) {
+    const focusLine = allLines.find(l => l.lineNo === focusLineNo);
+    if (focusLine && focusLine.ts) {
+      const fts   = focusLine.ts;
+      const delta = windowMinutes * 60 * 1000;
+      lines = allLines.filter(l => l.ts !== null && Math.abs(l.ts - fts) <= delta);
+    }
+  }
+
+  VS.highlightSimilar = state.highlightSimilar;
+  VS.similarLogger    = state.focusedLogger;
+  VS._searchTermSafe  = null;
+  vsInit(lines, focusLineNo);
+
+  const searchTerm = document.getElementById('viewer-search').value.trim();
+  if (searchTerm) applyViewerSearch(searchTerm);
+}
+
+// DATA-BASED SEARCH
+function applyViewerSearch(term) {
+  VS._searchTermSafe    = null;
+  VS.searchMatchIndices = [];
+  VS.searchIndex        = 0;
+
+  if (!term) { updateSearchCount(); vsRedrawVisible(); return; }
+
+  const termL = term.toLowerCase();
+  VS._searchTermSafe = escHtml(term);
+  VS.lines.forEach((l, i) => {
+    if (l.text.toLowerCase().includes(termL)) VS.searchMatchIndices.push(i);
+  });
+
+  updateSearchCount();
+  vsRedrawVisible();
+
+  if (VS.searchMatchIndices.length) scrollToSearchIndex(0);
+}
+
+// Redraw only the currently rendered rows (fast, no scroll change)
+function vsRedrawVisible() {
+  const rows = document.getElementById('log-content-rows');
+  const existing = rows.querySelectorAll('.log-line');
+  existing.forEach(el => {
+    const i = parseInt(el.dataset.idx);
+    if (isNaN(i)) return;
+    const newEl = buildLineEl(VS.lines[i], i);
+    rows.replaceChild(newEl, el);
+  });
+}
+
+function scrollToSearchIndex(idx) {
+  VS.searchIndex = idx;
+  vsRedrawVisible();
+  updateSearchCount();
+  // Find the rendered element and scroll it into view
+  const rows = document.getElementById('log-content-rows');
+  const lineIdx = VS.searchMatchIndices[idx];
+  if (lineIdx === undefined) return;
+  const el = rows.querySelector(`[data-idx="${lineIdx}"]`);
+  if (el) {
+    el.scrollIntoView({ block: 'center' });
+  } else {
+    // Element not yet rendered — extend window to include it
+    const lines = VS.lines;
+    const start = Math.max(0, lineIdx - 200);
+    const end   = Math.min(lines.length - 1, lineIdx + 200);
+    const frag  = document.createDocumentFragment();
+    for (let i = start; i <= end; i++) frag.appendChild(buildLineEl(lines[i], i));
+    rows.innerHTML = '';
+    rows.appendChild(frag);
+    VS._renderedStart = start;
+    VS._renderedEnd   = end;
+    const newEl = rows.querySelector(`[data-idx="${lineIdx}"]`);
+    if (newEl) newEl.scrollIntoView({ block: 'center' });
+  }
+}
+
+// TIME WINDOW
+document.querySelectorAll('.tw-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.tw-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    state.timeWindow = parseInt(btn.dataset.minutes);
+    if (currentViewerLines.length) {
+      renderViewerLines(currentViewerLines, state.focusedLineNo, state.timeWindow);
+    }
+  });
+});
+
+// HIGHLIGHT SIMILAR
+document.getElementById('btn-highlight-similar').addEventListener('click', () => {
+  state.highlightSimilar = !state.highlightSimilar;
+  document.getElementById('btn-highlight-similar').classList.toggle('active', state.highlightSimilar);
+  VS.highlightSimilar = state.highlightSimilar;
+  vsRedrawVisible();
+});
+
+// VIEWER SEARCH
+document.getElementById('viewer-search').addEventListener('input', e => {
+  applyViewerSearch(e.target.value.trim());
+});
+document.getElementById('btn-prev-match').addEventListener('click', () => navigateSearch(-1));
+document.getElementById('btn-next-match').addEventListener('click', () => navigateSearch(1));
+
+function navigateSearch(dir) {
+  if (!VS.searchMatchIndices.length) return;
+  const next = (VS.searchIndex + dir + VS.searchMatchIndices.length) % VS.searchMatchIndices.length;
+  scrollToSearchIndex(next);
+}
+
+function updateSearchCount() {
+  const el = document.getElementById('viewer-search-count');
+  const term = document.getElementById('viewer-search').value;
+  if (!VS.searchMatchIndices.length) {
+    el.textContent = term ? '0 matches' : '';
+  } else {
+    el.textContent = `${VS.searchIndex + 1} / ${VS.searchMatchIndices.length}`;
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  PII SCRUBBING
+// ═══════════════════════════════════════════════════════════════
+document.addEventListener('mouseup', () => {
+  const sel = window.getSelection();
+  const text = sel ? sel.toString().trim() : '';
+  state.selectedText = text;
+  document.getElementById('btn-scrub').disabled = text.length === 0;
+  document.getElementById('scrub-bar').querySelector('.scrub-label').textContent =
+    text ? `${text.length} characters selected — ready to scrub` : 'Highlight text in the log viewer, then scrub PII before copying';
+});
+
+document.getElementById('btn-scrub').addEventListener('click', () => {
+  if (!state.selectedText) return;
+  const { scrubbed, changes } = scrubPII(state.selectedText);
+
+  const changesEl = document.getElementById('scrub-changes');
+  changesEl.innerHTML = '';
+  if (changes.length === 0) {
+    changesEl.innerHTML = '<div style="font-size:12px;color:var(--accent-teal);padding:4px 0">✓ No PII patterns detected in selected text.</div>';
+  } else {
+    changes.forEach(c => {
+      const row = document.createElement('div');
+      row.className = 'scrub-change-item';
+      row.innerHTML = `
+        <span class="sci-original">${escHtml(c.original)}</span>
+        <span class="sci-arrow">→</span>
+        <span class="sci-replacement">${escHtml(c.replacement)}</span>
+        <span style="font-size:10px;color:var(--text-muted);background:var(--bg-elevated);border-radius:3px;padding:1px 5px">${c.label}</span>
+      `;
+      changesEl.appendChild(row);
+    });
+  }
+
+  document.getElementById('scrub-output').value = scrubbed;
+  document.getElementById('scrub-copy-status').textContent = '';
+  document.getElementById('scrub-modal').classList.remove('hidden');
+});
+
+document.getElementById('btn-scrub-close').addEventListener('click', () => {
+  document.getElementById('scrub-modal').classList.add('hidden');
+});
+
+document.getElementById('btn-scrub-copy').addEventListener('click', () => {
+  const text = document.getElementById('scrub-output').value;
+  navigator.clipboard.writeText(text).then(() => {
+    document.getElementById('scrub-copy-status').textContent = '✓ Copied to clipboard!';
+    setTimeout(() => document.getElementById('scrub-copy-status').textContent = '', 3000);
+  }).catch(() => {
+    document.getElementById('scrub-output').select();
+    document.execCommand('copy');
+    document.getElementById('scrub-copy-status').textContent = '✓ Copied (fallback)';
+  });
+});
+
+// Click outside modal to close
+document.getElementById('scrub-modal').addEventListener('click', e => {
+  if (e.target === document.getElementById('scrub-modal')) {
+    document.getElementById('scrub-modal').classList.add('hidden');
+  }
+});
+
+// ═══════════════════════════════════════════════════════════════
+//  GLOBAL SEARCH — triggers on Enter, renders into results panel
+// ═══════════════════════════════════════════════════════════════
+let globalSearchActive = false;
+
+document.getElementById('sidebar-search').addEventListener('keydown', e => {
+  if (e.key === 'Enter') {
+    const term = e.target.value.trim();
+    if (!term) { clearGlobalSearch(); return; }
+    runGlobalSearch(term);
+  }
+  if (e.key === 'Escape') {
+    clearGlobalSearch();
+    e.target.value = '';
+  }
+});
+
+function runGlobalSearch(term) {
+  state.globalSearchTerm = term;
+  const termL = term.toLowerCase();
+  const results = [];
+
+  // Only search components that aren't excluded
+  Object.entries(state.loadedData).forEach(([compId, data]) => {
+    if (state.searchExcluded.has(compId)) return;
+    for (const line of data.merged) {
+      if (line.text.toLowerCase().includes(termL)) {
+        results.push({ compId, data, line });
+      }
+      if (results.length >= 500) break;
+    }
+  });
+
+  globalSearchActive = true;
+
+  // Show checkboxes on sidebar
+  document.getElementById('sidebar-components').classList.add('search-mode-active');
+  // Wire up checkbox toggles
+  document.querySelectorAll('.comp-search-check').forEach(cb => {
+    cb.onclick = (e) => {
+      e.stopPropagation();
+      const cid = cb.dataset.comp;
+      if (state.searchExcluded.has(cid)) {
+        state.searchExcluded.delete(cid);
+        cb.classList.remove('excluded');
+        cb.textContent = '✓';
+      } else {
+        state.searchExcluded.add(cid);
+        cb.classList.add('excluded');
+        cb.textContent = '';
+      }
+      // Re-run search with updated exclusions
+      runGlobalSearch(state.globalSearchTerm);
+    };
+  });
+
+  const header = document.getElementById('results-header');
+  header.classList.add('search-mode');
+  document.getElementById('results-header-label').textContent = `Search: "${term}"`;
+  document.getElementById('results-header-count').textContent = results.length.toLocaleString();
+  document.getElementById('btn-clear-search').classList.add('visible');
+
+  const list = document.getElementById('results-list');
+  list.innerHTML = '';
+
+  if (!results.length) {
+    list.innerHTML = '<div class="empty-state"><div class="empty-state-icon">🔍</div><div>No matches found across loaded files</div></div>';
+    return;
+  }
+
+  // Group by component
+  const groups = {};
+  results.forEach(r => {
+    if (!groups[r.compId]) groups[r.compId] = { compName: r.data.compDef.name, items: [] };
+    groups[r.compId].items.push(r);
+  });
+
+  Object.entries(groups).forEach(([compId, group]) => {
+    const gh = document.createElement('div');
+    gh.className = 'result-group-header';
+    gh.textContent = `${group.compName} (${group.items.length})`;
+    list.appendChild(gh);
+
+    group.items.forEach(r => {
+      const item = document.createElement('div');
+      item.className = 'result-item';
+      const level = r.line.level || '?';
+      item.innerHTML = `
+        <div class="ri-meta">
+          <span class="level-badge ${level}">${level}</span>
+          <span class="ri-line">L${r.line.lineNo}</span>
+          <span class="ri-file">${r.line._file}</span>
+        </div>
+        <div class="ri-msg">${r.line.strippedHtml || escHtml(r.line.text)}</div>
+      `;
+      item.addEventListener('click', () => {
+        document.querySelectorAll('.result-item').forEach(i => i.classList.remove('focused'));
+        item.classList.add('focused');
+        // Only update the viewer — do NOT call activateComponent (would clear results)
+        openInViewer(r.line, r.data);
+        // Highlight the correct sidebar item without triggering applyFilter
+        document.querySelectorAll('.component-item').forEach(el => {
+          el.classList.toggle('active', el.dataset.compId === r.compId);
+        });
+        state.activeCompId = r.compId;
+      });
+      list.appendChild(item);
+    });
+  });
+
+  if (results.length === 500) {
+    const note = document.createElement('div');
+    note.className = 'no-files-msg';
+    note.textContent = 'Showing first 500 matches — refine your search for more specific results';
+    list.appendChild(note);
+  }
+}
+
+function clearGlobalSearch() {
+  globalSearchActive = false;
+  state.globalSearchTerm = '';
+  state.searchExcluded.clear();
+  document.getElementById('results-header').classList.remove('search-mode');
+  document.getElementById('results-header-label').textContent = 'Filtered Entries';
+  document.getElementById('btn-clear-search').classList.remove('visible');
+  document.getElementById('sidebar-search').value = '';
+  // Remove search mode from sidebar
+  document.getElementById('sidebar-components').classList.remove('search-mode-active');
+  // Reset all checkboxes
+  document.querySelectorAll('.comp-search-check').forEach(cb => {
+    cb.classList.remove('excluded');
+    cb.textContent = '✓';
+    cb.onclick = null;
+  });
+  applyFilter();
+}
+
+document.getElementById('btn-clear-search').addEventListener('click', clearGlobalSearch);
+
+
+// ═══════════════════════════════════════════════════════════════
+//  HOME / RESET
+// ═══════════════════════════════════════════════════════════════
+document.getElementById('btn-home').addEventListener('click', () => {
+  // Only prompt if logs are loaded
+  if (Object.keys(state.loadedData).length > 0) {
+    if (!confirm('Return to the home screen? All loaded logs will be cleared.')) return;
+  }
+  // Reset state
+  state.product = null;
+  state.selectedComponents.clear();
+  state.loadedData = {};
+  state.activeCompId = null;
+  state.focusedLineNo = null;
+  state.focusedLogger = null;
+  state.activeLevel = 'ALL';
+  state.timeWindow = 0;
+  state.highlightSimilar = false;
+  state.searchMatches = [];
+  state.selectedText = '';
+  state.globalSearchTerm = '';
+  state.searchExcluded.clear();
+  Object.keys(pendingFiles).forEach(k => delete pendingFiles[k]);
+
+  // Reset UI
+  document.querySelectorAll('.product-btn').forEach(b => b.classList.remove('selected'));
+  document.getElementById('wizard-step2').style.display = 'none';
+  document.getElementById('component-grid').innerHTML = '';
+  document.getElementById('upload-slots').innerHTML = '';
+  document.getElementById('sidebar-components').innerHTML = '<div class="no-files-msg">No files loaded yet.</div>';
+  document.getElementById('results-list').innerHTML = '<div class="empty-state"><div class="empty-state-icon">🔍</div><div>Select a level filter to see entries</div></div>';
+  document.getElementById('log-content-sizer').style.height = '';
+  document.getElementById('log-content-rows').innerHTML = '';
+  document.getElementById('viewer-placeholder').style.display = 'flex';
+  VS.lines = []; VS.searchMatchIndices = []; VS.focusLineNo = null;
+  VS._renderedStart = 0; VS._renderedEnd = 0; VS._fullRender = false;
+  document.getElementById('viewer-file-label').textContent = 'No file selected';
+  document.getElementById('viewer-search').value = '';
+  document.getElementById('sidebar-search').value = '';
+  document.getElementById('result-count').textContent = '— entries';
+  document.getElementById('results-header-count').textContent = '';
+  document.getElementById('btn-scrub').disabled = true;
+  document.querySelectorAll('.level-filter-btn').forEach(b => b.classList.toggle('active', b.dataset.level === 'ALL'));
+  document.querySelectorAll('.tw-btn').forEach(b => b.classList.toggle('active', b.dataset.minutes === '0'));
+  currentViewerLines = [];
+  currentFocusEntry  = null;
+
+  document.getElementById('analyser').style.display = 'none';
+  document.getElementById('wizard').style.display = 'flex';
+});
+document.getElementById('btn-add-more').addEventListener('click', () => {
+  document.getElementById('analyser').style.display = 'none';
+  document.getElementById('wizard').style.display = 'flex';
+});
+
+// ═══════════════════════════════════════════════════════════════
+//  THEME TOGGLE
+// ═══════════════════════════════════════════════════════════════
+document.getElementById('btn-theme').addEventListener('click', () => {
+  const html = document.documentElement;
+  const isDark = html.dataset.theme === 'dark';
+  html.dataset.theme = isDark ? 'light' : 'dark';
+  document.getElementById('btn-theme').textContent = isDark ? '🌙' : '☀️';
+});
+// Set correct initial icon (starts dark, so show sun = "switch to light")
+document.getElementById('btn-theme').textContent = '☀️';
+
+// ═══════════════════════════════════════════════════════════════
+//  UTILS
+// ═══════════════════════════════════════════════════════════════
+function escHtml(str) {
+  return String(str)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+function escRegex(s) {
+  return s.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  RESIZABLE PANELS
+// ═══════════════════════════════════════════════════════════════
+function initResizer(resizerId, leftEl, getRightEl, minLeft, minRight) {
+  const rz = document.getElementById(resizerId);
+  let dragging = false, startX = 0, startW = 0;
+
+  rz.addEventListener('mousedown', e => {
+    dragging = true;
+    startX = e.clientX;
+    startW = leftEl.offsetWidth;
+    rz.classList.add('dragging');
+    document.body.style.cursor = 'col-resize';
+    document.body.style.userSelect = 'none';
+    e.preventDefault();
+  });
+
+  document.addEventListener('mousemove', e => {
+    if (!dragging) return;
+    const delta = e.clientX - startX;
+    const newW = Math.max(minLeft, startW + delta);
+    const containerW = leftEl.parentElement.offsetWidth;
+    const rightMin = minRight;
+    if (containerW - newW - 5 < rightMin) return;
+    leftEl.style.width = newW + 'px';
+  });
+
+  document.addEventListener('mouseup', () => {
+    if (!dragging) return;
+    dragging = false;
+    rz.classList.remove('dragging');
+    document.body.style.cursor = '';
+    document.body.style.userSelect = '';
+  });
+}
+
+// Strip timestamp and level prefix from a log line for display in results
+function stripTimestampAndLevel(text) {
+  // Remove log4net style: "2026-01-01 12:00:00,123 [CID:x] [C:x] [TID:x] LEVEL  "
+  let s = text.replace(/^\d{4}-\d{2}-\d{2}[\sT]\d{2}:\d{2}:\d{2}[,\.]\d+\s*/,'');
+  // Remove bracketed blocks like [CID:] [C:] [TID:54]
+  s = s.replace(/(\[[^\]]{0,30}\]\s*)+/g, '');
+  // Remove leading level word
+  s = s.replace(/^(ERROR|CRITICAL|WARNING|WARN|INFO|INFORMATION|VERBOSE|DEBUG)\s*/i, '');
+  // Remove leftover leading dashes/spaces
+  s = s.replace(/^[\s\-–]+/, '');
+  return s.trim() || text;
+}
+
+// Boot resizers after analyser is shown
+function initResizers() {
+  initResizer('resizer-sidebar',  document.getElementById('sidebar'),        null, 140, 400);
+  initResizer('resizer-results',  document.getElementById('results-panel'),  null, 180, 300);
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  PWA — register service worker
+// ═══════════════════════════════════════════════════════════════
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('sw.js').catch(() => {});
+  });
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  BOOT
+// ═══════════════════════════════════════════════════════════════
+initWizard();
+</script>
+</body>
+</html>
