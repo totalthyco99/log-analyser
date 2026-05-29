@@ -1,0 +1,25 @@
+{
+  "name": "Log Analyser",
+  "short_name": "Log Analyser",
+  "description": "Browser-based log analysis tool for Secret Server and Delinea Platform",
+  "start_url": "/log-analyser/",
+  "scope": "/log-analyser/",
+  "display": "standalone",
+  "background_color": "#0D0D12",
+  "theme_color": "#6B21A8",
+  "orientation": "landscape",
+  "icons": [
+    {
+      "src": "icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
