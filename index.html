@@ -830,6 +830,13 @@ https://github.com/nodeca/pako/blob/main/LICENSE
     background: #F59E0B; color: #1a1a1a;
     border-radius: 8px; padding: 0 5px; font-weight: 700;
   }
+  #btn-load-older {
+    padding: 4px 10px; border: 1px solid var(--accent-teal);
+    border-radius: var(--radius-md); background: var(--highlight-similar);
+    color: var(--accent-teal); font-size: 11px; font-weight: 600;
+    transition: all 0.12s; white-space: nowrap;
+  }
+  #btn-load-older:hover { background: var(--accent-teal); color: #fff; }
   /* KB warning badge — high-contrast amber, sits at start of a log line / result */
   .kb-badge {
     display: inline-flex; align-items: center; justify-content: center;
@@ -1612,6 +1619,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
               <div class="topbar-divider"></div>
               <button id="btn-highlight-similar" title="Highlight entries with same logger">Similar</button>
               <button id="btn-recognised-errors" title="Show entries with a recognised documented error">⚠ Recognised errors</button>
+              <button id="btn-load-older" style="display:none" title="Older rolled logs (.log.1, .log.2 …) aren't loaded yet to save memory. Click to load and merge them in.">⏬ Load older logs</button>
             </div>
 
             <div id="log-content">
@@ -1954,14 +1962,26 @@ kbPrepare();
 })();
 
 // Match a log line against the dictionary. Returns the matching signature or null.
-// The line is scrubbed of PII before matching (privacy-first).
+// Note: we match against the raw (lowercased) text directly. Scrubbing PII
+// first was wasteful — the dictionary's match strings are error fragments that
+// never overlap with PII patterns, so scrubbing only burned CPU on every line.
+// (The Yext "copy query" path still scrubs before anything leaves the device.)
 function kbMatch(rawText) {
   if (!rawText) return null;
-  const scrubbed = scrubPII(rawText).scrubbed.toLowerCase();
+  const hay = rawText.toLowerCase();
   for (const s of KB.prepared) {
-    if (scrubbed.includes(s._matchL)) return s;
+    if (hay.includes(s._matchL)) return s;
   }
   return null;
+}
+
+// Cached per-line variant — used in hot paths (counts, rendering, filtering).
+// Stores the result (or false) on the line so repeated checks are free.
+function kbMatchLine(line) {
+  if (line._kb !== undefined) return line._kb;
+  const m = kbMatch(line.text);
+  line._kb = m || false;
+  return line._kb;
 }
 
 // Build the small amber badge button HTML for a matched signature.
@@ -2335,7 +2355,7 @@ function renderCorrelationResults(matches, ts, win) {
     const item = document.createElement('div');
     item.className = 'result-item';
     const level = r.line.level || '?';
-    const kb = kbMatch(r.line.text);
+    const kb = kbMatchLine(r.line);
     item.innerHTML = `
       <div class="ri-meta">
         ${kb ? kbBadgeHtml() : ''}
@@ -2343,7 +2363,7 @@ function renderCorrelationResults(matches, ts, win) {
         <span class="ri-line">L${r.line.lineNo}</span>
         <span class="ri-file">${escHtml(r.data.compDef.name)}</span>
       </div>
-      <div class="ri-msg">${r.line.strippedHtml || escHtml(r.line.text)}</div>
+      <div class="ri-msg">${getStrippedHtml(r.line)}</div>
     `;
     if (kb) {
       const b = item.querySelector('.kb-badge');
@@ -2527,9 +2547,36 @@ function ingestTextFile(name, text, size, path) {
   }
   if (!pendingFiles[matched]) pendingFiles[matched] = [];
   if (!pendingFiles[matched].find(f => f.path === (path||name))) {
-    pendingFiles[matched].push({ name, raw: text, size: size||text.length, path: path||name, kind: 'log' });
+    pendingFiles[matched].push({ name, raw: text, size: size||text.length, path: path||name, kind: 'log', deferred: false, rank: rolledRank(name) });
   }
   return true;
+}
+
+// Rolled-log age rank: SS.log = 0 (newest), SS.log.1 = 1, SS.log.2 = 2 …
+// Higher number = older. Non-rolled files rank 0.
+function rolledRank(name) {
+  const m = name.match(/\.log\.(\d+)$/i);
+  return m ? parseInt(m[1], 10) : 0;
+}
+
+// Ingest a file from a zip WITHOUT decompressing it yet. We keep the JSZip
+// entry (which holds the compressed bytes) and only decompress on demand.
+// Newest rolled file per component is loaded immediately; older ones deferred.
+function ingestZipEntry(name, entry, path) {
+  const matched = matchComponent(name);
+  if (!matched) { return { matched: false }; }
+  if (!pendingFiles[matched]) pendingFiles[matched] = [];
+  if (pendingFiles[matched].find(f => f.path === (path||name))) return { matched: true, dup: true };
+  const rank = rolledRank(name);
+  const size = (entry._data && entry._data.uncompressedSize) || 0;
+  pendingFiles[matched].push({
+    name, path: path || name, kind: 'log',
+    rank, size,
+    deferred: true,           // not yet decompressed
+    zipEntry: entry,          // JSZip entry — decompress later via .async('text')
+    raw: null,
+  });
+  return { matched: true, compId: matched };
 }
 
 // Entry point for dropped/selected files
@@ -2597,12 +2644,13 @@ async function extractZipBuffer(buf, basePath, stats) {
         ingestEvtxBuffer(baseName, ab, fullPath, true);
         stats.evtx++;
       } else if (isProbablyText(baseName)) {
-        // Size guard — uncompressed size if available
+        // Defer decompression — keep the compressed entry, decode on demand.
+        // This is what keeps memory flat regardless of how many rolled logs
+        // the bundle contains.
         const uncompressed = entry._data && entry._data.uncompressedSize;
         if (uncompressed && uncompressed > MAX_TEXT_BYTES) { stats.skipped++; continue; }
-        const text = await entry.async('text');
-        if (ingestTextFile(baseName, text, text.length, fullPath)) stats.files++;
-        else stats.skipped++;
+        const r = ingestZipEntry(baseName, entry, fullPath);
+        if (r.matched) stats.files++; else stats.skipped++;
       } else {
         stats.skipped++;
       }
@@ -2655,19 +2703,6 @@ const LEVEL_NORM = {
 // Matches stack trace / exception continuation lines
 const CONTINUATION_RE = /^(\\s+at\\s|---\\s*(End of|inner exception)|\\s*--->\\s|[A-Za-z][\\w.]*Exception[:\\s]|[A-Za-z][\\w.]*Error[:\\s])/;
 
-function escHtml(s) {
-  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
-    .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
-}
-
-function stripTimestampAndLevel(text) {
-  let s = text.replace(/^\\d{4}-\\d{2}-\\d{2}[\\sT]\\d{2}:\\d{2}:\\d{2}[,\\.\\d]*\\s*/,'');
-  s = s.replace(/(\\[[^\\]]{0,30}\\]\\s*)+/g, '');
-  s = s.replace(/^(ERROR|CRITICAL|WARNING|WARN|INFO|INFORMATION|VERBOSE|DEBUG)\\s*/i, '');
-  s = s.replace(/^[\\s\\-\\u2013]+/, '');
-  return s.trim() || text;
-}
-
 function parseFile(raw, filename) {
   const rawLines = raw.split('\\n');
   const lines = [];
@@ -2705,12 +2740,13 @@ function parseFile(raw, filename) {
       if (logger) lastLogger = logger;
     }
 
-    const stripped = stripTimestampAndLevel(text);
+    // NOTE: we intentionally do NOT pre-render safeHtml/strippedHtml here.
+    // Storing two escaped HTML copies per line tripled memory on large
+    // bundles. The renderers compute (and cache) these on demand for only
+    // the handful of lines actually on screen. See getSafeHtml/getStrippedHtml.
     lines.push({
       lineNo: i+1,
       text,
-      safeHtml: escHtml(text),
-      strippedHtml: escHtml(stripped),
       level: isContinuation ? null : level,
       isContinuation,
       parentLineNo: isContinuation ? lastParentLineNo : null,
@@ -2735,12 +2771,13 @@ function makeWorker() {
 }
 
 // ═══════════════════════════════════════════════════════════════
-//  ANALYSE
+//  ANALYSE — only the NEWEST rolled file per component is parsed up
+//  front. Older .log.N files are registered (name/size/compressed
+//  entry) but parsed on demand via loadOlderLogs(). This keeps memory
+//  flat no matter how many rolled files a bundle contains.
 // ═══════════════════════════════════════════════════════════════
 function analyseFiles() {
   const prod = PRODUCTS[state.product];
-  // NOTE: additive — we no longer wipe loadedData here, so "Add More Files"
-  // merges new components/files into the existing set.
 
   // Move any parsed EVTX files into loaded state
   Object.entries(pendingEvtx).forEach(([k, v]) => { state.loadedEvtx[k] = v; });
@@ -2758,23 +2795,17 @@ function analyseFiles() {
       : Object.keys(state.loadedData)[0];
     if (first) activateComponent(first);
     else if (Object.keys(state.loadedEvtx).length) {
-      // EVTX-only session — open the first EVTX summary
       openEvtxSummary(Object.keys(state.loadedEvtx)[0]);
     }
   };
 
   if (!compIds.length) {
-    // No new log components — but we may have EVTX or existing data
-    if (Object.keys(state.loadedData).length || Object.keys(state.loadedEvtx).length) {
-      goToAnalyser();
-    }
+    if (Object.keys(state.loadedData).length || Object.keys(state.loadedEvtx).length) goToAnalyser();
     return;
   }
 
-  // Show progress
   const bar = document.getElementById('parse-progress');
   bar.style.transform = 'scaleX(0.05)';
-
   let completed = 0;
   const total = compIds.length;
 
@@ -2782,64 +2813,122 @@ function analyseFiles() {
     bar.style.transform = 'scaleX(1)';
     setTimeout(() => { bar.style.transform = 'scaleX(0)'; }, 400);
     goToAnalyser();
-    // Clear pending so a subsequent "Add More" starts clean
     Object.keys(pendingFiles).forEach(k => delete pendingFiles[k]);
   };
 
-  // Process components ONE AT A TIME. Spawning a worker for every component
-  // simultaneously floods the main thread with large postMessage payloads and
-  // can lock up the tab on big bundles. Sequential keeps memory/CPU bounded.
+  // Process components one at a time (bounded memory/CPU).
   let idx = 0;
-  const processNext = () => {
+  const processNext = async () => {
     if (idx >= compIds.length) { allDone(); return; }
     const compId = compIds[idx];
     const comp = prod.components.find(c => c.id === compId);
-    const files = pendingFiles[compId] || [];
-    const worker = makeWorker();
+    const all = (pendingFiles[compId] || []).slice();
 
+    // Sort by rolled rank: newest (rank 0) first, oldest last.
+    all.sort((a, b) => (a.rank || 0) - (b.rank || 0));
+    // Parse only the newest up front; defer the rest.
+    const newest = all[0];
+    const older = all.slice(1);
+
+    // Decompress the newest file if it came from a zip (deferred)
+    let newestRaw = newest.raw;
+    if (newest.deferred && newest.zipEntry) {
+      try { newestRaw = await newest.zipEntry.async('text'); }
+      catch (e) { console.warn('decompress failed', newest.name, e); newestRaw = ''; }
+    }
+
+    const worker = makeWorker();
     worker.onmessage = e => {
       worker.terminate();
       const { parsed } = e.data;
-
-      // Merge with any existing files for this component (additive)
       const existing = state.loadedData[compId];
-      let allParsed = parsed;
+
+      // Mark the parsed newest file
+      const loadedFiles = parsed.map(p => ({ ...p, loaded: true, rank: newest.rank || 0 }));
+      // Register older files as unloaded placeholders (no parsed lines yet)
+      const deferredFiles = older.map(f => ({
+        name: f.name, path: f.path, size: f.size, rank: f.rank || 0,
+        loaded: false, zipEntry: f.zipEntry || null, raw: f.deferred ? null : f.raw,
+        lines: [],
+      }));
+
+      let allFiles = loadedFiles.concat(deferredFiles);
       if (existing && existing.files) {
-        const haveNames = new Set(existing.files.map(f => f.name));
-        const newOnes = parsed.filter(f => !haveNames.has(f.name));
-        allParsed = existing.files.concat(newOnes);
+        const haveNames = new Set(existing.files.map(f => f.path || f.name));
+        allFiles = existing.files.concat(allFiles.filter(f => !haveNames.has(f.path || f.name)));
       }
 
-      // Build merged as REFERENCES (not clones) — cloning every line was the
-      // freeze cause. Sort the reference array only.
-      let merged = [];
-      for (const f of allParsed) {
-        const lines = f.lines;
-        for (let i = 0; i < lines.length; i++) merged.push(lines[i]);
-      }
-      merged.sort((a,b) => (a.ts && b.ts) ? a.ts - b.ts : 0);
-      for (let i = 0; i < merged.length; i++) merged[i].mergedNo = i + 1;
-
-      state.loadedData[compId] = { compDef: comp, files: allParsed, merged };
+      const merged = buildMerged(allFiles);
+      state.loadedData[compId] = { compDef: comp, files: allFiles, merged, hasOlder: deferredFiles.length > 0 };
 
       completed++;
       bar.style.transform = `scaleX(${0.05 + 0.95 * (completed/total)})`;
       idx++;
-      // Yield to the UI between components so the progress bar repaints
       setTimeout(processNext, 0);
     };
-
     worker.onerror = err => {
       console.error('worker failed for', compId, err);
       worker.terminate();
-      completed++;
-      idx++;
-      setTimeout(processNext, 0);
+      completed++; idx++; setTimeout(processNext, 0);
     };
-
-    worker.postMessage({ compId, files });
+    worker.postMessage({ compId, files: [{ name: newest.name, size: newest.size, path: newest.path, raw: newestRaw }] });
   };
   processNext();
+}
+
+// Build the merged (chronological) reference array from loaded files only.
+function buildMerged(files) {
+  let merged = [];
+  for (const f of files) {
+    if (!f.loaded || !f.lines) continue;
+    for (let i = 0; i < f.lines.length; i++) merged.push(f.lines[i]);
+  }
+  merged.sort((a,b) => (a.ts && b.ts) ? a.ts - b.ts : 0);
+  for (let i = 0; i < merged.length; i++) merged[i].mergedNo = i + 1;
+  return merged;
+}
+
+// On-demand load of all older rolled files for a component.
+async function loadOlderLogs(compId) {
+  const data = state.loadedData[compId];
+  if (!data) return;
+  const unloaded = data.files.filter(f => !f.loaded);
+  if (!unloaded.length) return;
+
+  flashViewerStatus(`Loading ${unloaded.length} older log file(s)…`);
+  for (const f of unloaded) {
+    let raw = f.raw;
+    if (raw == null && f.zipEntry) {
+      try { raw = await f.zipEntry.async('text'); }
+      catch (e) { console.warn('decompress failed', f.name, e); continue; }
+    }
+    await new Promise((resolve) => {
+      const worker = makeWorker();
+      worker.onmessage = e => {
+        worker.terminate();
+        const parsed = e.data.parsed[0];
+        if (parsed) { f.lines = parsed.lines; f.loaded = true; }
+        resolve();
+      };
+      worker.onerror = () => { worker.terminate(); resolve(); };
+      worker.postMessage({ compId, files: [{ name: f.name, size: f.size, path: f.path, raw }] });
+    });
+  }
+  data.merged = buildMerged(data.files);
+  data.hasOlder = false;
+  // Re-render current view
+  if (state.activeCompId === compId && !globalSearchActive) applyFilter();
+  renderSidebar();
+  document.querySelectorAll('.component-item').forEach(el =>
+    el.classList.toggle('active', el.dataset.compId === compId));
+  const olderBtn = document.getElementById('btn-load-older');
+  if (olderBtn) olderBtn.style.display = 'none';
+  flashViewerStatus('');
+}
+
+function flashViewerStatus(msg) {
+  const el = document.getElementById('viewer-file-label');
+  if (el && msg) el.textContent = msg;
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -2913,7 +3002,7 @@ function renderSidebarTree(container) {
   // Map each loaded component file → its compId for click handling
   Object.entries(state.loadedData).forEach(([compId, data]) => {
     (data.files || []).forEach(f => {
-      addToTree(f.path || f.name, { compId, kind: 'log', count: (f.lines || []).length });
+      addToTree(f.path || f.name, { compId, kind: 'log', count: (f.lines || []).length, loaded: f.loaded !== false });
     });
   });
   // EVTX files
@@ -2949,7 +3038,11 @@ function buildTreeDom(node, prefix) {
     const fileEl = document.createElement('div');
     fileEl.className = 'tree-file' + (f.kind === 'evtx' ? ' evtx' : '');
     const icon = f.kind === 'evtx' ? '🗔' : '📄';
-    fileEl.innerHTML = `${icon} <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escHtml(f.name)}</span><span class="tf-count">${f.count ? f.count.toLocaleString() : ''}</span>`;
+    const countLabel = f.kind === 'evtx'
+      ? (f.count ? f.count.toLocaleString() : '')
+      : (f.loaded === false ? '⏬ not loaded' : (f.count ? f.count.toLocaleString() : ''));
+    if (f.loaded === false) fileEl.style.opacity = '0.6';
+    fileEl.innerHTML = `${icon} <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escHtml(f.name)}</span><span class="tf-count">${countLabel}</span>`;
     if (f.kind === 'evtx') {
       fileEl.addEventListener('click', () => {
         container_clearTreeActive();
@@ -2961,6 +3054,8 @@ function buildTreeDom(node, prefix) {
         container_clearTreeActive();
         fileEl.classList.add('active');
         activateComponent(f.compId);
+        // If this specific file isn't loaded, offer to load older logs
+        if (f.loaded === false) loadOlderLogs(f.compId);
       });
     }
     frag.appendChild(fileEl);
@@ -3002,9 +3097,21 @@ function activateComponent(compId) {
   const recBtn = document.getElementById('btn-recognised-errors');
   if (recBtn) recBtn.classList.remove('active');
   if (typeof updateRecognisedCount === 'function') updateRecognisedCount();
+  // Show "Load older logs" only if this component has unloaded rolled files
+  const olderBtn = document.getElementById('btn-load-older');
+  if (olderBtn) {
+    const data = state.loadedData[compId];
+    const unloaded = data && data.files ? data.files.filter(f => !f.loaded).length : 0;
+    olderBtn.style.display = unloaded > 0 ? '' : 'none';
+    olderBtn.textContent = `⏬ Load ${unloaded} older log${unloaded === 1 ? '' : 's'}`;
+  }
   // Don't overwrite search results when in search mode
   if (!globalSearchActive) applyFilter();
 }
+
+document.getElementById('btn-load-older').addEventListener('click', () => {
+  if (state.activeCompId) loadOlderLogs(state.activeCompId);
+});
 
 // Sidebar view toggle handlers
 document.querySelectorAll('.svt-btn').forEach(btn => {
@@ -3048,7 +3155,7 @@ function applyFilter() {
 
   // Recognised-errors-only mode: keep only entries matching a KB signature
   if (state.recognisedOnly) {
-    entries = entries.filter(l => kbMatch(l.text));
+    entries = entries.filter(l => kbMatchLine(l));
   }
 
   document.getElementById('result-count').textContent = `${entries.length.toLocaleString()} entries`;
@@ -3113,7 +3220,7 @@ function renderResultsBatch() {
     const item = document.createElement('div');
     item.className = 'result-item';
     const level = entry.level || '?';
-    const kb = kbMatch(entry.text);
+    const kb = kbMatchLine(entry);
     const kbBadge = kb ? kbBadgeHtml() : '';
     item.innerHTML = `
       <div class="ri-meta">
@@ -3122,7 +3229,7 @@ function renderResultsBatch() {
         <span class="ri-line">L${entry.lineNo}</span>
         <span class="ri-file">${entry._file}</span>
       </div>
-      <div class="ri-msg">${entry.strippedHtml || escHtml(entry.text)}</div>
+      <div class="ri-msg">${getStrippedHtml(entry)}</div>
     `;
     if (kb) {
       const badgeEl = item.querySelector('.kb-badge');
@@ -3231,14 +3338,14 @@ function buildLineEl(l, i) {
   div.className = cls;
   div.dataset.idx = i;
   div.dataset.lineNo = l.lineNo;
-  let html = l.safeHtml;
+  let html = getSafeHtml(l);
   if (VS._searchTermSafe && VS.searchMatchIndices.includes(i)) {
     html = html.replace(new RegExp(escRegex(VS._searchTermSafe), 'gi'),
       m => `<span class="search-highlight">${m}</span>`);
   }
   // Recognised-error badge for non-continuation lines that match the KB
   let kb = null;
-  if (!l.isContinuation) kb = kbMatch(l.text);
+  if (!l.isContinuation) kb = kbMatchLine(l);
   const kbBadge = kb ? kbBadgeHtml() : '';
   div.innerHTML = `<span class="ln">${l.lineNo}</span><span class="lc">${kbBadge}${html}</span>`;
   if (kb) {
@@ -3624,7 +3731,7 @@ function simRenderWindow(anchor) {
     div.className = cls;
     div.dataset.simIdx = i;
     div.dataset.lineNo = l.lineNo;
-    let html = l.safeHtml;
+    let html = getSafeHtml(l);
     if (termL && l.text.toLowerCase().includes(termL)) {
       html = html.replace(new RegExp(escRegex(termSafe), 'gi'),
         m => `<span class="search-highlight">${m}</span>`);
@@ -3715,7 +3822,7 @@ function simOnScroll() {
         const matchIdx = SIM.matchIndices.indexOf(i);
         if (matchIdx >= 0) cls += matchIdx === SIM.currentIdx ? ' sim-current' : ' sim-match';
         div.className = cls; div.dataset.simIdx = i; div.dataset.lineNo = l.lineNo;
-        let html = l.safeHtml;
+        let html = getSafeHtml(l);
         if (termL && l.text.toLowerCase().includes(termL))
           html = html.replace(new RegExp(escRegex(termSafe),'gi'), m => `<span class="search-highlight">${m}</span>`);
         div.innerHTML = `<span class="ln">${l.lineNo}</span><span class="lc">${html}</span>`;
@@ -3739,7 +3846,7 @@ function simOnScroll() {
         const matchIdx = SIM.matchIndices.indexOf(i);
         if (matchIdx >= 0) cls += matchIdx === SIM.currentIdx ? ' sim-current' : ' sim-match';
         div.className = cls; div.dataset.simIdx = i; div.dataset.lineNo = l.lineNo;
-        let html = l.safeHtml;
+        let html = getSafeHtml(l);
         if (termL && l.text.toLowerCase().includes(termL))
           html = html.replace(new RegExp(escRegex(termSafe),'gi'), m => `<span class="search-highlight">${m}</span>`);
         div.innerHTML = `<span class="ln">${l.lineNo}</span><span class="lc">${html}</span>`;
@@ -3910,7 +4017,7 @@ function updateRecognisedCount() {
   const data = state.loadedData[state.activeCompId];
   let n = 0;
   for (const l of data.merged) {
-    if (!l.isContinuation && l.level && kbMatch(l.text)) n++;
+    if (!l.isContinuation && l.level && kbMatchLine(l)) n++;
   }
   btn.innerHTML = n > 0
     ? `⚠ Recognised errors <span class="kb-count">${n}</span>`
@@ -4078,8 +4185,28 @@ function runGlobalSearch(term) {
   const list = document.getElementById('results-list');
   list.innerHTML = '';
 
+  // If any searched component has unloaded older logs, offer to include them.
+  const compsWithOlder = Object.entries(state.loadedData)
+    .filter(([cid, d]) => !state.searchExcluded.has(cid) && d.files && d.files.some(f => !f.loaded))
+    .map(([cid]) => cid);
+  if (compsWithOlder.length) {
+    const notice = document.createElement('div');
+    notice.style.cssText = 'padding:8px 12px;margin:8px;border:1px solid var(--accent-teal);border-radius:var(--radius-md);background:var(--highlight-similar);font-size:11px;color:var(--text-secondary);display:flex;align-items:center;gap:8px';
+    notice.innerHTML = `<span>🔍 Searching current logs only. ${compsWithOlder.length} component(s) have older rolled logs not yet searched.</span>`;
+    const btn = document.createElement('button');
+    btn.textContent = 'Load & search older logs';
+    btn.style.cssText = 'margin-left:auto;padding:4px 10px;border:1px solid var(--accent-teal);border-radius:var(--radius-sm);background:var(--accent-teal);color:#fff;font-size:11px;font-weight:600;cursor:pointer;white-space:nowrap';
+    btn.onclick = async () => {
+      btn.disabled = true; btn.textContent = 'Loading…';
+      for (const cid of compsWithOlder) await loadOlderLogs(cid);
+      runGlobalSearch(state.globalSearchTerm);
+    };
+    notice.appendChild(btn);
+    list.appendChild(notice);
+  }
+
   if (!results.length) {
-    list.innerHTML = '<div class="empty-state"><div class="empty-state-icon">🔍</div><div>No matches found across loaded files</div></div>';
+    list.insertAdjacentHTML('beforeend', '<div class="empty-state"><div class="empty-state-icon">🔍</div><div>No matches found across loaded files</div></div>');
     return;
   }
 
@@ -4101,7 +4228,7 @@ function runGlobalSearch(term) {
         <span class="ri-line">L${r.line.lineNo}</span>
         <span class="ri-file">${r.line._file}</span>
       </div>
-      <div class="ri-msg">${r.line.strippedHtml || escHtml(r.line.text)}</div>
+      <div class="ri-msg">${getStrippedHtml(r.line)}</div>
     `;
     item.addEventListener('click', () => {
       document.querySelectorAll('.result-item').forEach(i => i.classList.remove('focused'));
@@ -4280,6 +4407,29 @@ function escHtml(str) {
 }
 function escRegex(s) {
   return s.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
+}
+
+// Strip leading timestamp + level prefix from a log line (main-thread copy,
+// mirrors the worker version). Used for the lazy strippedHtml computation.
+function stripTimestampAndLevelMain(text) {
+  let s = text.replace(/^\d{4}-\d{2}-\d{2}[\sT]\d{2}:\d{2}:\d{2}[,\.\d]*\s*/,'');
+  s = s.replace(/(\[[^\]]{0,30}\]\s*)+/g, '');
+  s = s.replace(/^(ERROR|CRITICAL|WARNING|WARN|INFO|INFORMATION|VERBOSE|DEBUG)\s*/i, '');
+  s = s.replace(/^[\s\-\u2013]+/, '');
+  return s.trim() || text;
+}
+
+// Lazily compute + cache the escaped HTML for a line, only when it's actually
+// rendered. This keeps memory low (we no longer store these for every line up
+// front) while avoiding recomputation when scrolling back over the same line.
+function getSafeHtml(line) {
+  if (line._safeHtml === undefined) line._safeHtml = escHtml(line.text);
+  return line._safeHtml;
+}
+function getStrippedHtml(line) {
+  if (line._strippedHtml === undefined)
+    line._strippedHtml = escHtml(stripTimestampAndLevelMain(line.text));
+  return line._strippedHtml;
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -4599,8 +4749,6 @@ function tourInjectMockData() {
     const text = `${new Date(ts).toISOString().replace('T',' ').replace('Z',',')}000 [CID:] [C:] [TID:Worker-${i}] ${level}  ${logger} - Tour demo log entry ${i + 1}`;
     mockLines.push({
       lineNo: i + 1, text,
-      safeHtml: text.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'),
-      strippedHtml: `${logger} - Tour demo log entry ${i + 1}`,
       level, isContinuation: false, parentLineNo: null,
       ts, logger, _file: 'SS.log',
     });
