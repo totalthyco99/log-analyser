@@ -57,7 +57,7 @@ Click **Similar** to open a full-screen view of every line sharing the same logg
 ![Similar entries](screenshots/08-similar.png)
 
 ### Windows Event Logs (.evtx)
-Click **Upload & analyse EVTX** to add a Windows Event Log at any time. It opens in a draggable, resizable floating window with a summary (time range, level breakdown, top event IDs) and a browsable event list. **Sync all logs to this time** lines your other logs up around a chosen event so you can see what happened across the whole system at that moment.
+Click **Upload & analyse EVTX** to add a Windows Event Log at any time. A complete in-browser parser decodes the events — provider, event ID, level, and the real message text — and opens them in a draggable, resizable floating window with a summary (time range, level breakdown, top event IDs) and a browsable event list. **Sync all logs to this time** lines your other logs up around a chosen event so you can see what happened across the whole system at that moment.
 
 ![EVTX floating window](screenshots/09-evtx.png)
 
@@ -112,7 +112,7 @@ Highlight any text in the log viewer, then click **Scrub PII & Copy** in the bot
 - Upload a Windows Event Log at any time with **Upload & analyse EVTX**
 - Opens in a draggable, resizable floating window with a summary (time range, level breakdown, top event IDs) and a browsable event list
 - **Sync all logs to this time** lines your other logs up around a chosen event, and a correlation option pulls entries from ±10/15/20 minutes around it — so you can see what happened across the whole system at that moment
-- EVTX parsing is best-effort: it decodes what it can from the binary format and is honest about anything it can't
+- EVTX parsing is **full-fidelity**: a complete Binary XML + template parser (running in a Web Worker, entirely in-browser) decodes real event messages, provider, event ID, level, channel, and structured event data — not just timestamps
 
 ### PII scrubbing
 - Highlight any text in the log viewer with your mouse
