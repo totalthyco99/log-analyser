@@ -626,6 +626,13 @@ https://github.com/nodeca/pako/blob/main/LICENSE
     transition: all 0.12s;
   }
   #btn-add-more:hover { border-color: var(--accent-teal); color: var(--text-primary); }
+  #btn-add-evtx {
+    padding: 5px 10px; border: 1px solid var(--accent-purple);
+    border-radius: var(--radius-md); background: rgba(168,85,247,0.08);
+    color: var(--accent-purple); font-size: 11px; font-weight: 600;
+    transition: all 0.12s; white-space: nowrap; margin-left: 6px;
+  }
+  #btn-add-evtx:hover { background: var(--accent-purple); color: #fff; }
 
   /* GLOBAL TIME RANGE */
   #global-time-range {
@@ -837,6 +844,54 @@ https://github.com/nodeca/pako/blob/main/LICENSE
     transition: all 0.12s; white-space: nowrap;
   }
   #btn-load-older:hover { background: var(--accent-teal); color: #fff; }
+  /* Occurrence navigation bar */
+  #occurrence-bar {
+    display: flex; align-items: center; gap: 8px;
+    padding: 5px 12px; background: rgba(245,158,11,0.1);
+    border-bottom: 1px solid #F59E0B; flex-shrink: 0;
+    font-size: 11px; color: var(--text-secondary);
+  }
+  #occurrence-bar .occ-spacer { flex: 1; }
+  #occ-label { font-weight: 600; color: var(--text-primary); }
+  #occ-position { font-family: var(--font-mono); font-size: 11px; color: #F59E0B; min-width: 60px; text-align: center; }
+  #occurrence-bar button {
+    width: 24px; height: 22px; border: 1px solid var(--border);
+    border-radius: var(--radius-sm); background: var(--bg-elevated);
+    color: var(--text-secondary); cursor: pointer; font-size: 11px; transition: all 0.12s;
+  }
+  #occurrence-bar button:hover { border-color: #F59E0B; color: #F59E0B; }
+  #occ-close { margin-left: 6px; }
+  #occ-close:hover { border-color: var(--level-error) !important; color: var(--level-error) !important; }
+  /* Recognised-error grouped rows */
+  .recognised-group .rg-count {
+    font-family: var(--font-mono); font-size: 10px; font-weight: 700;
+    background: #F59E0B; color: #1a1a1a; border-radius: 8px; padding: 0 6px;
+  }
+  .recognised-group .rg-snippet {
+    font-size: 10px; color: var(--text-muted); font-family: var(--font-mono);
+    margin-top: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .recognised-group .rg-others {
+    margin-top: 6px; padding: 3px 8px; font-size: 10px; font-weight: 600;
+    border: 1px solid var(--accent-teal); border-radius: var(--radius-sm);
+    background: transparent; color: var(--accent-teal); cursor: pointer; transition: all 0.12s;
+  }
+  .recognised-group .rg-others:hover { background: var(--accent-teal); color: #fff; }
+  #rg-others-pop {
+    position: fixed; z-index: 720; width: 240px;
+    background: var(--bg-surface); border: 1px solid var(--accent-teal);
+    border-radius: var(--radius-lg); box-shadow: var(--shadow-lg); padding: 12px;
+  }
+  #rg-others-pop.hidden { display: none; }
+  #rg-others-pop .rgo-title { font-size: 12px; font-weight: 700; color: var(--text-primary); margin-bottom: 4px; }
+  #rg-others-pop .rgo-sub { font-size: 10px; color: var(--text-muted); margin-bottom: 8px; }
+  #rg-others-pop .rgo-btn {
+    display: block; width: 100%; text-align: left; margin-bottom: 4px;
+    padding: 6px 10px; border: 1px solid var(--border); border-radius: var(--radius-sm);
+    background: var(--bg-elevated); color: var(--text-primary); font-size: 12px;
+    cursor: pointer; transition: all 0.12s;
+  }
+  #rg-others-pop .rgo-btn:hover { border-color: var(--accent-teal); background: var(--bg-hover); }
   /* KB warning badge — high-contrast amber, sits at start of a log line / result */
   .kb-badge {
     display: inline-flex; align-items: center; justify-content: center;
@@ -1062,26 +1117,38 @@ https://github.com/nodeca/pako/blob/main/LICENSE
   /* ── SIMILAR OVERLAY (full-screen viewer) ── */
   /* EVTX OVERLAY */
   #evtx-overlay {
-    position: fixed; inset: 0; z-index: 450;
+    position: fixed; z-index: 450;
+    top: 80px; left: 50%; transform: translateX(-50%);
+    width: min(900px, 92vw); height: min(620px, 80vh);
     display: flex; flex-direction: column;
     background: var(--bg-base);
+    border: 1px solid var(--accent-purple);
+    border-radius: var(--radius-lg);
+    box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+    overflow: hidden; resize: both; min-width: 480px; min-height: 320px;
   }
   #evtx-overlay.hidden { display: none; }
   #evtx-overlay-header {
-    height: 56px; flex-shrink: 0;
+    height: 50px; flex-shrink: 0;
     background: var(--bg-surface);
     border-bottom: 1px solid var(--accent-purple);
-    display: flex; align-items: center; gap: 12px; padding: 0 16px;
+    display: flex; align-items: center; gap: 12px; padding: 0 14px;
+    cursor: move; user-select: none;
   }
-  #evtx-overlay-icon { font-size: 22px; }
-  #evtx-overlay-titlewrap { display: flex; flex-direction: column; }
-  #evtx-overlay-title { font-size: 14px; font-weight: 700; color: var(--text-primary); }
-  #evtx-overlay-sub { font-size: 11px; color: var(--text-muted); font-family: var(--font-mono); }
+  #evtx-overlay-icon { font-size: 20px; }
+  #evtx-overlay-titlewrap { display: flex; flex-direction: column; min-width: 0; }
+  #evtx-overlay-title { font-size: 13px; font-weight: 700; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  #evtx-overlay-sub { font-size: 10px; color: var(--text-muted); font-family: var(--font-mono); }
   .evtx-spacer { flex: 1; }
+  #evtx-file-switcher {
+    background: var(--bg-elevated); border: 1px solid var(--border);
+    border-radius: var(--radius-sm); color: var(--text-primary);
+    font-size: 11px; padding: 3px 6px; max-width: 160px;
+  }
   #btn-evtx-close {
-    width: 30px; height: 30px; border-radius: var(--radius-sm);
+    width: 28px; height: 28px; border-radius: var(--radius-sm);
     border: 1px solid var(--border); background: var(--bg-elevated);
-    color: var(--text-muted); font-size: 14px; cursor: pointer; transition: all 0.12s;
+    color: var(--text-muted); font-size: 13px; cursor: pointer; transition: all 0.12s;
   }
   #btn-evtx-close:hover { border-color: var(--level-error); color: var(--level-error); }
   #evtx-overlay-body { flex: 1; display: flex; overflow: hidden; }
@@ -1564,6 +1631,8 @@ https://github.com/nodeca/pako/blob/main/LICENSE
             <span class="topbar-count" id="result-count">— entries</span>
             <div class="topbar-spacer"></div>
             <button id="btn-add-more" title="Keep the files already loaded and add more on top">+ Upload additional files</button>
+            <button id="btn-add-evtx" title="Upload a Windows Event Log (.evtx) and analyse it in a floating window">⬆ Upload &amp; analyse EVTX</button>
+            <input type="file" id="evtx-input" accept=".evtx" multiple style="display:none">
           </div>
           <div class="topbar-row topbar-row-secondary">
             <div id="global-time-range" title="Restrict all results and the viewer to entries within this time range">
@@ -1622,6 +1691,15 @@ https://github.com/nodeca/pako/blob/main/LICENSE
               <button id="btn-load-older" style="display:none" title="Older rolled logs (.log.1, .log.2 …) aren't loaded yet to save memory. Click to load and merge them in.">⏬ Load older logs</button>
             </div>
 
+            <div id="occurrence-bar" style="display:none">
+              <span id="occ-label"></span>
+              <span class="occ-spacer"></span>
+              <button id="occ-prev" title="Previous (newer) occurrence">▲</button>
+              <span id="occ-position"></span>
+              <button id="occ-next" title="Next (older) occurrence">▼</button>
+              <button id="occ-close" title="Exit occurrence navigation">✕</button>
+            </div>
+
             <div id="log-content">
               <div id="log-content-sizer">
                 <div id="log-content-rows"></div>
@@ -1668,6 +1746,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
       <div id="evtx-overlay-sub"></div>
     </div>
     <div class="evtx-spacer"></div>
+    <select id="evtx-file-switcher" title="Switch between loaded event logs" style="display:none"></select>
     <button id="btn-evtx-close" title="Close">✕</button>
   </div>
   <div id="evtx-overlay-body">
@@ -2256,6 +2335,53 @@ document.getElementById('btn-evtx-close').addEventListener('click', () => {
   hideEvtxCorrelatePopover();
 });
 
+// Open the EVTX floating window for a given file, populating the switcher
+// with all loaded event logs so the user can flip between them.
+function openEvtxWindow(key) {
+  const switcher = document.getElementById('evtx-file-switcher');
+  const keys = Object.keys(state.loadedEvtx);
+  if (keys.length > 1) {
+    switcher.style.display = '';
+    switcher.innerHTML = keys.map(k =>
+      `<option value="${escHtml(k)}"${k===key?' selected':''}>${escHtml(state.loadedEvtx[k].name)}</option>`).join('');
+  } else {
+    switcher.style.display = 'none';
+  }
+  openEvtxSummary(key);
+}
+
+document.getElementById('evtx-file-switcher').addEventListener('change', (e) => {
+  openEvtxSummary(e.target.value);
+});
+
+// Make the EVTX window draggable by its header
+(function makeEvtxDraggable() {
+  const win = document.getElementById('evtx-overlay');
+  const header = document.getElementById('evtx-overlay-header');
+  let dragging = false, sx = 0, sy = 0, ox = 0, oy = 0;
+  header.addEventListener('mousedown', (e) => {
+    if (e.target.closest('button') || e.target.closest('select')) return;
+    dragging = true;
+    const r = win.getBoundingClientRect();
+    // Switch from transform-centered to absolute left/top on first drag
+    win.style.transform = 'none';
+    win.style.left = r.left + 'px';
+    win.style.top = r.top + 'px';
+    sx = e.clientX; sy = e.clientY; ox = r.left; oy = r.top;
+    e.preventDefault();
+  });
+  document.addEventListener('mousemove', (e) => {
+    if (!dragging) return;
+    let nl = ox + (e.clientX - sx);
+    let nt = oy + (e.clientY - sy);
+    nl = Math.max(0, Math.min(nl, window.innerWidth - 200));
+    nt = Math.max(0, Math.min(nt, window.innerHeight - 60));
+    win.style.left = nl + 'px';
+    win.style.top = nt + 'px';
+  });
+  document.addEventListener('mouseup', () => { dragging = false; });
+})();
+
 // ── Correlation: pull entries ±N minutes around an event from all logs ──
 function showEvtxCorrelatePopover(rec, x, y) {
   let pop = document.getElementById('evtx-correlate-pop');
@@ -2795,7 +2921,7 @@ function analyseFiles() {
       : Object.keys(state.loadedData)[0];
     if (first) activateComponent(first);
     else if (Object.keys(state.loadedEvtx).length) {
-      openEvtxSummary(Object.keys(state.loadedEvtx)[0]);
+      openEvtxWindow(Object.keys(state.loadedEvtx)[0]);
     }
   };
 
@@ -3047,7 +3173,7 @@ function buildTreeDom(node, prefix) {
       fileEl.addEventListener('click', () => {
         container_clearTreeActive();
         fileEl.classList.add('active');
-        openEvtxSummary(f.evtxKey);
+        openEvtxWindow(f.evtxKey);
       });
     } else {
       fileEl.addEventListener('click', () => {
@@ -3082,7 +3208,7 @@ function renderEvtxSidebarItems(container) {
       <span class="comp-name">${escHtml(ev.name)}</span>
       <span class="comp-count">${ev.decoded.toLocaleString()}</span>
     `;
-    item.addEventListener('click', () => openEvtxSummary(ev.path || ev.name));
+    item.addEventListener('click', () => openEvtxWindow(ev.path || ev.name));
     container.appendChild(item);
   });
 }
@@ -3092,6 +3218,9 @@ function activateComponent(compId) {
   document.querySelectorAll('.component-item').forEach(el => {
     el.classList.toggle('active', el.dataset.compId === compId);
   });
+  // Close occurrence navigation when switching component
+  const occBar = document.getElementById('occurrence-bar');
+  if (occBar) occBar.style.display = 'none';
   // Reset recognised-errors filter when switching component
   state.recognisedOnly = false;
   const recBtn = document.getElementById('btn-recognised-errors');
@@ -3153,15 +3282,162 @@ function applyFilter() {
     entries = entries.filter(l => inGlobalRange(l.ts));
   }
 
-  // Recognised-errors-only mode: keep only entries matching a KB signature
+  // Recognised-errors mode: collapse to one row per distinct signature,
+  // showing the latest occurrence. Clicking a row opens it in the viewer
+  // with ▲▼ navigation through that signature's other occurrences.
   if (state.recognisedOnly) {
-    entries = entries.filter(l => kbMatchLine(l));
+    renderRecognisedGroups(entries, data);
+    return;
   }
 
   document.getElementById('result-count').textContent = `${entries.length.toLocaleString()} entries`;
   document.getElementById('results-header-count').textContent = entries.length.toLocaleString();
   renderResults(entries, data);
 }
+
+// Group recognised-error entries by signature id, newest occurrence first.
+// Renders one row per signature; clicking navigates occurrences in the viewer.
+function renderRecognisedGroups(entries, data) {
+  // entries are already level/time filtered. Group by signature.
+  const groups = new Map(); // sigId -> { sig, occurrences:[lines] }
+  for (const l of entries) {
+    const sig = kbMatchLine(l);
+    if (!sig) continue;
+    if (!groups.has(sig.id)) groups.set(sig.id, { sig, occurrences: [] });
+    groups.get(sig.id).occurrences.push(l);
+  }
+  // Sort occurrences within each group newest-first; sort groups by their latest occurrence
+  const groupList = [...groups.values()];
+  groupList.forEach(g => g.occurrences.sort((a,b) => (b.ts||0) - (a.ts||0)));
+  groupList.sort((a,b) => (b.occurrences[0].ts||0) - (a.occurrences[0].ts||0));
+
+  document.getElementById('result-count').textContent =
+    `${groupList.length} recognised error${groupList.length===1?'':'s'}`;
+  document.getElementById('results-header-count').textContent = groupList.length.toLocaleString();
+
+  const list = document.getElementById('results-list');
+  list.innerHTML = '';
+  if (!groupList.length) {
+    list.innerHTML = '<div class="empty-state"><div class="empty-state-icon">⚠</div><div>No recognised errors in this view</div></div>';
+    return;
+  }
+
+  // Find which OTHER components also contain each signature (for the cross-component button)
+  groupList.forEach(g => {
+    const latest = g.occurrences[0];
+    const item = document.createElement('div');
+    item.className = 'result-item recognised-group';
+    const others = otherComponentsWithSignature(g.sig.id, state.activeCompId);
+    item.innerHTML = `
+      <div class="ri-meta">
+        ${kbBadgeHtml()}
+        <span class="level-badge ${latest.level||'?'}">${latest.level||'?'}</span>
+        <span class="rg-count">${g.occurrences.length}×</span>
+        <span class="ri-file">latest: L${latest.lineNo}</span>
+      </div>
+      <div class="ri-msg"><strong>${escHtml(g.sig.title)}</strong></div>
+      <div class="rg-snippet">${getStrippedHtml(latest)}</div>
+      ${others.length ? `<button class="rg-others" data-sig="${g.sig.id}">↗ Also in ${others.length} other component${others.length===1?'':'s'}</button>` : ''}
+    `;
+    item.addEventListener('click', (e) => {
+      if (e.target.closest('.rg-others') || e.target.closest('.kb-badge')) return;
+      document.querySelectorAll('.result-item').forEach(i => i.classList.remove('focused'));
+      item.classList.add('focused');
+      openRecognisedOccurrences(g, data);
+    });
+    const badge = item.querySelector('.kb-badge');
+    if (badge) badge.addEventListener('click', (e) => { e.stopPropagation(); showKbPopover(g.sig, latest.text, badge); });
+    const othersBtn = item.querySelector('.rg-others');
+    if (othersBtn) othersBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      showOtherComponentsPopover(g.sig, others, othersBtn);
+    });
+    list.appendChild(item);
+  });
+}
+
+// Which other components (besides current) contain at least one line matching sigId
+function otherComponentsWithSignature(sigId, currentCompId) {
+  const out = [];
+  for (const [compId, data] of Object.entries(state.loadedData)) {
+    if (compId === currentCompId) continue;
+    const hit = data.merged.some(l => !l.isContinuation && kbMatchLine(l) && kbMatchLine(l).id === sigId);
+    if (hit) out.push({ compId, name: data.compDef.name });
+  }
+  return out;
+}
+
+// Small popover listing other components; click switches that component into view
+function showOtherComponentsPopover(sig, others, anchorEl) {
+  let pop = document.getElementById('rg-others-pop');
+  if (!pop) {
+    pop = document.createElement('div');
+    pop.id = 'rg-others-pop';
+    document.body.appendChild(pop);
+  }
+  pop.innerHTML = `<div class="rgo-title">${escHtml(sig.title)}</div>
+    <div class="rgo-sub">Also recognised in:</div>`;
+  others.forEach(o => {
+    const b = document.createElement('button');
+    b.className = 'rgo-btn';
+    b.textContent = o.name;
+    b.addEventListener('click', () => {
+      pop.classList.add('hidden');
+      activateComponent(o.compId);
+      // Re-apply recognised filter in the newly-activated component
+      state.recognisedOnly = true;
+      document.getElementById('btn-recognised-errors').classList.add('active');
+      applyFilter();
+    });
+    pop.appendChild(b);
+  });
+  pop.classList.remove('hidden');
+  const r = anchorEl.getBoundingClientRect();
+  pop.style.top = (r.bottom + 6) + 'px';
+  pop.style.left = Math.max(12, Math.min(r.left, window.innerWidth - 260)) + 'px';
+}
+
+document.addEventListener('click', (e) => {
+  const pop = document.getElementById('rg-others-pop');
+  if (pop && !pop.classList.contains('hidden') && !pop.contains(e.target) && !e.target.closest('.rg-others')) {
+    pop.classList.add('hidden');
+  }
+});
+
+// ── Occurrence navigation through one signature's matches ──
+const OCC = { occurrences: [], index: 0, data: null, sig: null };
+
+function openRecognisedOccurrences(group, data) {
+  OCC.occurrences = group.occurrences; // already newest-first
+  OCC.index = 0;
+  OCC.data = data;
+  OCC.sig = group.sig;
+  showOccurrence();
+  const bar = document.getElementById('occurrence-bar');
+  bar.style.display = 'flex';
+  document.getElementById('occ-label').textContent = group.sig.title;
+}
+
+function showOccurrence() {
+  const entry = OCC.occurrences[OCC.index];
+  if (!entry) return;
+  document.getElementById('occ-position').textContent = `${OCC.index + 1} of ${OCC.occurrences.length}`;
+  document.getElementById('occ-prev').disabled = OCC.index === 0;
+  document.getElementById('occ-next').disabled = OCC.index === OCC.occurrences.length - 1;
+  // Reuse the anchor-based viewer open (no pixel maths → no 35-line offset)
+  openInViewer(entry, OCC.data);
+}
+
+document.getElementById('occ-prev').addEventListener('click', () => {
+  if (OCC.index > 0) { OCC.index--; showOccurrence(); }
+});
+document.getElementById('occ-next').addEventListener('click', () => {
+  if (OCC.index < OCC.occurrences.length - 1) { OCC.index++; showOccurrence(); }
+});
+document.getElementById('occ-close').addEventListener('click', () => {
+  document.getElementById('occurrence-bar').style.display = 'none';
+  OCC.occurrences = []; OCC.index = 0;
+});
 
 // True if a timestamp (epoch ms) falls within the active global range.
 // Entries without a timestamp are kept (can't be excluded reliably).
@@ -4004,6 +4280,11 @@ document.getElementById('btn-recognised-errors').addEventListener('click', () =>
   if (typeof globalSearchActive !== 'undefined' && globalSearchActive) {
     document.getElementById('btn-clear-search')?.click();
   }
+  // Exiting recognised mode closes occurrence navigation
+  if (!state.recognisedOnly) {
+    document.getElementById('occurrence-bar').style.display = 'none';
+    OCC.occurrences = [];
+  }
   applyFilter();
 });
 
@@ -4346,6 +4627,35 @@ document.getElementById('btn-add-more').addEventListener('click', () => {
   document.getElementById('wizard').style.display = 'flex';
 });
 
+// Upload EVTX from within the analyser — parses then opens a floating window
+document.getElementById('btn-add-evtx').addEventListener('click', () => {
+  document.getElementById('evtx-input').click();
+});
+document.getElementById('evtx-input').addEventListener('change', (e) => {
+  const files = Array.from(e.target.files);
+  e.target.value = '';
+  let firstKey = null;
+  let pending = files.length;
+  files.forEach(file => {
+    const reader = new FileReader();
+    reader.onload = ev => {
+      try {
+        const parsed = parseEvtx(ev.target.result);
+        const summary = evtxSummary(file.name, parsed);
+        summary.path = file.name;
+        state.loadedEvtx[file.name] = summary;
+        if (!firstKey) firstKey = file.name;
+      } catch (err) { console.warn('evtx parse failed', file.name, err); }
+      if (--pending === 0) {
+        renderSidebar();
+        if (firstKey) openEvtxWindow(firstKey);
+      }
+    };
+    reader.onerror = () => { if (--pending === 0 && firstKey) openEvtxWindow(firstKey); };
+    reader.readAsArrayBuffer(file);
+  });
+});
+
 // ═══════════════════════════════════════════════════════════════
 //  GLOBAL TIME RANGE
 // ═══════════════════════════════════════════════════════════════
@@ -4606,7 +4916,7 @@ const TOUR_STEPS = [
   {
     id: 'welcome',
     title: '👋 Welcome to Log Analyser',
-    body: 'Would you like a quick guided tour of the main features? It only takes about a minute. You can skip at any time, or replay it later using the <strong>❓</strong> button in the top right.',
+    body: 'Would you like a quick guided tour of the main features? It takes about a minute and a half. You can skip at any time, or replay it later using the <strong>❓</strong> button in the top right.',
     target: null,
     position: 'center',
     isPrompt: true,
@@ -4614,15 +4924,15 @@ const TOUR_STEPS = [
   {
     id: 'product',
     title: '1 — Select a product',
-    body: 'Start by choosing the product whose logs you want to analyse. This determines which components and log files are available.',
+    body: 'Start by choosing the product whose logs you want to analyse — Secret Server, Delinea Platform, or Connection Manager. This determines which components and log files the tool expects.',
     target: '.product-grid',
     position: 'below',
     setup: () => tourEnsureWizard(),
   },
   {
     id: 'upload',
-    title: '2 — Drop your log files',
-    body: 'Drop one or more log files onto the upload zone. The tool automatically matches each file to its component by filename — including rolled logs like <code>SS.log.1</code>, <code>SS.log.2</code> etc.',
+    title: '2 — Drop files, a .zip, or a whole folder',
+    body: 'Drop individual log files, an entire <strong>.zip</strong> (including the nested per-node / per-DE zips customers send), or a whole <strong>folder</strong>. Everything is unpacked <em>in your browser</em> — nothing is uploaded. Files are auto-matched to their component by filename, including rolled logs like <code>SS.log.1</code>.',
     target: '#upload-zone',
     position: 'below',
     setup: () => tourEnsureWizardWithProduct(),
@@ -4630,7 +4940,7 @@ const TOUR_STEPS = [
   {
     id: 'info-btn',
     title: '3 — Find your log files',
-    body: 'Not sure where a log file lives? Hover the <strong>ⓘ</strong> button next to any component to see its typical path on the server.',
+    body: 'Not sure where a log file lives on the server? Hover the <strong>ⓘ</strong> button next to any component to see its typical path.',
     target: '#component-grid',
     position: 'below',
     setup: () => tourEnsureWizardWithProduct(),
@@ -4638,7 +4948,7 @@ const TOUR_STEPS = [
   {
     id: 'sidebar',
     title: '4 — Sidebar & universal search',
-    body: 'Each loaded component appears in the sidebar. Click one to focus it. The search bar at the top searches across <em>all</em> loaded files — press Enter to run, Escape to clear.',
+    body: 'Each loaded component appears here. Click one to focus it. The search bar searches across <em>all</em> loaded files at once — press Enter to run, Escape to clear. When a zip or folder is loaded, a <strong>Components ⇄ File tree</strong> toggle appears so you can browse by the original folder structure too.',
     target: '#sidebar',
     position: 'right',
     setup: () => tourEnsureAnalyser(),
@@ -4646,63 +4956,95 @@ const TOUR_STEPS = [
   {
     id: 'filters',
     title: '5 — Filter by log level',
-    body: 'Use the level buttons to filter entries by ERROR, WARNING, INFO, VERBOSE, DEBUG and more. Stack trace lines are excluded automatically — only the actual log entry appears.',
+    body: 'Filter entries by ERROR, CRITICAL, WARNING, INFO, VERBOSE and DEBUG. Stack-trace and continuation lines are handled automatically, so you only filter on real log entries.',
     target: '#top-bar',
     position: 'below',
     setup: () => tourEnsureAnalyser(),
   },
   {
+    id: 'timerange',
+    title: '6 — Global time range',
+    body: 'Narrow <em>every</em> log to a specific window using the start/end pickers, then <strong>Apply</strong>. Great for zeroing in on the moment an incident occurred across all components at once. <strong>✕ Reset</strong> clears it.',
+    target: '#global-time-range',
+    position: 'below',
+    setup: () => tourEnsureAnalyser(),
+  },
+  {
+    id: 'recognised',
+    title: '7 — Recognised errors',
+    body: 'The tool ships with a knowledge base of known Delinea errors. Lines that match show an amber <strong>!</strong> badge linking to the documentation. Click <strong>⚠ Recognised errors</strong> to list each distinct known error once — then step through every occurrence with ▲▼, or jump to other components that hit the same error.',
+    target: '#btn-recognised-errors',
+    position: 'below',
+    setup: () => tourEnsureAnalyser(),
+  },
+  {
     id: 'results',
-    title: '6 — Filtered results',
-    body: 'Matching entries appear here sorted most-recent-first, with level, line number and source file. Click any entry to jump to it in the log viewer.',
+    title: '8 — Filtered results',
+    body: 'Matching entries appear here, most-recent-first, with level, line number and source file. Click any entry to jump straight to it in the log viewer.',
     target: '#results-panel',
     position: 'right',
     setup: () => tourEnsureAnalyser(),
   },
   {
-    id: 'resize',
-    title: '7 — Resizable panels',
-    body: 'The sidebar, results panel, and log viewer can all be resized. Hover over the thin divider between any two panels — the cursor changes to a resize arrow. Drag to adjust.',
-    target: '#content-area',
-    position: 'above',
-    setup: () => tourEnsureAnalyser(),
-  },
-  {
     id: 'viewer',
-    title: '8 — Log viewer',
-    body: 'The full log file opens here with the selected line highlighted. Use the <strong>±</strong> time window buttons to narrow to ±15m / 30m / 1h / 4h around the selected entry. Stack traces are collapsed by default.',
+    title: '9 — Log viewer',
+    body: 'The full log opens here with the selected line highlighted. Use the <strong>±</strong> buttons to narrow to ±15m / 30m / 1h / 4h around it. Stack traces collapse by default — expand them when you need the detail.',
     target: '#log-viewer',
     position: 'left',
     setup: () => tourEnsureAnalyser(),
   },
   {
     id: 'similar',
-    title: '9 — Similar entries',
-    body: 'Click <strong>Similar</strong> to open a full-screen overlay showing all lines containing the same logger string. Edit the term to broaden or narrow it, then use ▲▼ to navigate. Scrollbar markers show where every match is.',
+    title: '10 — Similar entries',
+    body: 'Click <strong>Similar</strong> to open a full-screen view of every line sharing the same logger. Edit the term to broaden or narrow it, navigate with ▲▼, and use the scrollbar markers to see where every match sits.',
     target: '#btn-highlight-similar',
     position: 'below',
     setup: () => tourEnsureAnalyser(),
   },
   {
     id: 'scrub',
-    title: '10 — Scrub PII before sharing',
-    body: 'Highlight any text in the log viewer, then click <strong>Scrub PII & Copy</strong>. A preview shows every replacement — IPs, usernames, domain\\user pairs, SIDs, GUIDs and more — before anything is copied.',
+    title: '11 — Scrub PII before sharing',
+    body: 'Select any text in the viewer, then click <strong>Scrub PII & Copy</strong>. A preview shows every replacement — IPs, usernames, domain\\user pairs, SIDs, GUIDs and more — before anything reaches your clipboard.',
     target: '#scrub-bar',
     position: 'above',
     setup: () => tourEnsureAnalyser(),
   },
   {
-    id: 'theme',
-    title: '11 — Light & dark mode',
-    body: 'Toggle between light and dark mode using the button in the top right. Your preference is remembered.',
-    target: '#btn-theme',
+    id: 'evtx',
+    title: '12 — Windows Event Logs (.evtx)',
+    body: 'Click <strong>⬆ Upload & analyse EVTX</strong> to add a Windows Event Log at any time. It opens in a draggable floating window with a summary and event list — and a <strong>Sync all logs to this time</strong> button that lines your other logs up around an event, so you can see what happened across the system at that moment.',
+    target: '#btn-add-evtx',
+    position: 'below',
+    setup: () => tourEnsureAnalyser(),
+  },
+  {
+    id: 'addmore',
+    title: '13 — Add more as you go',
+    body: 'Use <strong>+ Upload additional files</strong> to keep what you\'ve loaded and add more on top — handy when a customer sends extra logs mid-investigation.',
+    target: '#btn-add-more',
+    position: 'below',
+    setup: () => tourEnsureAnalyser(),
+  },
+  {
+    id: 'resize',
+    title: '14 — Resizable panels',
+    body: 'The sidebar, results and viewer can all be resized — hover the thin divider between any two panels until the cursor changes, then drag. Your layout is remembered next time.',
+    target: '#content-area',
+    position: 'above',
+    setup: () => tourEnsureAnalyser(),
+  },
+  {
+    id: 'refresh',
+    title: '15 — Staying up to date',
+    body: 'The tool updates itself automatically, but if you ever suspect you\'re seeing an old version, <strong>↻ Hard refresh</strong> clears the cache and pulls the latest. <strong>🌙 / ☀️</strong> toggles light and dark mode, and both your theme and panel sizes are remembered.',
+    target: '#btn-hard-refresh',
     position: 'below-left',
     setup: () => tourEnsureAnalyser(),
   },
   {
     id: 'done',
     title: '✅ You\'re all set!',
-    body: 'That\'s everything. Replay this tour any time with the <strong>❓</strong> button in the header. Happy log hunting!',
+    body: 'That\'s the tour. Everything runs entirely in your browser — log data never leaves your device. Replay this any time with the <strong>❓</strong> button, and use <strong>💬 Feedback</strong> to send ideas or report issues. Happy log hunting!',
     target: null,
     position: 'center',
     setup: () => tourEnsureAnalyser(),
@@ -4746,18 +5088,26 @@ function tourInjectMockData() {
     const level = levels[i % levels.length];
     const logger = loggers[i % loggers.length];
     const ts = base + i * 1000;
-    const text = `${new Date(ts).toISOString().replace('T',' ').replace('Z',',')}000 [CID:] [C:] [TID:Worker-${i}] ${level}  ${logger} - Tour demo log entry ${i + 1}`;
+    // Sprinkle in a couple of lines that match a real KB signature so the
+    // "Recognised errors" badge + count are populated during the tour.
+    const isErr = (i % 17 === 0);
+    const msg = isErr
+      ? 'Connection lost due to error 96258 while contacting target'
+      : `Tour demo log entry ${i + 1}`;
+    const text = `${new Date(ts).toISOString().replace('T',' ').replace('Z',',')}000 [CID:] [C:] [TID:Worker-${i}] ${isErr ? 'ERROR' : level}  ${logger} - ${msg}`;
     mockLines.push({
       lineNo: i + 1, text,
-      level, isContinuation: false, parentLineNo: null,
+      level: isErr ? 'ERROR' : level, isContinuation: false, parentLineNo: null,
       ts, logger, _file: 'SS.log',
     });
   }
   state.loadedData = {
     'ss-main': {
       compDef: comp,
-      files: [{ name: 'SS.log', size: 0, lines: mockLines }],
+      // A folder-style path makes the Components ⇄ File tree toggle appear
+      files: [{ name: 'SS.log', size: 0, path: 'Node1/SS/SS.log', lines: mockLines, loaded: true, rank: 0 }],
       merged: [...mockLines],
+      hasOlder: false,
     }
   };
   state.activeCompId = 'ss-main';
