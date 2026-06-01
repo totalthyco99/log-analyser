@@ -1429,6 +1429,44 @@ if (typeof window !== 'undefined') window.parseHar = parseHar;
     border: 1px solid var(--accent-teal); border-radius: var(--radius-sm); cursor: pointer; transition: all 0.12s;
   }
   #btn-run-results:hover { background: var(--accent-teal); color: #fff; }
+  /* Node / distributed-engine scope chip — appears in the results header when the
+     active component has files spread across more than one node/engine. */
+  #results-node-scope {
+    display: none; align-items: center; gap: 5px;
+    font-size: 10px; font-family: var(--font-mono); font-weight: 600;
+    padding: 2px 7px; border-radius: 11px;
+    background: var(--accent-teal-dim); color: var(--accent-teal);
+    border: 1px solid var(--accent-teal); cursor: pointer; white-space: nowrap;
+    text-transform: none; letter-spacing: 0; transition: all 0.12s;
+    max-width: 180px;
+  }
+  #results-node-scope.show { display: inline-flex; }
+  #results-node-scope:hover { background: var(--accent-teal); color: #fff; }
+  #results-node-scope:hover .rns-caret { color: #fff; }
+  #results-node-scope .rns-icon { flex-shrink: 0; }
+  #results-node-scope .rns-name { overflow: hidden; text-overflow: ellipsis; }
+  #results-node-scope .rns-caret { flex-shrink: 0; font-size: 8px; color: var(--accent-teal); }
+  #results-node-menu {
+    position: fixed; z-index: 9999;
+    background: var(--bg-elevated); border: 1px solid var(--accent-teal);
+    border-radius: var(--radius-md); box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+    padding: 4px; min-width: 220px; max-width: 360px;
+    max-height: 340px; overflow-y: auto;
+    font-family: var(--font-mono); font-size: 11px;
+  }
+  #results-node-menu .rnm-head {
+    padding: 6px 8px 4px; font-size: 9px; font-weight: 700;
+    text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-muted);
+  }
+  .rnm-item {
+    display: flex; align-items: center; gap: 6px;
+    padding: 6px 8px; border-radius: var(--radius-sm); cursor: pointer;
+    color: var(--text-secondary);
+  }
+  .rnm-item:hover { background: var(--bg-hover); color: var(--text-primary); }
+  .rnm-item.active { background: var(--highlight-similar); color: var(--accent-teal); }
+  .rnm-item .rnm-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .rnm-item .rnm-note { flex-shrink: 0; font-size: 9px; color: var(--text-muted); }
   #results-list { flex: 1; overflow-y: auto; }
   .result-group-header {
     padding: 6px 10px 3px;
@@ -1522,6 +1560,46 @@ if (typeof window !== 'undefined') window.parseHar = parseHar;
   #viewer-file-label.has-menu { cursor: pointer; }
   #viewer-file-label.has-menu:hover { border-color: var(--accent-teal); color: var(--text-primary); }
   #viewer-file-label.has-menu:hover .vfl-caret { color: var(--accent-teal); }
+  /* Viewer node / distributed-engine selector — sits left of the file label */
+  #viewer-node-label {
+    display: none; align-items: center; gap: 6px;
+    font-size: 11px; font-family: var(--font-mono);
+    color: var(--accent-teal);
+    padding: 3px 8px;
+    background: var(--accent-teal-dim);
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--accent-teal);
+    max-width: 220px; white-space: nowrap; cursor: pointer;
+    transition: all 0.12s;
+  }
+  #viewer-node-label.show { display: flex; }
+  #viewer-node-label:hover { background: var(--accent-teal); color: #fff; }
+  #viewer-node-label:hover .vnl-caret, #viewer-node-label:hover .vnl-icon { color: #fff; }
+  #viewer-node-label .vnl-icon { flex-shrink: 0; font-size: 11px; }
+  #viewer-node-label .vnl-name { overflow: hidden; text-overflow: ellipsis; font-weight: 700; }
+  #viewer-node-label .vnl-caret { flex-shrink: 0; color: var(--accent-teal); font-size: 9px; }
+  /* Shared dropdown menu for nodes (reuses viewer-file-menu visual language) */
+  #viewer-node-menu {
+    position: fixed; z-index: 9999;
+    background: var(--bg-elevated); border: 1px solid var(--accent-teal);
+    border-radius: var(--radius-md); box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+    padding: 4px; min-width: 220px; max-width: 380px;
+    max-height: 340px; overflow-y: auto;
+    font-family: var(--font-mono); font-size: 11px;
+  }
+  #viewer-node-menu .vnm-head {
+    padding: 6px 8px 4px; font-size: 9px; font-weight: 700;
+    text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-muted);
+  }
+  .vnm-item {
+    display: flex; align-items: center; gap: 6px;
+    padding: 6px 8px; border-radius: var(--radius-sm); cursor: pointer;
+    color: var(--text-secondary);
+  }
+  .vnm-item:hover { background: var(--bg-hover); color: var(--text-primary); }
+  .vnm-item.active { background: var(--highlight-similar); color: var(--accent-teal); }
+  .vnm-item .vnm-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .vnm-item .vnm-note { flex-shrink: 0; font-size: 9px; color: var(--text-muted); }
   #viewer-file-menu {
     position: fixed; z-index: 9999;
     background: var(--bg-elevated); border: 1px solid var(--border);
@@ -2879,7 +2957,7 @@ if (typeof window !== 'undefined') window.parseHar = parseHar;
         </label>
       </div>
       <div id="sidebar-view-toggle" style="display:none">
-        <button class="svt-btn active" data-view="components" title="Group by recognised component">Components</button>
+        <button class="svt-btn" data-view="components" title="Group by recognised component">Components</button>
         <button class="svt-btn" data-view="tree" title="Show the original folder structure from the uploaded zip or folder">File tree</button>
       </div>
       <div id="sidebar-components">
@@ -3032,6 +3110,9 @@ if (typeof window !== 'undefined') window.parseHar = parseHar;
           <div id="results-panel">
             <div id="results-header">
               <span id="results-header-label">Filtered Entries</span>
+              <span id="results-node-scope" title="This component has logs from more than one node / distributed engine. Click to scope the results to a single node.">
+                <span class="rns-icon">🖧</span><span class="rns-name">All nodes</span><span class="rns-caret">▾</span>
+              </span>
               <span style="flex:1"></span>
               <button id="btn-clear-search">✕ Clear search</button>
               <span id="results-header-count" style="font-family:var(--font-mono);font-size:10px;color:var(--accent-teal)"></span>
@@ -3056,6 +3137,9 @@ if (typeof window !== 'undefined') window.parseHar = parseHar;
           <!-- VIEWER -->
           <div id="log-viewer">
             <div id="viewer-toolbar">
+              <span id="viewer-node-label" title="Switch which node / distributed engine you're viewing. Loads that node's most recent log at its latest entry.">
+                <span class="vnl-icon">🖧</span><span class="vnl-name">Node</span><span class="vnl-caret">▾</span>
+              </span>
               <span id="viewer-file-label">No file selected</span>
               <div class="viewer-search-wrap">
                 <input id="viewer-search" type="text" placeholder="Search in file…" autocomplete="off">
@@ -3638,6 +3722,7 @@ const state = {
   sidebarView: 'tree', // 'components' | 'tree' — default to the file tree
   activeFilePath: null, // when set, results are scoped to this single file (by path) within the active component
   activeFileName: null, // display name (basename) of the scoped file, for labels
+  activeNode: null,     // when set, results are scoped to this node/engine (folder of path) within the active component; null = all nodes
   viewerCompId: null,   // component whose file is currently open in the viewer
   viewerFilePath: null, // path identity of the file currently open in the viewer
   resultsTerm: '',      // on-demand logger/keyword filter for the grouped results
@@ -5268,7 +5353,15 @@ function renderSidebar() {
   const hasEvtx = Object.keys(state.loadedEvtx || {}).length > 0;
   document.getElementById('sidebar-view-toggle').style.display = (hasPaths || hasEvtx) ? 'flex' : 'none';
 
-  if (state.sidebarView === 'tree' && (hasPaths || hasEvtx)) {
+  // The tree view is only possible when there's folder/EVTX structure to show;
+  // otherwise we fall back to the components list. Resolve the *effective* view
+  // and sync the toggle highlight to it so the button never disagrees with
+  // what's actually rendered (e.g. tree shown but "Components" still lit).
+  const effectiveView = (state.sidebarView === 'tree' && (hasPaths || hasEvtx)) ? 'tree' : 'components';
+  document.querySelectorAll('.svt-btn').forEach(b =>
+    b.classList.toggle('active', b.dataset.view === effectiveView));
+
+  if (effectiveView === 'tree') {
     renderSidebarTree(container);
   } else {
     renderSidebarComponents(container);
@@ -5486,6 +5579,9 @@ function activateComponent(compId, filePath) {
   // Node2/SS.log) stay distinct. null = whole component (all files merged).
   state.activeFilePath = filePath || null;
   state.activeFileName = filePath ? filePath.split('/').pop() : null;
+  // Derive the node scope: a specific file pins us to its node; otherwise
+  // start unscoped (all nodes). The chip lets the user narrow it afterwards.
+  state.activeNode = filePath ? nodeOfPath(filePath, state.activeFileName) : null;
   document.querySelectorAll('.component-item').forEach(el => {
     el.classList.toggle('active', el.dataset.compId === compId);
   });
@@ -5505,6 +5601,7 @@ function activateComponent(compId, filePath) {
     olderBtn.style.display = unloaded > 0 ? '' : 'none';
     olderBtn.textContent = `⏬ Load ${unloaded} older log${unloaded === 1 ? '' : 's'}`;
   }
+  updateNodeScopeChip();
   // Don't overwrite search results when in search mode
   if (!globalSearchActive) {
     // Reset the on-demand results control for the new selection.
@@ -5518,6 +5615,111 @@ function activateComponent(compId, filePath) {
     showResultsHint();
   }
 }
+
+// ── Component node scope chip (results header) ──
+// Scope the active component's results to one node, or back to all nodes.
+function updateNodeScopeChip() {
+  const chip = document.getElementById('results-node-scope');
+  if (!chip) return;
+  const nodes = state.activeCompId ? componentNodes(state.activeCompId) : [];
+  // Only meaningful when the component spans more than one node.
+  const multi = nodes.length > 1;
+  chip.classList.toggle('show', multi && !globalSearchActive);
+  if (!multi) return;
+  const nameEl = chip.querySelector('.rns-name');
+  if (state.activeNode == null) {
+    nameEl.textContent = `All nodes (${nodes.length})`;
+  } else {
+    nameEl.textContent = nodeDisplayLabel(state.activeNode);
+  }
+}
+
+function toggleNodeScopeMenu(anchorEl) {
+  if (document.getElementById('results-node-menu')) { closeNodeScopeMenu(); return; }
+  const compId = state.activeCompId;
+  if (!compId) return;
+  const nodes = componentNodes(compId);
+  const data = state.loadedData[compId];
+  const menu = document.createElement('div');
+  menu.id = 'results-node-menu';
+  let html = '<div class="rnm-head">Scope results to a node / engine</div>';
+  const allActive = state.activeNode == null ? ' active' : '';
+  html += `<div class="rnm-item${allActive}" data-node="\u0000ALL"><span class="rnm-name">🗂 All nodes</span><span class="rnm-note">${(data.merged ? data.merged.filter(l=>!l.isContinuation && l.level).length : 0).toLocaleString()}</span></div>`;
+  nodes.forEach(node => {
+    const files = nodeFiles(compId, node);
+    const lineCount = files.reduce((n, f) => n + ((f.lines ? f.lines.length : f.count) || 0), 0);
+    const active = state.activeNode === node ? ' active' : '';
+    html += `<div class="rnm-item${active}" data-node="${escHtml(node)}">`
+      + `<span class="rnm-name">🖧 ${escHtml(nodeDisplayLabel(node))}</span>`
+      + `<span class="rnm-note">${files.length} file${files.length===1?'':'s'} · ${lineCount.toLocaleString()}</span></div>`;
+  });
+  menu.innerHTML = html;
+  document.body.appendChild(menu);
+  const r = anchorEl.getBoundingClientRect();
+  menu.style.top  = (r.bottom + 4) + 'px';
+  menu.style.left = Math.min(r.left, window.innerWidth - menu.offsetWidth - 12) + 'px';
+  const mh = menu.offsetHeight;
+  if (r.bottom + 4 + mh > window.innerHeight - 8) menu.style.top = Math.max(8, r.top - mh - 4) + 'px';
+  menu.querySelectorAll('.rnm-item[data-node]').forEach(it => {
+    it.addEventListener('click', () => {
+      const node = it.dataset.node === '\u0000ALL' ? null : it.dataset.node;
+      closeNodeScopeMenu();
+      scopeToNode(node);
+    });
+  });
+  setTimeout(() => document.addEventListener('click', nodeScopeMenuOutside, true), 0);
+}
+function nodeScopeMenuOutside(e) {
+  const menu = document.getElementById('results-node-menu');
+  if (menu && !menu.contains(e.target) && !e.target.closest('#results-node-scope')) closeNodeScopeMenu();
+}
+function closeNodeScopeMenu() {
+  const menu = document.getElementById('results-node-menu');
+  if (menu) menu.remove();
+  document.removeEventListener('click', nodeScopeMenuOutside, true);
+}
+
+// Apply a node scope to the active component. null = all nodes (whole component).
+function scopeToNode(node) {
+  if (!state.activeCompId) return;
+  state.activeNode = node;
+  // A node scope is broader than a single file, so clear the single-file pin so
+  // the results span every file in the node.
+  state.activeFilePath = null;
+  state.activeFileName = null;
+  // Reset the grouped-results control for the new scope.
+  state.resultsTerm = '';
+  state.resultsRun = false;
+  const termEl = document.getElementById('results-term');
+  if (termEl) termEl.value = '';
+  updateNodeScopeChip();
+  populateResultsLoggers();
+  // Jump the viewer to the newest entry within the chosen scope WITHOUT
+  // re-pinning the results to that single file (openInViewer leaves the
+  // results scope untouched; openComponentFileInViewer would narrow it).
+  if (node == null) {
+    openLatestForSelection(state.activeCompId, null);
+  } else {
+    const f = newestFileInNode(state.activeCompId, node);
+    const data = state.loadedData[state.activeCompId];
+    if (f && f.loaded === false) {
+      // Deferred file — load it, then view its latest line.
+      flashViewerStatus('Loading ' + f.name + '…');
+      loadSingleOlderFile(state.activeCompId, f).then(() => {
+        flashViewerStatus('');
+        if (f.lines && f.lines.length) openInViewer(f.lines[f.lines.length - 1], data);
+      });
+    } else if (f && f.lines && f.lines.length) {
+      openInViewer(f.lines[f.lines.length - 1], data);
+    }
+  }
+  showResultsHint();
+}
+
+document.getElementById('results-node-scope').addEventListener('click', (e) => {
+  e.stopPropagation();
+  toggleNodeScopeMenu(e.currentTarget);
+});
 
 document.getElementById('btn-load-older').addEventListener('click', () => {
   if (state.activeCompId) loadOlderLogs(state.activeCompId);
@@ -5594,6 +5796,8 @@ function populateResultsLoggers() {
     for (const l of data.merged) {
       if (l.isContinuation || !l.level) continue;
       if (state.activeFilePath && (l._path || l._file) !== state.activeFilePath) continue;
+      else if (!state.activeFilePath && state.activeNode != null
+               && nodeOfPath(l._path || l._file, '') !== state.activeNode) continue;
       if (l.logger) loggers.add(l.logger);
     }
   }
@@ -5612,6 +5816,8 @@ function showResultsHint() {
   if (state.activeFilePath) {
     const loc = fileLocLabel(state.activeFilePath, state.activeFileName);
     scope = loc ? `${state.activeFileName} (${loc})` : state.activeFileName;
+  } else if (state.activeNode != null) {
+    scope = `${data && data.compDef ? data.compDef.name : 'this component'} — ${nodeDisplayLabel(state.activeNode)}`;
   } else {
     scope = (data && data.compDef ? data.compDef.name : 'this component');
   }
@@ -5625,7 +5831,8 @@ function showResultsHint() {
   const hintRun = document.getElementById('btn-hint-run');
   if (hintRun) hintRun.addEventListener('click', runResults);
   const label = document.getElementById('results-header-label');
-  if (label) label.textContent = state.activeFileName ? 'Filtered Entries — file' : 'Filtered Entries';
+  if (label) label.textContent = state.activeFileName ? 'Filtered Entries — file'
+    : (state.activeNode != null ? 'Filtered Entries — node' : 'Filtered Entries');
   const count = document.getElementById('results-header-count');
   if (count) count.textContent = '';
 }
@@ -5647,6 +5854,9 @@ function applyFilter() {
   // Scope to a single file when one is selected (null = whole component).
   if (state.activeFilePath) {
     entries = entries.filter(l => (l._path || l._file) === state.activeFilePath);
+  } else if (state.activeNode != null) {
+    // Otherwise scope to a node/engine when one is chosen (folder of the path).
+    entries = entries.filter(l => nodeOfPath(l._path || l._file, '') === state.activeNode);
   }
   if (state.activeLevel !== 'ALL') {
     const want = state.activeLevel === 'ERROR' ? ['ERROR','CRITICAL'] : [state.activeLevel];
@@ -6115,6 +6325,57 @@ function fileLocLabel(path, name) {
   return parts.slice(0, -1).join('/');
 }
 
+// ═══════════════════════════════════════════════════════════════
+//  NODE / DISTRIBUTED-ENGINE SCOPING
+//  A "node" is the folder portion of a file's path (fileLocLabel). A single
+//  component can hold logs gathered from several nodes / engines (e.g.
+//  Node1/SS/SS.log + Node2/SS/SS.log). These helpers let the user scope the
+//  results panel and switch the viewer between nodes on the fly.
+// ═══════════════════════════════════════════════════════════════
+
+// Distinct node labels present in a component, sorted. Files with no folder
+// path collapse to a single '' (rendered as "(local)").
+function componentNodes(compId) {
+  const data = state.loadedData[compId];
+  if (!data || !data.files) return [];
+  const set = new Set();
+  data.files.forEach(f => set.add(fileLocLabel(f.path, f.name)));
+  return [...set].sort((a, b) => a.localeCompare(b));
+}
+
+// Human label for a node value ('' → "(local)").
+function nodeDisplayLabel(node) {
+  return node && node.length ? node : '(local)';
+}
+
+// Files belonging to a node, newest roll first (rank 0 = current log).
+function nodeFiles(compId, node) {
+  const data = state.loadedData[compId];
+  if (!data || !data.files) return [];
+  return data.files
+    .filter(f => fileLocLabel(f.path, f.name) === node)
+    .sort((a, b) => (a.rank || 0) - (b.rank || 0) || a.name.localeCompare(b.name));
+}
+
+// The file in a node that holds the most recent activity: prefer a loaded file
+// whose last line has the greatest timestamp; fall back to the lowest-rank file.
+function newestFileInNode(compId, node) {
+  const files = nodeFiles(compId, node);
+  if (!files.length) return null;
+  const loaded = files.filter(f => f.loaded !== false && f.lines && f.lines.length);
+  if (loaded.length) {
+    return loaded.reduce((best, f) => {
+      const t  = f.lines[f.lines.length - 1].ts || 0;
+      const bt = best ? (best.lines[best.lines.length - 1].ts || 0) : -1;
+      return t > bt ? f : best;
+    }, null);
+  }
+  return files[0]; // none loaded yet (all deferred) → the current (rank 0) log
+}
+
+// The node a given file path belongs to.
+function nodeOfPath(path, name) { return fileLocLabel(path, name); }
+
 // Render the viewer's file label. When the active component has more than one
 // file (multiple nodes/engines, or rolled logs) the label becomes a dropdown
 // so it's always clear which log is open and easy to switch.
@@ -6133,6 +6394,82 @@ function updateViewerFileLabel() {
     + (hasMenu ? '<span class="vfl-caret">▾</span>' : '');
   labelEl.title = (loc ? `${name} — ${loc}` : name) + (hasMenu ? '\n(click to switch node / engine / log)' : '');
   labelEl.onclick = hasMenu ? (e) => { e.stopPropagation(); toggleViewerFileMenu(labelEl); } : null;
+  updateViewerNodeLabel();
+}
+
+// Render the viewer's NODE selector. Only shown when the component spans more
+// than one node / distributed engine. Switching nodes opens that node's newest
+// log at its latest (most recent) entry.
+function updateViewerNodeLabel() {
+  const nodeEl = document.getElementById('viewer-node-label');
+  if (!nodeEl) return;
+  const compId = state.viewerCompId;
+  const nodes = compId ? componentNodes(compId) : [];
+  const multi = nodes.length > 1;
+  nodeEl.classList.toggle('show', multi);
+  if (!multi) { nodeEl.onclick = null; return; }
+  const data = state.loadedData[compId];
+  const file = data && data.files ? data.files.find(f => (f.path || f.name) === state.viewerFilePath) : null;
+  const curNode = file ? fileLocLabel(file.path, file.name) : '';
+  nodeEl.querySelector('.vnl-name').textContent = nodeDisplayLabel(curNode);
+  nodeEl.title = `Viewing node: ${nodeDisplayLabel(curNode)}\n(click to switch node / distributed engine — jumps to its latest entry)`;
+  nodeEl.onclick = (e) => { e.stopPropagation(); toggleViewerNodeMenu(nodeEl); };
+}
+
+function toggleViewerNodeMenu(anchorEl) {
+  if (document.getElementById('viewer-node-menu')) { closeViewerNodeMenu(); return; }
+  const compId = state.viewerCompId;
+  if (!compId) return;
+  const nodes = componentNodes(compId);
+  const data = state.loadedData[compId];
+  const file = data && data.files ? data.files.find(f => (f.path || f.name) === state.viewerFilePath) : null;
+  const curNode = file ? fileLocLabel(file.path, file.name) : null;
+  const menu = document.createElement('div');
+  menu.id = 'viewer-node-menu';
+  let html = '<div class="vnm-head">Switch node / distributed engine</div>';
+  nodes.forEach(node => {
+    const files = nodeFiles(compId, node);
+    const lineCount = files.reduce((n, f) => n + ((f.lines ? f.lines.length : f.count) || 0), 0);
+    const active = node === curNode ? ' active' : '';
+    html += `<div class="vnm-item${active}" data-node="${escHtml(node)}">`
+      + `<span class="vnm-name">🖧 ${escHtml(nodeDisplayLabel(node))}</span>`
+      + `<span class="vnm-note">${files.length} file${files.length===1?'':'s'} · ${lineCount.toLocaleString()}</span></div>`;
+  });
+  menu.innerHTML = html;
+  document.body.appendChild(menu);
+  const r = anchorEl.getBoundingClientRect();
+  menu.style.top  = (r.bottom + 4) + 'px';
+  menu.style.left = Math.min(r.left, window.innerWidth - menu.offsetWidth - 12) + 'px';
+  const mh = menu.offsetHeight;
+  if (r.bottom + 4 + mh > window.innerHeight - 8) menu.style.top = Math.max(8, r.top - mh - 4) + 'px';
+  menu.querySelectorAll('.vnm-item[data-node]').forEach(it => {
+    it.addEventListener('click', () => {
+      const node = it.dataset.node;
+      closeViewerNodeMenu();
+      switchViewerNode(node);
+    });
+  });
+  setTimeout(() => document.addEventListener('click', viewerNodeMenuOutside, true), 0);
+}
+function viewerNodeMenuOutside(e) {
+  const menu = document.getElementById('viewer-node-menu');
+  if (menu && !menu.contains(e.target) && !e.target.closest('#viewer-node-label')) closeViewerNodeMenu();
+}
+function closeViewerNodeMenu() {
+  const menu = document.getElementById('viewer-node-menu');
+  if (menu) menu.remove();
+  document.removeEventListener('click', viewerNodeMenuOutside, true);
+}
+
+// Switch the viewer to another node's newest log, focused on its latest entry.
+// This scopes the results panel to the whole node too, so the viewer and the
+// results stay consistent (use the file-label menu to pin a single file).
+function switchViewerNode(node) {
+  const compId = state.viewerCompId;
+  if (!compId) return;
+  // Make sure the component is the active one before scoping.
+  state.activeCompId = compId;
+  scopeToNode(node);
 }
 
 function toggleViewerFileMenu(anchorEl) {
@@ -6207,10 +6544,14 @@ async function openComponentFileInViewer(compId, file) {
   state.activeCompId   = compId;
   state.activeFilePath = file.path || file.name;
   state.activeFileName = file.name;
+  // Keep the node scope in sync with the file just opened so the results-header
+  // node chip and the viewer node selector always agree with what's shown.
+  state.activeNode = nodeOfPath(file.path || file.name, file.name);
   document.querySelectorAll('.component-item').forEach(el =>
     el.classList.toggle('active', el.dataset.compId === compId));
   openInViewer(file.lines[file.lines.length - 1], data);
   if (!globalSearchActive) {
+    updateNodeScopeChip();
     populateResultsLoggers();
     if (state.resultsRun) applyFilter(); else showResultsHint();
   }
@@ -7289,6 +7630,7 @@ async function runGlobalSearch(term) {
   try { Diag.log('info', 'search', 'global search', { termLen: term.length, includeOlder, components: Object.keys(state.loadedData||{}).length }); } catch (_) {}
 
   globalSearchActive = true;
+  updateNodeScopeChip();
   document.getElementById('sidebar-components').classList.add('search-mode-active');
   wireSearchExclusionCheckboxes();
 
@@ -7524,6 +7866,7 @@ function clearGlobalSearch() {
   });
   // Return to the current selection's view: re-run grouped results only if the
   // user had already run them, otherwise restore the latest-entries + hint.
+  updateNodeScopeChip();
   if (state.resultsRun) applyFilter();
   else if (state.activeCompId) showResultsHint();
 }
