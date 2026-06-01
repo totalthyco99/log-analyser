@@ -2211,6 +2211,95 @@ if (typeof window !== 'undefined') window.parseHar = parseHar;
   #diag-body .dg-row.lvl-error .dg-msg { color: var(--level-error); }
   #diag-body .dg-row.lvl-warn .dg-msg { color: var(--level-warn); }
   #diag-body .dg-empty { color: var(--text-muted); font-style: italic; }
+  /* ════ Notes & pins floating panel ════ */
+  #notes-pin-badge {
+    display: inline-flex; align-items: center; justify-content: center;
+    min-width: 16px; height: 16px; padding: 0 4px; margin-left: 2px;
+    border-radius: 8px; background: var(--accent-purple); color: #fff;
+    font-size: 10px; font-weight: 700; vertical-align: middle;
+  }
+  #notes-pin-badge.hidden { display: none; }
+  #notes-overlay {
+    position: fixed; z-index: 470; bottom: 56px; right: 18px;
+    width: min(420px, 94vw); height: min(560px, 78vh);
+    display: flex; flex-direction: column;
+    background: var(--bg-base); border: 1px solid var(--accent-amber, #f5b301);
+    border-radius: var(--radius-lg); box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+    overflow: hidden; resize: both; min-width: 300px; min-height: 280px;
+  }
+  #notes-overlay.hidden { display: none; }
+  #notes-header {
+    height: 46px; flex-shrink: 0; background: var(--bg-surface);
+    border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; gap: 10px; padding: 0 12px;
+    cursor: move; user-select: none;
+  }
+  #notes-icon { font-size: 17px; }
+  #notes-title { font-size: 13px; font-weight: 700; color: var(--text-primary); }
+  #notes-saved { font-size: 10px; color: var(--accent-teal); opacity: 0; transition: opacity 0.3s; font-family: var(--font-mono); }
+  #notes-saved.show { opacity: 1; }
+  #notes-scrub-toggle {
+    display: flex; align-items: center; gap: 4px; font-size: 10px; color: var(--text-secondary);
+    cursor: pointer; user-select: none; white-space: nowrap;
+  }
+  #notes-scrub-toggle input { cursor: pointer; margin: 0; }
+  #notes-scrub-toggle:hover { color: var(--text-primary); }
+  #btn-notes-close {
+    width: 26px; height: 26px; border-radius: var(--radius-sm); border: 1px solid var(--border);
+    background: var(--bg-elevated); color: var(--text-muted); font-size: 12px; cursor: pointer; transition: all 0.12s;
+  }
+  #btn-notes-close:hover { border-color: var(--level-error); color: var(--level-error); }
+  .notes-act-btn {
+    width: 26px; height: 26px; border-radius: var(--radius-sm); border: 1px solid var(--border);
+    background: var(--bg-elevated); color: var(--text-secondary); font-size: 12px; cursor: pointer; transition: all 0.12s;
+  }
+  .notes-act-btn:hover { border-color: var(--accent-purple); color: var(--text-primary); }
+  #notes-body { flex: 1; display: flex; flex-direction: column; min-height: 0; padding: 10px; gap: 10px; }
+  #notes-text {
+    flex: 0 0 38%; min-height: 80px; resize: none;
+    background: var(--bg-elevated); border: 1px solid var(--border); border-radius: var(--radius-sm);
+    color: var(--text-primary); font-family: var(--font-ui); font-size: 12px; line-height: 1.5; padding: 8px;
+  }
+  #notes-text:focus { border-color: var(--accent-purple); outline: none; }
+  #notes-pins-section { flex: 1; display: flex; flex-direction: column; min-height: 0; }
+  #notes-pins-head {
+    display: flex; align-items: center; justify-content: space-between;
+    font-size: 11px; font-weight: 700; color: var(--text-secondary); margin-bottom: 6px;
+  }
+  #btn-pins-clear {
+    background: none; border: 1px solid var(--border); border-radius: var(--radius-sm);
+    color: var(--text-muted); font-size: 10px; padding: 2px 8px; cursor: pointer; transition: all 0.12s;
+  }
+  #btn-pins-clear:hover { border-color: var(--level-error); color: var(--level-error); }
+  #btn-pins-clear.hidden { display: none; }
+  #notes-pins-list { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 6px; }
+  .pin-item {
+    border: 1px solid var(--border); border-radius: var(--radius-sm);
+    padding: 7px 8px; background: var(--bg-surface); cursor: pointer; transition: all 0.12s;
+    border-left: 3px solid var(--text-muted);
+  }
+  .pin-item:hover { background: var(--bg-hover); border-color: var(--accent-purple); }
+  .pin-item.lvl-ERROR, .pin-item.lvl-CRITICAL { border-left-color: var(--level-error); }
+  .pin-item.lvl-WARNING { border-left-color: var(--level-warn); }
+  .pin-item.lvl-INFO { border-left-color: var(--level-info); }
+  .pin-meta { display: flex; align-items: center; gap: 6px; font-size: 10px; color: var(--text-muted); font-family: var(--font-mono); margin-bottom: 3px; }
+  .pin-meta .pin-file { color: var(--text-secondary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 180px; }
+  .pin-meta .pin-unpin { margin-left: auto; cursor: pointer; color: var(--text-muted); padding: 0 3px; border-radius: 3px; }
+  .pin-meta .pin-unpin:hover { color: var(--level-error); background: var(--bg-elevated); }
+  .pin-text {
+    font-family: var(--font-mono); font-size: 11px; color: var(--text-primary);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .pin-note { font-size: 10px; color: var(--text-secondary); font-style: italic; margin-top: 2px; }
+  .pin-loc {
+    font-size: 9px; color: var(--text-muted); font-family: var(--font-mono); margin-top: 3px;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  #notes-pins-list .pin-empty { color: var(--text-muted); font-size: 11px; font-style: italic; padding: 8px 2px; }
+  #notes-footer {
+    flex-shrink: 0; padding: 6px 12px; font-size: 9px; color: var(--text-muted);
+    background: var(--bg-surface); border-top: 1px solid var(--border); line-height: 1.4;
+  }
   #evtx-summary-panel {
     width: 320px; flex-shrink: 0; overflow-y: auto;
     border-right: 1px solid var(--border); padding: 16px;
@@ -2598,6 +2687,7 @@ if (typeof window !== 'undefined') window.parseHar = parseHar;
     <div class="divider"></div>
     <div class="spacer"></div>
     <button id="btn-github" title="View on GitHub" onclick="window.open('https://github.com/totalthyco99/log-analyser','_blank')">⭐ GitHub</button>
+    <button id="btn-notes" title="Open your persistent notes &amp; pinned log entries (saved on this device, survives reloads)">🗒 Notes <span id="notes-pin-badge" class="hidden"></span></button>
     <button id="btn-kb-test" title="Test a log line against the recognised-error knowledge base">🧪 Test KB</button>
     <button id="btn-diagnostics" title="View / export diagnostics to help troubleshoot a reported issue (no log content — metadata only)">🩺 Diagnostics</button>
     <button id="btn-feedback" title="Submit feedback" onclick="window.open('https://forms.microsoft.com/r/tpeMyjq0V4','_blank')">💬 Feedback</button>
@@ -3034,6 +3124,34 @@ if (typeof window !== 'undefined') window.parseHar = parseHar;
       <button class="wizard-btn secondary" id="btn-diag-close">Close</button>
     </div>
   </div>
+</div>
+
+<!-- NOTES & PINS — persistent floating panel -->
+<div id="notes-overlay" class="hidden">
+  <div id="notes-header">
+    <span id="notes-icon">🗒</span>
+    <div id="notes-title">Notes &amp; pinned entries</div>
+    <div class="evtx-spacer"></div>
+    <label id="notes-scrub-toggle" title="When on, the copied/exported text has PII (IPs, usernames, SIDs, emails…) replaced with placeholders. Your stored pins and the logs are never changed.">
+      <input type="checkbox" id="notes-scrub-check" checked>
+      <span>Scrub on copy/export</span>
+    </label>
+    <span id="notes-saved" title="Saved on this device">saved ✓</span>
+    <button id="btn-notes-copy" class="notes-act-btn" title="Copy the note and all pinned entries to the clipboard">📋</button>
+    <button id="btn-notes-export" class="notes-act-btn" title="Download the note and pinned entries as a text file">⬇</button>
+    <button id="btn-notes-close" title="Close">✕</button>
+  </div>
+  <div id="notes-body">
+    <textarea id="notes-text" spellcheck="true" placeholder="Jot down anything as you review — root-cause theories, timestamps of interest, ticket numbers… Saved automatically on this device and kept across reloads."></textarea>
+    <div id="notes-pins-section">
+      <div id="notes-pins-head">
+        <span>📌 Pinned entries (<span id="notes-pins-count">0</span>)</span>
+        <button id="btn-pins-clear" class="hidden" title="Remove all pinned entries">Clear all</button>
+      </div>
+      <div id="notes-pins-list"></div>
+    </div>
+  </div>
+  <div id="notes-footer">Stored only in this browser, on this device. Survives reloads and cache-busting, but not a manual "clear site data". Pinned text may include log content — keep it on a trusted machine.</div>
 </div>
 
 <!-- KB ARTICLE POPOVER -->
@@ -6372,6 +6490,7 @@ function showLogContextMenu(x, y, entry) {
     <div class="lcm-hint">Log entry actions</div>
     <button class="lcm-item" data-act="yext">🔎 Search in Yext (scrubbed)</button>
     <button class="lcm-item" data-act="copy">📋 Copy scrubbed text</button>
+    <button class="lcm-item" data-act="pin">📌 Pin this line</button>
   `;
   menu.classList.remove('hidden');
   // Position, clamped to viewport
@@ -6408,6 +6527,11 @@ function showLogContextMenu(x, y, entry) {
         .then(() => showAppToast('✓ Scrubbed log text copied to clipboard'))
         .catch(() => showAppToast('⚠ Couldn\'t copy to clipboard'));
     }
+    hideLogContextMenu();
+  };
+  const pinBtn = menu.querySelector('[data-act="pin"]');
+  if (pinBtn) pinBtn.onclick = () => {
+    try { Notes.addPin(entry); } catch (_) { showAppToast('⚠ Could not pin this line'); }
     hideLogContextMenu();
   };
 }
@@ -7802,6 +7926,289 @@ function diagText(which) {
   return out;
 }
 
+// ═══════════════════════════════════════════════════════════════
+//  NOTES & PINS — persistent, on-device note + pinned log entries
+//  Stored in localStorage so they survive reloads and SW cache-busting.
+// ═══════════════════════════════════════════════════════════════
+const Notes = (function () {
+  const NOTE_KEY = 'tse-note';
+  const PINS_KEY = 'tse-pins';
+  const MAX_PIN_TEXT = 2000;
+  let pins = [];
+  let saveTimer = null;
+
+  function loadPins() {
+    try { pins = JSON.parse(localStorage.getItem(PINS_KEY) || '[]'); if (!Array.isArray(pins)) pins = []; }
+    catch (_) { pins = []; }
+  }
+  function savePins() {
+    try { localStorage.setItem(PINS_KEY, JSON.stringify(pins)); } catch (_) {}
+  }
+  function loadNote() {
+    try { return localStorage.getItem(NOTE_KEY) || ''; } catch (_) { return ''; }
+  }
+  function saveNote(text) {
+    try { localStorage.setItem(NOTE_KEY, text); } catch (_) {}
+    const tag = document.getElementById('notes-saved');
+    if (tag) { tag.classList.add('show'); clearTimeout(saveTimer); saveTimer = setTimeout(() => tag.classList.remove('show'), 1200); }
+  }
+
+  function addPin(entry) {
+    // Capture enough to display and to jump back later (within a session where
+    // the file is still loaded). Text is stored verbatim but length-capped.
+    const text = String(entry.text || '').slice(0, MAX_PIN_TEXT);
+    const compId = state.activeCompId || '';
+    const data = state.loadedData[compId];
+    const fileName = entry._file || (currentFocusEntry && currentFocusEntry._file) || '';
+    // Resolve where this line lives:
+    //  • uploadPath  — the path/folder structure from the uploaded zip/folder
+    //  • installPath — the component's canonical on-server log location
+    //  • compName    — friendly component name
+    let uploadPath = '', installPath = '', compName = '';
+    if (data) {
+      compName = data.compDef ? data.compDef.name : '';
+      installPath = data.compDef ? (data.compDef.path || '') : '';
+      const f = data.files && data.files.find(ff => ff.name === fileName);
+      if (f && f.path) uploadPath = f.path;
+    }
+    // Folder = directory portion of the upload path (if it has folders),
+    // else the canonical install path.
+    let folder = '';
+    if (uploadPath && /[\/\\]/.test(uploadPath)) {
+      folder = uploadPath.replace(/[\/\\][^\/\\]*$/, '');
+    } else {
+      folder = installPath;
+    }
+    const pin = {
+      id: 'pin_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7),
+      text,
+      lineNo: entry.lineNo,
+      file: fileName,
+      folder,
+      uploadPath,
+      installPath,
+      compId,
+      compName,
+      level: entry.isContinuation ? '' : (entry.level || ''),
+      ts: entry.ts || null,
+      pinnedAt: Date.now(),
+    };
+    // De-dupe: same file + line already pinned
+    if (pins.some(p => p.file === pin.file && p.lineNo === pin.lineNo && p.compId === pin.compId)) {
+      showAppToast('📌 That line is already pinned');
+      return;
+    }
+    pins.unshift(pin);
+    savePins();
+    renderPins();
+    updateBadge();
+    showAppToast('📌 Pinned — see it under 🗒 Notes');
+  }
+
+  function removePin(id) {
+    pins = pins.filter(p => p.id !== id);
+    savePins(); renderPins(); updateBadge();
+  }
+  function clearPins() {
+    pins = []; savePins(); renderPins(); updateBadge();
+  }
+
+  function jumpToPin(pin) {
+    const data = state.loadedData[pin.compId];
+    if (data && data.files) {
+      const file = data.files.find(f => f.name === pin.file);
+      if (file && file.lines) {
+        const line = file.lines.find(l => l.lineNo === pin.lineNo);
+        if (line) {
+          document.getElementById('wizard').style.display = 'none';
+          document.getElementById('analyser').style.display = 'flex';
+          activateComponent(pin.compId);
+          openInViewer(line, data);
+          return true;
+        }
+      }
+    }
+    return false;
+  }
+
+  function renderPins() {
+    const list = document.getElementById('notes-pins-list');
+    const countEl = document.getElementById('notes-pins-count');
+    const clearBtn = document.getElementById('btn-pins-clear');
+    if (!list) return;
+    if (countEl) countEl.textContent = pins.length;
+    if (clearBtn) clearBtn.classList.toggle('hidden', pins.length === 0);
+    if (!pins.length) {
+      list.innerHTML = '<div class="pin-empty">No pinned entries yet. Right-click any log line → <strong>Pin this line</strong>.</div>';
+      return;
+    }
+    list.innerHTML = '';
+    pins.forEach(pin => {
+      const div = document.createElement('div');
+      div.className = 'pin-item' + (pin.level ? ' lvl-' + pin.level : '');
+      const when = pin.ts ? fmtPcapTime(pin.ts) : '';
+      const loc = pin.folder ? `${pin.folder}` : '';
+      div.innerHTML = `
+        <div class="pin-meta">
+          ${pin.level ? `<span>${escHtml(pin.level)}</span>` : ''}
+          ${when ? `<span>${escHtml(when)}</span>` : ''}
+          <span class="pin-file" title="${escHtml(pin.file)} · line ${pin.lineNo}">${escHtml(pin.file)}:${pin.lineNo}</span>
+          <span class="pin-unpin" title="Unpin" data-id="${pin.id}">✕</span>
+        </div>
+        <div class="pin-text" title="${escHtml(pin.text)}">${escHtml(pin.text)}</div>
+        ${loc ? `<div class="pin-loc" title="${escHtml(loc)}">📂 ${escHtml(loc)}${pin.compName ? ` · ${escHtml(pin.compName)}` : ''}</div>` : ''}
+      `;
+      div.querySelector('.pin-unpin').addEventListener('click', (e) => {
+        e.stopPropagation();
+        removePin(pin.id);
+      });
+      div.addEventListener('click', () => {
+        const ok = jumpToPin(pin);
+        if (!ok) showAppToast('That file isn\'t loaded right now — showing the saved text only');
+      });
+      list.appendChild(div);
+    });
+  }
+
+  function updateBadge() {
+    const badge = document.getElementById('notes-pin-badge');
+    if (!badge) return;
+    if (pins.length) { badge.textContent = pins.length; badge.classList.remove('hidden'); }
+    else badge.classList.add('hidden');
+  }
+
+  // Assemble a plain-text artifact: the note + every pinned entry with its
+  // location, so it's a useful handoff even when the logs aren't loaded.
+  function buildExport() {
+    const noteEl = document.getElementById('notes-text');
+    const scrubChk = document.getElementById('notes-scrub-check');
+    const doScrub = !!(scrubChk && scrubChk.checked);
+    let replacements = 0;
+    // Scrub only the free-text fields that can carry PII (the note and each
+    // captured log line) — NOT the structural location metadata (file, folder,
+    // paths, component), which is the whole point of pinning and contains
+    // Windows paths the PII rules would otherwise mangle.
+    const scrub = (s) => {
+      if (!doScrub || !s) return s;
+      try { const r = scrubPII(s); replacements += (r.changes ? r.changes.length : 0); return r.scrubbed; }
+      catch (_) { return s; }
+    };
+    const note = (noteEl ? noteEl.value : loadNote()).trim();
+    const out = [];
+    out.push('=== Log Analyser — notes & pinned entries ===');
+    out.push('exported: ' + new Date().toISOString());
+    if (doScrub) out.push('(PII in the note and log lines has been scrubbed; file paths are kept for reference.)');
+    out.push('');
+    out.push('--- Note ---');
+    out.push(note ? scrub(note) : '(empty)');
+    out.push('');
+    out.push(`--- Pinned entries (${pins.length}) ---`);
+    if (!pins.length) {
+      out.push('(none)');
+    } else {
+      pins.forEach((p, i) => {
+        const when = p.ts ? new Date(p.ts).toISOString() : '';
+        out.push(`#${i + 1}  ${p.level || ''}${when ? '  ' + when : ''}`);
+        out.push(`    file:   ${p.file || '(unknown)'}${p.lineNo != null ? '  (line ' + p.lineNo + ')' : ''}`);
+        if (p.compName)    out.push(`    source: ${p.compName}`);
+        if (p.folder)      out.push(`    folder: ${p.folder}`);
+        if (p.uploadPath && p.uploadPath !== p.file) out.push(`    upload path: ${p.uploadPath}`);
+        if (p.installPath && p.installPath !== p.folder) out.push(`    install path: ${p.installPath}`);
+        out.push(`    line:   ${scrub(p.text)}`);
+        out.push('');
+      });
+    }
+    out.push('(Saved locally on this device. Pinned text may contain log content — handle accordingly.)');
+    let text = out.join('\n');
+    if (doScrub && replacements) {
+      text += `\n(PII scrubbed before export: ${replacements} replacement${replacements === 1 ? '' : 's'}.)`;
+    }
+    return text;
+  }
+
+  function init() {
+    loadPins();
+    const ta = document.getElementById('notes-text');
+    if (ta) {
+      ta.value = loadNote();
+      ta.addEventListener('input', () => saveNote(ta.value));
+    }
+    // Restore the scrub-on-export preference (default ON for safety).
+    const scrubChk = document.getElementById('notes-scrub-check');
+    if (scrubChk) {
+      try {
+        const pref = localStorage.getItem('tse-note-scrub');
+        scrubChk.checked = (pref === null) ? true : (pref === '1');
+      } catch (_) {}
+      scrubChk.addEventListener('change', () => {
+        try { localStorage.setItem('tse-note-scrub', scrubChk.checked ? '1' : '0'); } catch (_) {}
+      });
+    }
+    renderPins();
+    updateBadge();
+  }
+
+  return { init, addPin, jumpToPin, clearPins, buildExport, hasPins: () => pins.length > 0 };
+})();
+
+// Wire up the Notes panel chrome
+(function () {
+  const overlay = document.getElementById('notes-overlay');
+  const openBtn = document.getElementById('btn-notes');
+  const closeBtn = document.getElementById('btn-notes-close');
+  const clearBtn = document.getElementById('btn-pins-clear');
+  if (openBtn) openBtn.addEventListener('click', () => {
+    overlay.classList.toggle('hidden');
+  });
+  if (closeBtn) closeBtn.addEventListener('click', () => overlay.classList.add('hidden'));
+  const copyBtn = document.getElementById('btn-notes-copy');
+  if (copyBtn) copyBtn.addEventListener('click', () => {
+    const txt = Notes.buildExport();
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(txt)
+        .then(() => showAppToast('✓ Notes & pins copied to clipboard'))
+        .catch(() => showAppToast('⚠ Couldn\'t copy — try Export instead'));
+    } else {
+      showAppToast('⚠ Clipboard unavailable — try Export instead');
+    }
+  });
+  const exportBtn = document.getElementById('btn-notes-export');
+  if (exportBtn) exportBtn.addEventListener('click', () => {
+    const txt = Notes.buildExport();
+    const blob = new Blob([txt], { type: 'text/plain' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `log-analyser-notes-${new Date().toISOString().slice(0,19).replace(/[:T]/g,'-')}.txt`;
+    document.body.appendChild(a); a.click();
+    setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1000);
+    showAppToast('⬇ Notes exported');
+  });
+  if (clearBtn) clearBtn.addEventListener('click', () => {
+    if (confirm('Remove all pinned entries? Your note text is kept.')) Notes.clearPins();
+  });
+  // Draggable
+  const header = document.getElementById('notes-header');
+  if (overlay && header) {
+    let dragging = false, sx = 0, sy = 0, ox = 0, oy = 0;
+    header.addEventListener('mousedown', e => {
+      if (e.target.closest('button')) return;
+      dragging = true;
+      const r = overlay.getBoundingClientRect();
+      overlay.style.bottom = 'auto'; overlay.style.right = 'auto';
+      overlay.style.left = r.left + 'px'; overlay.style.top = r.top + 'px';
+      sx = e.clientX; sy = e.clientY; ox = r.left; oy = r.top;
+      document.body.style.userSelect = 'none'; e.preventDefault();
+    });
+    document.addEventListener('mousemove', e => {
+      if (!dragging) return;
+      overlay.style.left = Math.max(0, ox + e.clientX - sx) + 'px';
+      overlay.style.top = Math.max(0, oy + e.clientY - sy) + 'px';
+    });
+    document.addEventListener('mouseup', () => { dragging = false; document.body.style.userSelect = ''; });
+  }
+})();
+try { Notes.init(); } catch (_) {}
+
 
 // ═══════════════════════════════════════════════════════════════
 //  GLOBAL TIME RANGE
@@ -7989,6 +8396,25 @@ const APP_VERSION = '2026.06.01e';
     }
     localStorage.setItem('app-version', APP_VERSION);
   } catch (e) { /* ignore */ }
+})();
+
+// ═══════════════════════════════════════════════════════════════
+//  SHELL — keep the sidebar hidden on the welcome screen, shown in
+//  the analyser. Driven off the analyser's visibility so it stays
+//  correct through every view transition without touching each one.
+// ═══════════════════════════════════════════════════════════════
+(function () {
+  const analyser = document.getElementById('analyser');
+  const sidebar  = document.getElementById('sidebar');
+  const resizer  = document.getElementById('resizer-sidebar');
+  if (!analyser || !sidebar) return;
+  const sync = () => {
+    const active = getComputedStyle(analyser).display !== 'none';
+    sidebar.style.display = active ? '' : 'none';
+    if (resizer) resizer.style.display = active ? '' : 'none';
+  };
+  sync(); // hide on initial welcome screen
+  new MutationObserver(sync).observe(analyser, { attributes: true, attributeFilter: ['style'] });
 })();
 
 async function clearAppCaches() {
