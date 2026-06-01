@@ -2160,27 +2160,6 @@ if (typeof window !== 'undefined') window.parseHar = parseHar;
     color: var(--text-secondary); font-size: 11px; padding: 4px 10px; cursor: pointer; transition: all 0.12s;
   }
   #btn-timeline:hover, #btn-export-findings:hover, #btn-tz-toggle:hover { border-color: var(--accent-teal); color: var(--text-primary); }
-  /* ════ KB test panel ════ */
-  #kbtest-modal {
-    position: fixed; inset: 0; z-index: 10045; display: flex; align-items: center; justify-content: center;
-    background: rgba(0,0,0,0.5);
-  }
-  #kbtest-modal.hidden { display: none; }
-  #kbtest-input {
-    width: 100%; resize: vertical; font-family: var(--font-mono); font-size: 12px;
-    background: var(--bg-base); color: var(--text-primary); border: 1px solid var(--border);
-    border-radius: var(--radius-sm); padding: 10px; line-height: 1.5;
-  }
-  #kbtest-input:focus { border-color: var(--accent-purple); outline: none; }
-  #kbtest-result { min-height: 40px; font-size: 12px; }
-  #kbtest-result .kbt-hit {
-    border: 1px solid var(--accent-teal); border-radius: var(--radius-sm); padding: 10px;
-    background: rgba(20,184,166,0.08);
-  }
-  #kbtest-result .kbt-hit .kbt-title { font-weight: 700; color: var(--text-primary); margin-bottom: 4px; }
-  #kbtest-result .kbt-hit .kbt-meta { font-size: 11px; color: var(--text-secondary); font-family: var(--font-mono); }
-  #kbtest-result .kbt-hit a { color: var(--accent-teal); }
-  #kbtest-result .kbt-miss { color: var(--text-muted); padding: 10px; font-style: italic; }
   /* ════ Diagnostics modal ════ */
   #diag-modal {
     position: fixed; inset: 0; z-index: 10046; display: flex; align-items: center; justify-content: center;
@@ -2255,6 +2234,41 @@ if (typeof window !== 'undefined') window.parseHar = parseHar;
   }
   .notes-act-btn:hover { border-color: var(--accent-purple); color: var(--text-primary); }
   #notes-body { flex: 1; display: flex; flex-direction: column; min-height: 0; padding: 10px; gap: 10px; }
+  #notes-session-bar {
+    display: flex; align-items: center; gap: 6px; font-size: 11px;
+    padding: 6px 8px; background: var(--bg-surface); border: 1px solid var(--border); border-radius: var(--radius-sm);
+  }
+  #notes-session-label { color: var(--text-muted); }
+  #notes-session-name { font-weight: 700; color: var(--accent-purple); flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  #btn-notes-history {
+    background: none; border: 1px solid var(--border); border-radius: var(--radius-sm);
+    color: var(--text-secondary); font-size: 10px; padding: 2px 8px; cursor: pointer; transition: all 0.12s; white-space: nowrap;
+  }
+  #btn-notes-history:hover { border-color: var(--accent-purple); color: var(--text-primary); }
+  #notes-history-panel {
+    border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--bg-base);
+    max-height: 180px; overflow-y: auto;
+  }
+  #notes-history-panel.hidden { display: none; }
+  .nh-item {
+    display: flex; align-items: center; gap: 8px; padding: 7px 10px; cursor: pointer;
+    border-bottom: 1px solid rgba(255,255,255,0.04); font-size: 11px;
+  }
+  .nh-item:hover { background: var(--bg-hover); }
+  .nh-item.current { background: rgba(167,139,250,0.10); }
+  .nh-name { flex: 1; color: var(--text-primary); font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .nh-meta { color: var(--text-muted); font-family: var(--font-mono); font-size: 10px; white-space: nowrap; }
+  .nh-current-tag { color: var(--accent-purple); font-size: 9px; font-weight: 700; text-transform: uppercase; }
+  #notes-note-head {
+    display: flex; align-items: center; justify-content: space-between;
+    font-size: 11px; font-weight: 700; color: var(--text-secondary); margin-bottom: -4px;
+  }
+  #btn-note-clear {
+    background: none; border: 1px solid var(--border); border-radius: var(--radius-sm);
+    color: var(--text-muted); font-size: 10px; padding: 2px 8px; cursor: pointer; transition: all 0.12s;
+  }
+  #btn-note-clear:hover { border-color: var(--level-error); color: var(--level-error); }
+  #btn-note-clear.hidden { display: none; }
   #notes-text {
     flex: 0 0 38%; min-height: 80px; resize: none;
     background: var(--bg-elevated); border: 1px solid var(--border); border-radius: var(--radius-sm);
@@ -2272,6 +2286,11 @@ if (typeof window !== 'undefined') window.parseHar = parseHar;
   }
   #btn-pins-clear:hover { border-color: var(--level-error); color: var(--level-error); }
   #btn-pins-clear.hidden { display: none; }
+  #btn-preload-kb {
+    background: none; border: 1px solid var(--accent-purple); border-radius: var(--radius-sm);
+    color: var(--accent-purple); font-size: 10px; padding: 2px 8px; cursor: pointer; transition: all 0.12s;
+  }
+  #btn-preload-kb:hover { background: rgba(167,139,250,0.12); }
   #notes-pins-list { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 6px; }
   .pin-item {
     border: 1px solid var(--border); border-radius: var(--radius-sm);
@@ -2688,7 +2707,6 @@ if (typeof window !== 'undefined') window.parseHar = parseHar;
     <div class="spacer"></div>
     <button id="btn-github" title="View on GitHub" onclick="window.open('https://github.com/totalthyco99/log-analyser','_blank')">⭐ GitHub</button>
     <button id="btn-notes" title="Open your persistent notes &amp; pinned log entries (saved on this device, survives reloads)">🗒 Notes <span id="notes-pin-badge" class="hidden"></span></button>
-    <button id="btn-kb-test" title="Test a log line against the recognised-error knowledge base">🧪 Test KB</button>
     <button id="btn-diagnostics" title="View / export diagnostics to help troubleshoot a reported issue (no log content — metadata only)">🩺 Diagnostics</button>
     <button id="btn-feedback" title="Submit feedback" onclick="window.open('https://forms.microsoft.com/r/tpeMyjq0V4','_blank')">💬 Feedback</button>
     <button id="btn-hard-refresh" title="Clears the cached app and reloads the very latest version from the server. Use this if you suspect you're seeing an outdated version of the tool." onclick="hardRefresh()">↻ Hard refresh</button>
@@ -3091,20 +3109,6 @@ if (typeof window !== 'undefined') window.parseHar = parseHar;
   </div>
 </div>
 
-<!-- KB TEST PANEL -->
-<div id="kbtest-modal" class="hidden">
-  <div class="export-modal-card" style="border-color:var(--accent-purple)">
-    <div class="export-modal-title">🧪 Test the knowledge base <span id="kbtest-version" style="font-weight:400;color:var(--text-muted);font-size:12px"></span></div>
-    <div class="export-modal-sub">Paste a log line to see whether it matches a recognised error signature.</div>
-    <textarea id="kbtest-input" spellcheck="false" placeholder="Paste a log line here…" style="min-height:90px"></textarea>
-    <div id="kbtest-result"></div>
-    <div class="export-actions">
-      <span id="kbtest-status" style="flex:1;font-size:11px;color:var(--text-muted)"></span>
-      <button class="wizard-btn secondary" id="btn-kbtest-close">Close</button>
-    </div>
-  </div>
-</div>
-
 <!-- DIAGNOSTICS MODAL -->
 <div id="diag-modal" class="hidden">
   <div class="export-modal-card" style="border-color:var(--accent-teal);width:min(760px,94vw)">
@@ -3142,11 +3146,24 @@ if (typeof window !== 'undefined') window.parseHar = parseHar;
     <button id="btn-notes-close" title="Close">✕</button>
   </div>
   <div id="notes-body">
+    <div id="notes-session-bar">
+      <span id="notes-session-label">Session:</span>
+      <span id="notes-session-name" title="This note set is named after the loaded zip, or the product and time for loose files">Notes</span>
+      <button id="btn-notes-history" title="View and reopen earlier note sessions (last 10 kept)">🕘 History</button>
+    </div>
+    <div id="notes-history-panel" class="hidden"></div>
+    <div id="notes-note-head">
+      <span>📝 Note</span>
+      <button id="btn-note-clear" class="hidden" title="Clear the note text (pinned entries are kept)">✕ Clear</button>
+    </div>
     <textarea id="notes-text" spellcheck="true" placeholder="Jot down anything as you review — root-cause theories, timestamps of interest, ticket numbers… Saved automatically on this device and kept across reloads."></textarea>
     <div id="notes-pins-section">
       <div id="notes-pins-head">
         <span>📌 Pinned entries (<span id="notes-pins-count">0</span>)</span>
-        <button id="btn-pins-clear" class="hidden" title="Remove all pinned entries">Clear all</button>
+        <span style="display:flex; gap:6px">
+          <button id="btn-preload-kb" title="Scan the loaded logs for recognised errors, add a summary to the note, and pin one matched example of each">➕ Recognised errors</button>
+          <button id="btn-pins-clear" class="hidden" title="Remove all pinned entries">Clear all</button>
+        </span>
       </div>
       <div id="notes-pins-list"></div>
     </div>
@@ -4658,6 +4675,8 @@ function handleFileList(fileList) {
 // Recursively extract a zip (including nested zips), preserving folder paths
 async function handleZipFile(file, basePath) {
   basePath = basePath || file.name.replace(/\.zip$/i, '');
+  // Remember the (first) zip of this staging batch to name the notes session.
+  if (!state._stagedZipName) state._stagedZipName = file.name;
   flashUploadMsg(`⏳ Extracting ${file.name}…`, 0);
   try {
     const buf = await file.arrayBuffer();
@@ -4839,6 +4858,25 @@ function analyseFiles() {
   const compIds = [...state.selectedComponents].filter(id => (pendingFiles[id]||[]).length > 0);
 
   const goToAnalyser = () => {
+    // Notes sessions: a fresh load starts a new named session (zip name, or
+    // "Product — date/time" for loose files); "+ Add more" appends to current.
+    try {
+      if (typeof Notes !== 'undefined' && Notes.newSession) {
+        if (state._addMore) {
+          // keep the current session
+        } else {
+          let name = state._stagedZipName;
+          if (!name) {
+            const d = new Date();
+            const stamp = d.toLocaleString(undefined, { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+            name = `${prod ? prod.label : 'Logs'} — ${stamp}`;
+          }
+          Notes.newSession(name);
+        }
+      }
+    } catch (_) {}
+    state._addMore = false;
+    state._stagedZipName = null;
     document.getElementById('wizard').style.display = 'none';
     document.getElementById('analyser').style.display = 'flex';
     initResizers();
@@ -6455,6 +6493,20 @@ function updateRecognisedCount() {
   btn.innerHTML = n > 0
     ? `⚠ Recognised errors <span class="kb-count">${n}</span>`
     : '⚠ Recognised errors';
+  // The first time recognised errors appear for a given notes session, seed the
+  // notes with them + a pinned example each (once per session; idempotent and
+  // non-clobbering, so it never overwrites the user's own text).
+  if (n > 0) {
+    try {
+      if (typeof Notes !== 'undefined' && Notes.preloadRecognised && Notes.getCurrentId) {
+        const sid = Notes.getCurrentId();
+        if (sid && sid !== window._kbAutoSeededId) {
+          window._kbAutoSeededId = sid;
+          Notes.preloadRecognised(true);
+        }
+      }
+    } catch (_) {}
+  }
 }
 
 // ── Transient toast notification ──
@@ -6997,6 +7049,7 @@ document.getElementById('btn-home').addEventListener('click', () => {
   document.getElementById('wizard').style.display = 'flex';
 });
 document.getElementById('btn-add-more').addEventListener('click', () => {
+  state._addMore = true; // next analyse appends to the current session
   document.getElementById('analyser').style.display = 'none';
   document.getElementById('wizard').style.display = 'flex';
 });
@@ -7774,42 +7827,6 @@ function buildExportFindings() {
 }
 
 // ═══════════════════════════════════════════════════════════════
-//  KB TEST PANEL
-// ═══════════════════════════════════════════════════════════════
-document.getElementById('btn-kb-test').addEventListener('click', () => {
-  document.getElementById('kbtest-modal').classList.remove('hidden');
-  const src = KB.source === 'hosted' ? 'hosted error-signatures.json' : 'built-in (inline) dictionary';
-  document.getElementById('kbtest-version').textContent =
-    `— v${KB.version != null ? KB.version : '?'} · ${KB.signatures.length} signatures · ${src}`;
-  const inp = document.getElementById('kbtest-input');
-  inp.focus();
-  runKbTest();
-});
-document.getElementById('btn-kbtest-close').addEventListener('click', () =>
-  document.getElementById('kbtest-modal').classList.add('hidden'));
-document.getElementById('kbtest-input').addEventListener('input', runKbTest);
-
-function runKbTest() {
-  const text = document.getElementById('kbtest-input').value;
-  const out = document.getElementById('kbtest-result');
-  if (!text.trim()) { out.innerHTML = '<div class="kbt-miss">Waiting for input…</div>'; return; }
-  const sig = kbMatch(text);
-  if (!sig) {
-    out.innerHTML = '<div class="kbt-miss">✗ No recognised-error signature matches this line.</div>';
-    return;
-  }
-  const link = sig.url
-    ? `<a href="${escHtml(sig.url)}" target="_blank" rel="noopener">Open documentation ↗</a>`
-    : (sig.source === 'confluence' ? 'Source: internal Confluence' : 'Recognised error');
-  out.innerHTML = `
-    <div class="kbt-hit">
-      <div class="kbt-title">✓ ${escHtml(sig.title)}</div>
-      <div class="kbt-meta">id: ${escHtml(sig.id)} · matched phrase: "${escHtml(sig.match)}"${sig.products ? ' · ' + escHtml(sig.products.join(', ')) : ''}</div>
-      <div class="kbt-meta" style="margin-top:6px">${link}</div>
-    </div>`;
-}
-
-// ═══════════════════════════════════════════════════════════════
 //  DIAGNOSTICS PANEL
 // ═══════════════════════════════════════════════════════════════
 let _diagTab = 'current';
@@ -7931,33 +7948,107 @@ function diagText(which) {
 //  Stored in localStorage so they survive reloads and SW cache-busting.
 // ═══════════════════════════════════════════════════════════════
 const Notes = (function () {
-  const NOTE_KEY = 'tse-note';
-  const PINS_KEY = 'tse-pins';
+  const SESS_KEY = 'tse-sessions';     // array of { id, name, createdAt, note, pins }
+  const CUR_KEY  = 'tse-current';      // id of the active session
+  const OLD_NOTE_KEY = 'tse-note';     // legacy single-note (migrated once)
+  const OLD_PINS_KEY = 'tse-pins';     // legacy pins (migrated once)
   const MAX_PIN_TEXT = 2000;
-  let pins = [];
+  const MAX_SESSIONS = 10;
+  let sessions = [];                   // most-recent-first
+  let currentId = null;
   let saveTimer = null;
 
-  function loadPins() {
-    try { pins = JSON.parse(localStorage.getItem(PINS_KEY) || '[]'); if (!Array.isArray(pins)) pins = []; }
-    catch (_) { pins = []; }
+  function persist() {
+    try {
+      localStorage.setItem(SESS_KEY, JSON.stringify(sessions));
+      localStorage.setItem(CUR_KEY, currentId || '');
+    } catch (_) {}
   }
-  function savePins() {
-    try { localStorage.setItem(PINS_KEY, JSON.stringify(pins)); } catch (_) {}
+  function current() {
+    let s = sessions.find(x => x.id === currentId);
+    if (!s) {
+      // Always have a current session to write into.
+      s = makeSession('Notes');
+      sessions.unshift(s); currentId = s.id; prune(); persist();
+    }
+    return s;
   }
-  function loadNote() {
-    try { return localStorage.getItem(NOTE_KEY) || ''; } catch (_) { return ''; }
+  function makeSession(name) {
+    return { id: 'sess_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6),
+             name: name || 'Notes', createdAt: Date.now(), note: '', pins: [] };
   }
+  function prune() { if (sessions.length > MAX_SESSIONS) sessions.length = MAX_SESSIONS; }
+
+  // `pins` is a live reference to the current session's pins array, so the rest
+  // of the module (addPin/renderPins/etc.) keeps working unchanged.
+  let pins = [];
+  function bindPins() { pins = current().pins; }
+  function savePins() { current().pins = pins; persist(); }
+
+  function loadNote() { return current().note || ''; }
   function saveNote(text) {
-    try { localStorage.setItem(NOTE_KEY, text); } catch (_) {}
+    current().note = text; persist();
     const tag = document.getElementById('notes-saved');
     if (tag) { tag.classList.add('show'); clearTimeout(saveTimer); saveTimer = setTimeout(() => tag.classList.remove('show'), 1200); }
   }
 
-  function addPin(entry) {
+  function loadSessions() {
+    try {
+      const raw = localStorage.getItem(SESS_KEY);
+      if (raw) {
+        sessions = JSON.parse(raw); if (!Array.isArray(sessions)) sessions = [];
+        currentId = localStorage.getItem(CUR_KEY) || (sessions[0] && sessions[0].id) || null;
+      } else {
+        sessions = [];
+      }
+    } catch (_) { sessions = []; }
+    // One-time migration of the legacy single note + pins.
+    if (!sessions.length) {
+      let oldNote = '', oldPins = [];
+      try { oldNote = localStorage.getItem(OLD_NOTE_KEY) || ''; } catch (_) {}
+      try { oldPins = JSON.parse(localStorage.getItem(OLD_PINS_KEY) || '[]'); if (!Array.isArray(oldPins)) oldPins = []; } catch (_) {}
+      const s = makeSession(oldNote || oldPins.length ? 'Imported notes' : 'Notes');
+      s.note = oldNote; s.pins = oldPins;
+      sessions = [s]; currentId = s.id;
+      persist();
+      try { localStorage.removeItem(OLD_NOTE_KEY); localStorage.removeItem(OLD_PINS_KEY); } catch (_) {}
+    }
+    bindPins();
+  }
+
+  // Start a fresh named session (called when a new set of logs is loaded).
+  function newSession(name) {
+    const s = makeSession(name);
+    sessions.unshift(s);
+    currentId = s.id;
+    prune();
+    persist();
+    bindPins();
+    refreshUI();
+    return s.id;
+  }
+  function switchSession(id) {
+    if (!sessions.find(x => x.id === id)) return;
+    currentId = id; persist(); bindPins(); refreshUI();
+  }
+  function refreshUI() {
+    const ta = document.getElementById('notes-text');
+    if (ta) ta.value = current().note || '';
+    renderPins(); updateBadge(); renderSessionHeader();
+    const clearBtn = document.getElementById('btn-note-clear');
+    if (clearBtn) clearBtn.classList.toggle('hidden', !(current().note || '').trim().length);
+  }
+  function renderSessionHeader() {
+    const el = document.getElementById('notes-session-name');
+    if (el) el.textContent = current().name || 'Notes';
+  }
+
+  function addPin(entry, opts) {
+    opts = opts || {};
     // Capture enough to display and to jump back later (within a session where
     // the file is still loaded). Text is stored verbatim but length-capped.
     const text = String(entry.text || '').slice(0, MAX_PIN_TEXT);
-    const compId = state.activeCompId || '';
+    const compId = opts.compId || state.activeCompId || '';
     const data = state.loadedData[compId];
     const fileName = entry._file || (currentFocusEntry && currentFocusEntry._file) || '';
     // Resolve where this line lives:
@@ -7991,18 +8082,18 @@ const Notes = (function () {
       compName,
       level: entry.isContinuation ? '' : (entry.level || ''),
       ts: entry.ts || null,
+      label: opts.label || '',
       pinnedAt: Date.now(),
     };
     // De-dupe: same file + line already pinned
     if (pins.some(p => p.file === pin.file && p.lineNo === pin.lineNo && p.compId === pin.compId)) {
-      showAppToast('📌 That line is already pinned');
-      return;
+      if (!opts.silent) showAppToast('📌 That line is already pinned');
+      return false;
     }
     pins.unshift(pin);
-    savePins();
-    renderPins();
-    updateBadge();
-    showAppToast('📌 Pinned — see it under 🗒 Notes');
+    if (!opts.deferSave) { savePins(); renderPins(); updateBadge(); }
+    if (!opts.silent) showAppToast('📌 Pinned — see it under 🗒 Notes');
+    return true;
   }
 
   function removePin(id) {
@@ -8057,6 +8148,7 @@ const Notes = (function () {
         </div>
         <div class="pin-text" title="${escHtml(pin.text)}">${escHtml(pin.text)}</div>
         ${loc ? `<div class="pin-loc" title="${escHtml(loc)}">📂 ${escHtml(loc)}${pin.compName ? ` · ${escHtml(pin.compName)}` : ''}</div>` : ''}
+        ${pin.label ? `<div class="pin-note">${escHtml(pin.label)}</div>` : ''}
       `;
       div.querySelector('.pin-unpin').addEventListener('click', (e) => {
         e.stopPropagation();
@@ -8068,6 +8160,79 @@ const Notes = (function () {
       });
       list.appendChild(div);
     });
+  }
+
+  // Pre-load recognised-error KB findings into the note, and pin one matched
+  // example line per signature. Safe to re-run: the note's auto block is
+  // replaced (never duplicated) and pins are de-duped.
+  const AUTO_START = '----- Recognised errors (auto-added) -----';
+  const AUTO_END = '----- end recognised errors -----';
+  const MAX_AUTO_SIGS = 12;
+
+  function stripAutoBlock(note) {
+    const s = note.indexOf(AUTO_START);
+    if (s === -1) return note;
+    const e = note.indexOf(AUTO_END, s);
+    const end = e === -1 ? note.length : e + AUTO_END.length;
+    return (note.slice(0, s) + note.slice(end)).replace(/\n{3,}/g, '\n\n').trim();
+  }
+
+  function preloadRecognised(silent) {
+    if (typeof kbMatchLine !== 'function' || !state.loadedData) {
+      if (!silent) showAppToast('Recognised-error knowledge base isn\'t ready yet');
+      return 0;
+    }
+    // Collect distinct recognised signatures with one representative line each.
+    const found = new Map(); // sigId -> { sig, line, compId }
+    for (const [compId, data] of Object.entries(state.loadedData)) {
+      if (!data || !data.merged) continue;
+      for (const l of data.merged) {
+        if (l.isContinuation || !l.level) continue;
+        const sig = kbMatchLine(l);
+        if (sig && !found.has(sig.id)) {
+          found.set(sig.id, { sig, line: l, compId });
+          if (found.size >= MAX_AUTO_SIGS) break;
+        }
+      }
+      if (found.size >= MAX_AUTO_SIGS) break;
+    }
+    if (!found.size) {
+      if (!silent) showAppToast('No recognised errors found in the loaded logs');
+      return 0;
+    }
+    // Build the managed note block.
+    const lines = [AUTO_START, `(${found.size} recognised error${found.size === 1 ? '' : 's'} detected — examples pinned below)`, ''];
+    let pinned = 0;
+    found.forEach(({ sig, line, compId }) => {
+      lines.push(`• ${sig.title}  [${sig.id}]`);
+      if (sig.match) lines.push(`    matched phrase: "${sig.match}"`);
+      if (sig.url) lines.push(`    docs: ${sig.url}`);
+      else if (sig.source === 'confluence') lines.push('    source: internal Confluence');
+      const data = state.loadedData[compId];
+      const f = data && data.files && data.files.find(ff => ff.name === line._file);
+      const loc = f && f.path && /[\/\\]/.test(f.path)
+        ? f.path
+        : `${(data && data.compDef && data.compDef.path) || ''}${line._file ? '\\' + line._file : ''}`;
+      lines.push(`    example: ${line._file || '?'}:${line.lineNo}${loc ? '  (' + loc + ')' : ''}`);
+      lines.push('');
+      // Pin the example line (deferred save; flushed once at the end).
+      if (addPin(line, { compId, label: 'Example of: ' + sig.title, silent: true, deferSave: true })) pinned++;
+    });
+    lines.push(AUTO_END);
+    const block = lines.join('\n');
+    // Merge into the note without clobbering the user's own text.
+    const ta = document.getElementById('notes-text');
+    const current = ta ? ta.value : loadNote();
+    const userPart = stripAutoBlock(current);
+    const merged = (userPart ? userPart + '\n\n' : '') + block + '\n';
+    if (ta) ta.value = merged;
+    saveNote(merged);
+    // Flush the deferred pins once.
+    savePins(); renderPins(); updateBadge();
+    const clearBtn = document.getElementById('btn-note-clear');
+    if (clearBtn) clearBtn.classList.toggle('hidden', !merged.trim().length);
+    if (!silent) showAppToast(`✓ Added ${found.size} recognised error${found.size === 1 ? '' : 's'} to your notes`);
+    return found.size;
   }
 
   function updateBadge() {
@@ -8096,6 +8261,7 @@ const Notes = (function () {
     const note = (noteEl ? noteEl.value : loadNote()).trim();
     const out = [];
     out.push('=== Log Analyser — notes & pinned entries ===');
+    out.push('session: ' + current().name);
     out.push('exported: ' + new Date().toISOString());
     if (doScrub) out.push('(PII in the note and log lines has been scrubbed; file paths are kept for reference.)');
     out.push('');
@@ -8127,12 +8293,25 @@ const Notes = (function () {
   }
 
   function init() {
-    loadPins();
+    loadSessions();
     const ta = document.getElementById('notes-text');
+    const clearBtn = document.getElementById('btn-note-clear');
+    const syncClearBtn = () => { if (clearBtn) clearBtn.classList.toggle('hidden', !(ta && ta.value.trim().length)); };
     if (ta) {
       ta.value = loadNote();
-      ta.addEventListener('input', () => saveNote(ta.value));
+      ta.addEventListener('input', () => { saveNote(ta.value); syncClearBtn(); });
     }
+    if (clearBtn) {
+      clearBtn.addEventListener('click', () => {
+        if (!ta) return;
+        if (ta.value.trim() && !confirm('Clear the note text? Pinned entries are kept.')) return;
+        ta.value = '';
+        saveNote('');
+        syncClearBtn();
+        ta.focus();
+      });
+    }
+    syncClearBtn();
     // Restore the scrub-on-export preference (default ON for safety).
     const scrubChk = document.getElementById('notes-scrub-check');
     if (scrubChk) {
@@ -8146,9 +8325,19 @@ const Notes = (function () {
     }
     renderPins();
     updateBadge();
+    renderSessionHeader();
   }
 
-  return { init, addPin, jumpToPin, clearPins, buildExport, hasPins: () => pins.length > 0 };
+  // History list for the session picker: [{id, name, createdAt, isCurrent, pinCount}]
+  function listSessions() {
+    return sessions.map(s => ({ id: s.id, name: s.name, createdAt: s.createdAt,
+                                isCurrent: s.id === currentId, pinCount: (s.pins || []).length }));
+  }
+
+  return { init, addPin, jumpToPin, clearPins, buildExport, preloadRecognised,
+           newSession, switchSession, listSessions, currentName: () => current().name,
+           getCurrentId: () => currentId,
+           hasPins: () => pins.length > 0 };
 })();
 
 // Wire up the Notes panel chrome
@@ -8185,6 +8374,32 @@ const Notes = (function () {
   });
   if (clearBtn) clearBtn.addEventListener('click', () => {
     if (confirm('Remove all pinned entries? Your note text is kept.')) Notes.clearPins();
+  });
+  const preloadBtn = document.getElementById('btn-preload-kb');
+  if (preloadBtn) preloadBtn.addEventListener('click', () => Notes.preloadRecognised(false));
+  const historyBtn = document.getElementById('btn-notes-history');
+  const historyPanel = document.getElementById('notes-history-panel');
+  function renderHistory() {
+    if (!historyPanel) return;
+    const items = Notes.listSessions();
+    historyPanel.innerHTML = items.map(s => {
+      const when = new Date(s.createdAt).toLocaleString();
+      return `<div class="nh-item${s.isCurrent ? ' current' : ''}" data-id="${s.id}">
+        <span class="nh-name">${escHtml(s.name)}</span>
+        <span class="nh-meta">${s.pinCount} pin${s.pinCount === 1 ? '' : 's'} · ${when}</span>
+        ${s.isCurrent ? '<span class="nh-current-tag">current</span>' : ''}
+      </div>`;
+    }).join('') || '<div class="nh-item" style="cursor:default;color:var(--text-muted)">No sessions yet</div>';
+    historyPanel.querySelectorAll('.nh-item[data-id]').forEach(el => {
+      el.addEventListener('click', () => {
+        Notes.switchSession(el.dataset.id);
+        historyPanel.classList.add('hidden');
+      });
+    });
+  }
+  if (historyBtn) historyBtn.addEventListener('click', () => {
+    if (historyPanel.classList.contains('hidden')) { renderHistory(); historyPanel.classList.remove('hidden'); }
+    else historyPanel.classList.add('hidden');
   });
   // Draggable
   const header = document.getElementById('notes-header');
@@ -8508,7 +8723,7 @@ if ('serviceWorker' in navigator) {
 // ═══════════════════════════════════════════════════════════════
 //  GUIDED TOUR
 // ═══════════════════════════════════════════════════════════════
-const TOUR_KEY = 'tour-completed-v2';
+const TOUR_KEY = 'tour-completed-v3';
 
 const TOUR_STEPS = [
   {
@@ -8578,7 +8793,7 @@ const TOUR_STEPS = [
   {
     id: 'recognised',
     title: 'Recognised errors',
-    body: 'The tool ships with a knowledge base of known Delinea errors. Lines that match show an amber <strong>!</strong> badge linking to the documentation. Click <strong>⚠ Recognised errors</strong> to list each distinct known error once — then step through every occurrence with ▲▼, or jump to other components that hit the same error. The footer\'s <strong>🧪 Test KB</strong> button lets you paste any line to check whether it matches a signature.',
+    body: 'The tool ships with a knowledge base of known Delinea errors. Lines that match show an amber <strong>!</strong> badge linking to the documentation. Click <strong>⚠ Recognised errors</strong> to list each distinct known error once — then step through every occurrence with ▲▼, or jump to other components that hit the same error.',
     target: '#btn-recognised-errors',
     position: 'below',
     setup: () => tourEnsureAnalyser(),
@@ -8613,6 +8828,22 @@ const TOUR_STEPS = [
     body: 'Select any text in the viewer, then click <strong>Scrub PII & Copy</strong>. A preview shows every replacement — IPs, usernames, domain\\user pairs, SIDs, GUIDs and more — before anything reaches your clipboard. You can also <strong>right-click any log line</strong> to copy a scrubbed copy of it or search it in Yext — the text is always scrubbed first.',
     target: '#scrub-bar',
     position: 'above',
+    setup: () => tourEnsureAnalyser(),
+  },
+  {
+    id: 'notes',
+    title: 'Notes & pinned entries',
+    body: 'Open <strong>🗒 Notes</strong> for a persistent scratchpad that\'s saved on your device and survives reloads. Type free-form notes, and <strong>right-click any log line → 📌 Pin this line</strong> to collect key entries — each pin records the line, its timestamp, and the file &amp; folder it came from, so you can find it again even after the logs are gone. Click a pin to jump back to it. Each set of logs you load gets its <strong>own named session</strong> (named after the zip, or the product and time), and <strong>🕘 History</strong> reopens the last 10.',
+    target: '#btn-notes',
+    position: 'below-left',
+    setup: () => tourEnsureAnalyser(),
+  },
+  {
+    id: 'notes-share',
+    title: 'Recognised errors & sharing notes',
+    body: 'When the loaded logs contain recognised errors, the current session\'s notes are <strong>auto-seeded</strong> with each one plus a pinned example — or hit <strong>➕ Recognised errors</strong> to do it on demand. When you\'re ready to hand off, <strong>📋 Copy</strong> or <strong>⬇ Export</strong> turns the session into text, and the <strong>Scrub on copy/export</strong> toggle redacts PII from your note and the pinned lines (file paths are kept) so nothing sensitive leaks into a ticket.',
+    target: '#btn-notes',
+    position: 'below-left',
     setup: () => tourEnsureAnalyser(),
   },
   {
@@ -8658,7 +8889,7 @@ const TOUR_STEPS = [
   {
     id: 'refresh',
     title: 'Staying up to date',
-    body: 'The tool updates itself automatically, but if you ever suspect you\'re seeing an old version, <strong>↻ Hard refresh</strong> clears the cache and pulls the latest. <strong>🌙 / ☀️</strong> toggles light and dark mode, and both your theme and panel sizes are remembered.',
+    body: 'The tool updates itself automatically, but if you ever suspect you\'re seeing an old version, <strong>↻ Hard refresh</strong> clears the cache and pulls the latest. If a user ever reports a problem, <strong>🩺 Diagnostics</strong> collects privacy-safe troubleshooting info (errors, memory, environment — never log content) to export. <strong>🌙 / ☀️</strong> toggles light and dark mode, and both your theme and panel sizes are remembered.',
     target: '#btn-hard-refresh',
     position: 'below-left',
     setup: () => tourEnsureAnalyser(),
