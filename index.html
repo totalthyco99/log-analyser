@@ -39,6 +39,164 @@ crc-32/crc32.js:
 <script>
 window.__EVTX_PARSER_SRC__ = document.getElementById("evtx-parser-lib").textContent;
 </script>
+<script>
+// ═══════════════════════════════════════════════════════════════
+//  WINDOWS EVENT MESSAGE TEMPLATES
+//  Headline messages + key field layouts for well-documented event IDs.
+//  Sources: Microsoft "Security auditing" event reference, Service Control
+//  Manager / EventLog system events, Sysmon schema, and the .NET / ASP.NET /
+//  Windows Error Reporting providers seen in real Secret Server (IIS) logs.
+//
+//  Each entry:
+//    msg      – the documented headline message line for the event
+//    fields   – (named-data events) ordered EventData field names to surface,
+//               rendered as "Label: value" using the names Microsoft documents
+//    positional – (unnamed <string> data events, e.g. .NET/WER) ordered labels
+//               applied to the positional Data strings
+//  Keyed by EventID. Where the same EventID means different things for
+//  different providers, the entry is namespaced "Provider|EventID".
+// ═══════════════════════════════════════════════════════════════
+window.EVTX_MESSAGE_TEMPLATES = {
+  // ── Security auditing (Microsoft-Windows-Security-Auditing) ──
+  '1100': { msg: 'The event logging service has shut down.' },
+  '1102': { msg: 'The audit log was cleared.',
+            fields: ['SubjectUserName','SubjectDomainName','SubjectLogonId'] },
+  '4608': { msg: 'Windows is starting up.' },
+  '4616': { msg: 'The system time was changed.',
+            fields: ['SubjectUserName','PreviousTime','NewTime','ProcessName'] },
+  '4624': { msg: 'An account was successfully logged on.',
+            fields: ['TargetUserName','TargetDomainName','LogonType','IpAddress','WorkstationName','LogonProcessName','AuthenticationPackageName','SubjectUserName'] },
+  '4625': { msg: 'An account failed to log on.',
+            fields: ['TargetUserName','TargetDomainName','LogonType','IpAddress','WorkstationName','FailureReason','Status','SubStatus'] },
+  '4634': { msg: 'An account was logged off.',
+            fields: ['TargetUserName','TargetDomainName','LogonType','TargetLogonId'] },
+  '4647': { msg: 'User initiated logoff.',
+            fields: ['TargetUserName','TargetDomainName','TargetLogonId'] },
+  '4648': { msg: 'A logon was attempted using explicit credentials.',
+            fields: ['SubjectUserName','SubjectDomainName','TargetUserName','TargetDomainName','TargetServerName','IpAddress','ProcessName'] },
+  '4662': { msg: 'An operation was performed on an object.',
+            fields: ['SubjectUserName','ObjectName','ObjectType','Properties','AccessMask'] },
+  '4663': { msg: 'An attempt was made to access an object.',
+            fields: ['SubjectUserName','ObjectName','ObjectType','ProcessName','AccessMask'] },
+  '4672': { msg: 'Special privileges assigned to new logon.',
+            fields: ['SubjectUserName','SubjectDomainName','SubjectLogonId','PrivilegeList'] },
+  '4673': { msg: 'A privileged service was called.',
+            fields: ['SubjectUserName','Service','PrivilegeList','ProcessName'] },
+  '4688': { msg: 'A new process has been created.',
+            fields: ['NewProcessName','ProcessId','CommandLine','ParentProcessName','SubjectUserName','SubjectDomainName','TokenElevationType'] },
+  '4689': { msg: 'A process has exited.',
+            fields: ['ProcessName','ProcessId','Status','SubjectUserName'] },
+  '4697': { msg: 'A service was installed in the system.',
+            fields: ['SubjectUserName','ServiceName','ServiceFileName','ServiceType','ServiceStartType','ServiceAccount'] },
+  '4698': { msg: 'A scheduled task was created.',
+            fields: ['SubjectUserName','TaskName'] },
+  '4700': { msg: 'A scheduled task was enabled.',
+            fields: ['SubjectUserName','TaskName'] },
+  '4702': { msg: 'A scheduled task was updated.',
+            fields: ['SubjectUserName','TaskName'] },
+  '4719': { msg: 'System audit policy was changed.',
+            fields: ['SubjectUserName','CategoryId','SubcategoryId','AuditPolicyChanges'] },
+  '4720': { msg: 'A user account was created.',
+            fields: ['TargetUserName','TargetDomainName','SubjectUserName','SubjectDomainName'] },
+  '4722': { msg: 'A user account was enabled.',
+            fields: ['TargetUserName','TargetDomainName','SubjectUserName'] },
+  '4723': { msg: "An attempt was made to change an account's password.",
+            fields: ['TargetUserName','TargetDomainName','SubjectUserName'] },
+  '4724': { msg: "An attempt was made to reset an account's password.",
+            fields: ['TargetUserName','TargetDomainName','SubjectUserName'] },
+  '4725': { msg: 'A user account was disabled.',
+            fields: ['TargetUserName','TargetDomainName','SubjectUserName'] },
+  '4726': { msg: 'A user account was deleted.',
+            fields: ['TargetUserName','TargetDomainName','SubjectUserName'] },
+  '4727': { msg: 'A security-enabled global group was created.',
+            fields: ['TargetUserName','TargetDomainName','SubjectUserName'] },
+  '4728': { msg: 'A member was added to a security-enabled global group.',
+            fields: ['MemberName','TargetUserName','SubjectUserName'] },
+  '4729': { msg: 'A member was removed from a security-enabled global group.',
+            fields: ['MemberName','TargetUserName','SubjectUserName'] },
+  '4731': { msg: 'A security-enabled local group was created.',
+            fields: ['TargetUserName','TargetDomainName','SubjectUserName'] },
+  '4732': { msg: 'A member was added to a security-enabled local group.',
+            fields: ['MemberName','TargetUserName','SubjectUserName'] },
+  '4733': { msg: 'A member was removed from a security-enabled local group.',
+            fields: ['MemberName','TargetUserName','SubjectUserName'] },
+  '4738': { msg: 'A user account was changed.',
+            fields: ['TargetUserName','TargetDomainName','SubjectUserName'] },
+  '4740': { msg: 'A user account was locked out.',
+            fields: ['TargetUserName','TargetDomainName','SubjectUserName'] },
+  '4741': { msg: 'A computer account was created.',
+            fields: ['TargetUserName','TargetDomainName','SubjectUserName'] },
+  '4743': { msg: 'A computer account was deleted.',
+            fields: ['TargetUserName','TargetDomainName','SubjectUserName'] },
+  '4756': { msg: 'A member was added to a security-enabled universal group.',
+            fields: ['MemberName','TargetUserName','SubjectUserName'] },
+  '4767': { msg: 'A user account was unlocked.',
+            fields: ['TargetUserName','TargetDomainName','SubjectUserName'] },
+  '4768': { msg: 'A Kerberos authentication ticket (TGT) was requested.',
+            fields: ['TargetUserName','TargetDomainName','IpAddress','TicketEncryptionType','Status'] },
+  '4769': { msg: 'A Kerberos service ticket was requested.',
+            fields: ['TargetUserName','TargetDomainName','ServiceName','IpAddress','TicketEncryptionType','Status'] },
+  '4770': { msg: 'A Kerberos service ticket was renewed.',
+            fields: ['TargetUserName','ServiceName','IpAddress'] },
+  '4771': { msg: 'Kerberos pre-authentication failed.',
+            fields: ['TargetUserName','IpAddress','Status','FailureCode'] },
+  '4776': { msg: 'The computer attempted to validate the credentials for an account.',
+            fields: ['TargetUserName','Workstation','Status'] },
+  '4798': { msg: "A user's local group membership was enumerated.",
+            fields: ['TargetUserName','TargetDomainName','SubjectUserName','CallerProcessName'] },
+  '4799': { msg: 'A security-enabled local group membership was enumerated.',
+            fields: ['TargetUserName','SubjectUserName','CallerProcessName'] },
+  '4946': { msg: 'A rule was added to the Windows Firewall exception list.',
+            fields: ['RuleName','RuleId'] },
+  '4948': { msg: 'A rule was deleted from the Windows Firewall exception list.',
+            fields: ['RuleName','RuleId'] },
+  '5024': { msg: 'The Windows Firewall service has started successfully.' },
+  '5140': { msg: 'A network share object was accessed.',
+            fields: ['SubjectUserName','ShareName','IpAddress','AccessMask'] },
+  '5142': { msg: 'A network share object was added.',
+            fields: ['SubjectUserName','ShareName','ShareLocalPath'] },
+  '5145': { msg: 'A network share object was checked for client access.',
+            fields: ['SubjectUserName','ShareName','RelativeTargetName','IpAddress','AccessMask'] },
+  '5156': { msg: 'The Windows Filtering Platform has permitted a connection.',
+            fields: ['Application','SourceAddress','SourcePort','DestAddress','DestPort','Protocol'] },
+  '5157': { msg: 'The Windows Filtering Platform has blocked a connection.',
+            fields: ['Application','SourceAddress','SourcePort','DestAddress','DestPort','Protocol'] },
+
+  // ── System log: EventLog provider ──
+  'EventLog|6005': { msg: 'The Event log service was started.' },
+  'EventLog|6006': { msg: 'The Event log service was stopped.' },
+  'EventLog|6008': { msg: 'The previous system shutdown was unexpected.' },
+  'EventLog|6013': { msg: 'The system uptime was reported.' },
+
+  // ── System log: Service Control Manager ──
+  'Service Control Manager|7000': { msg: 'A service failed to start.', fields: ['param1','param2'] },
+  'Service Control Manager|7009': { msg: 'A timeout was reached while waiting for a service to connect.', fields: ['param1','param2'] },
+  'Service Control Manager|7011': { msg: 'A timeout was reached while waiting for a service transaction response.', fields: ['param1','param2'] },
+  'Service Control Manager|7034': { msg: 'A service terminated unexpectedly.', fields: ['param1','param2'] },
+  'Service Control Manager|7036': { msg: 'A service entered a new state (running/stopped).', fields: ['param1','param2'] },
+  'Service Control Manager|7040': { msg: 'The start type of a service was changed.', fields: ['param1','param2','param3'] },
+  'Service Control Manager|7045': { msg: 'A new service was installed in the system.', fields: ['param1','param2','param3','param4','param5'] },
+
+  // ── .NET Runtime (unhandled exception) — unnamed string data ──
+  '.NET Runtime|1023': { msg: 'A .NET Runtime fatal execution engine error occurred.', positional: ['Detail'] },
+  '.NET Runtime|1026': { msg: 'An unhandled .NET exception caused the process to terminate.', positional: ['Exception detail'] },
+
+  // ── ASP.NET (unhandled exception / process terminated) — unnamed string data ──
+  'ASP.NET|1309': { msg: 'An unhandled ASP.NET exception occurred.', positional: ['Detail'] },
+  'ASP.NET|1310': { msg: 'ASP.NET Health Monitoring event.', positional: ['Detail'] },
+  'ASP.NET|1325': { msg: 'An unhandled exception occurred and the process was terminated.', positional: ['Detail'] },
+
+  // ── Windows Error Reporting / Application Error (faulting app) — positional ──
+  'Application Error|1000': { msg: 'A faulting application stopped interacting with Windows.',
+            positional: ['Faulting application name','Faulting application version','Faulting application timestamp','Faulting module name','Faulting module version','Faulting module timestamp','Exception code','Fault offset','Faulting process ID','Faulting application start time','Faulting application path','Faulting module path','Report ID'] },
+  'Application Hang|1002': { msg: 'An application stopped responding (hang).',
+            positional: ['Program','Version','Process ID','Start time','Termination type','Application path','Report ID','Hang signature'] },
+  '.NET Runtime|1025': { msg: 'A .NET Runtime error occurred.', positional: ['Detail'] },
+  'Windows Error Reporting|1001': { msg: 'A Windows Error Reporting report was generated.',
+            positional: ['Fault bucket','Event type','Response','Cab ID','Problem signature 1','Problem signature 2','Problem signature 3','Problem signature 4'] }
+};
+
+</script>
 <link rel="icon" type="image/x-icon" href="favicon.ico">
 <link rel="icon" type="image/png" sizes="32x32" href="icon-32.png">
 <link rel="icon" type="image/png" sizes="16x16" href="icon-16.png">
@@ -1204,24 +1362,32 @@ window.__EVTX_PARSER_SRC__ = document.getElementById("evtx-parser-lib").textCont
   .evtx-rec-snippet { font-size: 11px; color: var(--text-secondary); font-family: var(--font-mono); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   #evtx-detail-panel { display:none; position:fixed; z-index:10001; background:var(--bg-elevated); border:1px solid var(--border); border-radius:var(--radius-md); box-shadow:var(--shadow-lg); width:520px; max-height:70vh; display:flex; flex-direction:column; overflow:hidden; bottom:20px; right:20px; }
   #evtx-detail-panel.hidden { display:none!important; }
-  #evtx-detail-header { display:flex; align-items:center; gap:8px; padding:8px 12px; background:var(--bg-tertiary); border-bottom:1px solid var(--border); font-size:11px; font-weight:700; font-family:var(--font-mono); color:var(--text-primary); }
+  #evtx-detail-header { display:flex; align-items:center; gap:8px; padding:8px 12px; background:var(--bg-tertiary); border-bottom:1px solid var(--border); font-size:11px; font-weight:700; font-family:var(--font-mono); color:var(--text-primary); cursor:move; user-select:none; }
   #evtx-detail-header .edh-eid { background:var(--bg-elevated); border:1px solid var(--border); border-radius:4px; padding:1px 6px; }
   #evtx-detail-header .edh-spacer { flex:1; }
   #btn-evtx-detail-close { background:none; border:1px solid var(--border); border-radius:4px; color:var(--text-muted); cursor:pointer; font-size:11px; padding:1px 6px; }
   #btn-evtx-detail-close:hover { border-color:var(--level-error); color:var(--level-error); }
   #evtx-detail-body { flex:1; overflow-y:auto; padding:10px 12px; font-size:11px; font-family:var(--font-mono); }
+  .evtx-dmsg { font-size:12px; font-weight:700; color:var(--text-primary); font-family:var(--font-ui); line-height:1.4; margin-bottom:10px; padding-bottom:8px; border-bottom:1px solid var(--border); }
   .evtx-dfield { display:flex; gap:8px; padding:3px 0; border-bottom:1px solid rgba(255,255,255,0.04); }
   .evtx-dfield-name { color:var(--accent-purple); min-width:120px; flex-shrink:0; }
   .evtx-dfield-val { color:var(--text-primary); word-break:break-all; white-space:pre-wrap; }
+  #evtx-detail-footer { padding:8px 12px; border-top:1px solid var(--border); background:var(--bg-tertiary); }
+  #btn-evtx-sync { width:100%; padding:8px 10px; border-radius:var(--radius-md); border:1px solid var(--accent-teal); background:var(--bg-elevated); color:var(--accent-teal); font-size:12px; font-weight:600; cursor:pointer; transition:all 0.12s; }
+  #btn-evtx-sync:hover { background:var(--accent-teal); color:#06201d; }
   .evtx-eid-badge { background: var(--bg-elevated); border: 1px solid var(--border); border-radius: 4px; padding: 0 5px; color: var(--text-primary); }
-  /* Correlation popover */
+  /* Correlation popover — draggable + closable */
   #evtx-correlate-pop {
-    position: fixed; z-index: 720; background: var(--bg-surface);
+    position: fixed; z-index: 10002; background: var(--bg-surface);
     border: 1px solid var(--accent-purple); border-radius: var(--radius-lg);
-    box-shadow: var(--shadow-lg); padding: 12px; width: 280px;
+    box-shadow: var(--shadow-lg); width: 280px; overflow: hidden;
   }
   #evtx-correlate-pop.hidden { display: none; }
-  #evtx-correlate-pop .ecp-title { font-size: 12px; font-weight: 700; color: var(--text-primary); margin-bottom: 8px; }
+  #evtx-correlate-pop .ecp-header { display:flex; align-items:center; gap:8px; padding:8px 10px 8px 12px; background:var(--bg-tertiary); border-bottom:1px solid var(--border); cursor:move; user-select:none; }
+  #evtx-correlate-pop .ecp-title { font-size: 12px; font-weight: 700; color: var(--text-primary); flex:1; }
+  #evtx-correlate-pop .ecp-close { background:none; border:1px solid var(--border); border-radius:4px; color:var(--text-muted); cursor:pointer; font-size:11px; padding:1px 6px; }
+  #evtx-correlate-pop .ecp-close:hover { border-color:var(--level-error); color:var(--level-error); }
+  #evtx-correlate-pop .ecp-bodywrap { padding: 10px 12px 12px; }
   #evtx-correlate-pop .ecp-btn {
     display: block; width: 100%; text-align: left; margin-bottom: 5px;
     padding: 7px 10px; border-radius: var(--radius-md);
@@ -1785,7 +1951,11 @@ window.__EVTX_PARSER_SRC__ = document.getElementById("evtx-parser-lib").textCont
     <button id="btn-evtx-detail-close">✕</button>
   </div>
   <div id="evtx-detail-body"></div>
+  <div id="evtx-detail-footer">
+    <button id="btn-evtx-sync">⟲ Sync logs to this event</button>
+  </div>
 </div>
+
 
 <!-- EVTX SUMMARY OVERLAY -->
 <div id="evtx-overlay" class="hidden">
@@ -2345,6 +2515,86 @@ function parseEvtxAsync(arrayBuffer) {
   });
 }
 
+// ── Documented-template application (main thread; uses window.EVTX_MESSAGE_TEMPLATES) ──
+// Parse all EventData fields out of a raw event XML string into {named, positional}.
+function evtxParseDataFields(rawXml) {
+  const named = {};      // { FieldName: value }
+  const positional = []; // [ value, value, ... ]
+  if (!rawXml) return { named, positional };
+  let m;
+  const namedRe = /<Data Name="([^"]+)"[^>]*>([\s\S]*?)<\/Data>/gi;
+  while ((m = namedRe.exec(rawXml)) !== null) {
+    named[m[1]] = m[2].replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>').trim();
+  }
+  const unnamedRe = /<Data>([\s\S]*?)<\/Data>/gi;
+  while ((m = unnamedRe.exec(rawXml)) !== null) {
+    const block = m[1];
+    const strRe = /&lt;string&gt;([\s\S]*?)&lt;\/string&gt;/gi; let sm, found = false;
+    while ((sm = strRe.exec(block)) !== null) {
+      found = true;
+      positional.push(sm[1].replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>').trim());
+    }
+    if (!found) {
+      const plain = block.replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>').trim();
+      if (plain) positional.push(plain);
+    }
+  }
+  return { named, positional };
+}
+
+// Look up the documented template for a record (provider-namespaced first, then bare EID).
+function evtxLookupTemplate(rec) {
+  const T = window.EVTX_MESSAGE_TEMPLATES || {};
+  if (rec.eventId == null) return null;
+  const eid = String(rec.eventId);
+  if (rec.provider && T[rec.provider + '|' + eid]) return T[rec.provider + '|' + eid];
+  return T[eid] || null;
+}
+
+// Produce a readable, labelled field list for a record using the documented template.
+// Returns { headline, rows:[[label,value],...] }. Falls back gracefully when no template.
+function evtxRenderFields(rec) {
+  const tpl = evtxLookupTemplate(rec);
+  const { named, positional } = evtxParseDataFields(rec.rawXml);
+  const rows = [];
+  const used = new Set();
+
+  if (tpl && tpl.fields) {
+    // Named-data event: surface documented fields first, in order
+    tpl.fields.forEach(fn => {
+      if (named[fn] != null && named[fn] !== '') { rows.push([fn, named[fn]]); used.add(fn); }
+    });
+    // Append any remaining named fields not in the template
+    Object.keys(named).forEach(fn => {
+      if (!used.has(fn) && named[fn] !== '') rows.push([fn, named[fn]]);
+    });
+  } else if (tpl && tpl.positional) {
+    // Positional-data event (.NET / WER): label each string with documented labels
+    positional.forEach((val, i) => {
+      if (val === '') return;
+      rows.push([tpl.positional[i] || ('Data[' + (i+1) + ']'), val]);
+    });
+  } else {
+    // No template — show whatever we parsed
+    Object.keys(named).forEach(fn => { if (named[fn] !== '') rows.push([fn, named[fn]]); });
+    positional.forEach((val, i) => { if (val !== '') rows.push(['Data[' + (i+1) + ']', val]); });
+  }
+
+  return { headline: tpl ? tpl.msg : null, rows };
+}
+
+// One-line snippet for the collapsed row: documented headline + first useful values.
+function evtxRowSnippet(rec) {
+  const { headline, rows } = evtxRenderFields(rec);
+  if (headline) {
+    const detail = rows.slice(0, 3).map(([k, v]) => v).filter(Boolean).join(' · ');
+    return detail ? headline + '  —  ' + detail : headline;
+  }
+  if (rec.snippet) return rec.snippet;
+  if (rows.length) return rows.slice(0, 4).map(([k, v]) => (k ? k + ': ' : '') + v).join(' | ');
+  return '';
+}
+
 // Build a summary object (same shape the overlay/sidebar consume) from records.
 function evtxSummary(name, records) {
   const byLevel = {};
@@ -2489,14 +2739,13 @@ function openEvtxSummary(key) {
         ${rec.level ? `<span style="color:${levelColour}">${escHtml(rec.level)}</span>` : ''}
         ${rec.provider ? `<span style="color:var(--text-muted);font-size:10px">${escHtml(rec.provider)}</span>` : ''}
       </div>
-      <div class="evtx-rec-snippet">${escHtml(rec.snippet || '(no event data extracted)')}</div>
+      <div class="evtx-rec-snippet">${escHtml(evtxRowSnippet(rec) || '(no event data extracted)')}</div>
     `;
     row.addEventListener('click', (e) => {
       document.querySelectorAll('.evtx-rec').forEach(r => r.classList.remove('selected'));
       row.classList.add('selected');
       evtxSelectedRecord = rec;
       showEvtxDetail(rec);
-      if (haveLogs) showEvtxCorrelatePopover(rec, e.clientX, e.clientY);
     });
     rl.appendChild(row);
   });
@@ -2545,47 +2794,36 @@ function showEvtxDetail(rec) {
   levelEl.textContent = rec.level || '';
   levelEl.style.color = lc;
 
-  const fields = [];
-  if (rec.ts)       fields.push(['Time',     new Date(rec.ts).toISOString().replace('T',' ').replace('Z','')]);
-  if (rec.computer) fields.push(['Computer', rec.computer]);
-  if (rec.channel)  fields.push(['Channel',  rec.channel]);
+  // Documented headline + labelled data fields
+  const { headline, rows } = evtxRenderFields(rec);
 
-  // Parse fields from rawXml if available
-  const xml = rec.rawXml || '';
-  if (xml) {
-    // Named Data fields
-    const namedRe = /<Data Name="([^"]+)"[^>]*>([^<]*)<\/Data>/gi;
-    let m;
-    while ((m = namedRe.exec(xml)) !== null) {
-      fields.push([m[1], m[2].trim()]);
-    }
-    // Unnamed Data fields (handle escaped <string> format)
-    const unnamedRe = /<Data>([^<]+)<\/Data>/gi;
-    let idx = 1;
-    while ((m = unnamedRe.exec(xml)) !== null) {
-      const block = m[1];
-      const strings = [];
-      const strRe = /&lt;string&gt;(.*?)&lt;\/string&gt;/gi;
-      let sm;
-      while ((sm = strRe.exec(block)) !== null) {
-        const val = sm[1].replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>').trim();
-        if (val) strings.push(val);
-      }
-      if (strings.length) {
-        strings.forEach((s, i) => fields.push(['Data[' + (idx+i) + ']', s]));
-        idx += strings.length;
-      } else {
-        const plain = block.replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>').trim();
-        if (plain) { fields.push(['Data[' + idx + ']', plain]); idx++; }
-      }
-    }
-  } else if (rec.snippet) {
-    fields.push(['Message', rec.snippet]);
+  // System metadata first
+  const meta = [];
+  if (rec.ts)       meta.push(['Time',     new Date(rec.ts).toISOString().replace('T',' ').replace('Z','')]);
+  if (rec.computer) meta.push(['Computer', rec.computer]);
+  if (rec.channel)  meta.push(['Channel',  rec.channel]);
+
+  let html = '';
+  if (headline) {
+    html += `<div class="evtx-dmsg">${escHtml(headline)}</div>`;
   }
-
-  body.innerHTML = fields.map(([k, v]) =>
+  html += meta.concat(rows).map(([k, v]) =>
     `<div class="evtx-dfield"><span class="evtx-dfield-name">${escHtml(k)}</span><span class="evtx-dfield-val">${escHtml(v)}</span></div>`
   ).join('');
+  if (!headline && !rows.length && rec.snippet) {
+    html += `<div class="evtx-dfield"><span class="evtx-dfield-name">Message</span><span class="evtx-dfield-val">${escHtml(rec.snippet)}</span></div>`;
+  }
+  body.innerHTML = html;
+
+  // Sync-logs button — only meaningful when logs are loaded to correlate against
+  const syncBtn = document.getElementById('btn-evtx-sync');
+  const haveLogs = Object.keys(state.loadedData).length > 0;
+  syncBtn.style.display = haveLogs ? '' : 'none';
+  syncBtn.onclick = (e) => {
+    const r = panel.getBoundingClientRect();
+    showEvtxCorrelatePopover(rec, r.left - 300, r.top);
+  };
+
   panel.classList.remove('hidden');
 }
 
@@ -2621,7 +2859,32 @@ document.getElementById('btn-evtx-detail-close').addEventListener('click', () =>
   document.addEventListener('mouseup', () => { dragging = false; });
 })();
 
-// ── Correlation: pull entries ±N minutes around an event from all logs ──
+// Make the EVTX event-detail panel draggable by its header
+(function makeEvtxDetailDraggable() {
+  const panel = document.getElementById('evtx-detail-panel');
+  const header = document.getElementById('evtx-detail-header');
+  if (!panel || !header) return;
+  let dragging = false, sx = 0, sy = 0, ox = 0, oy = 0;
+  header.addEventListener('mousedown', (e) => {
+    if (e.target.closest('button')) return;
+    dragging = true;
+    const r = panel.getBoundingClientRect();
+    // Switch from bottom/right anchoring to absolute left/top on first drag
+    panel.style.bottom = 'auto'; panel.style.right = 'auto';
+    panel.style.left = r.left + 'px';
+    panel.style.top = r.top + 'px';
+    sx = e.clientX; sy = e.clientY; ox = r.left; oy = r.top;
+    e.preventDefault();
+  });
+  document.addEventListener('mousemove', (e) => {
+    if (!dragging) return;
+    let nl = Math.max(0, Math.min(ox + (e.clientX - sx), window.innerWidth - 80));
+    let nt = Math.max(0, Math.min(oy + (e.clientY - sy), window.innerHeight - 40));
+    panel.style.left = nl + 'px';
+    panel.style.top = nt + 'px';
+  });
+  document.addEventListener('mouseup', () => { dragging = false; });
+})();
 function showEvtxCorrelatePopover(rec, x, y) {
   let pop = document.getElementById('evtx-correlate-pop');
   if (!pop) {
@@ -2631,18 +2894,25 @@ function showEvtxCorrelatePopover(rec, x, y) {
   }
   pop.classList.remove('hidden');
   pop.innerHTML = `
-    <div class="ecp-title">Pull logs around ${fmtTime(rec.ts)}</div>
-    <button class="ecp-btn" data-win="10">± 10 minutes</button>
-    <button class="ecp-btn" data-win="15">± 15 minutes</button>
-    <button class="ecp-btn" data-win="20">± 20 minutes</button>
-    <button class="ecp-btn" data-win="0" style="border-color:var(--accent-teal);color:var(--accent-teal)">⟲ Sync all logs to this time (set global range)</button>
+    <div class="ecp-header">
+      <span class="ecp-title">Pull logs around ${fmtTime(rec.ts)}</span>
+      <button class="ecp-close" title="Close">✕</button>
+    </div>
+    <div class="ecp-bodywrap">
+      <button class="ecp-btn" data-win="10">± 10 minutes</button>
+      <button class="ecp-btn" data-win="15">± 15 minutes</button>
+      <button class="ecp-btn" data-win="20">± 20 minutes</button>
+      <button class="ecp-btn" data-win="0" style="border-color:var(--accent-teal);color:var(--accent-teal)">⟲ Sync all logs to this time (set global range)</button>
+    </div>
   `;
-  // Position near cursor, clamped
-  const pw = 280, ph = 180;
-  let left = Math.min(x, window.innerWidth - pw - 12);
-  let top  = Math.min(y, window.innerHeight - ph - 12);
-  pop.style.left = Math.max(12, left) + 'px';
-  pop.style.top  = Math.max(12, top) + 'px';
+  // Position near the requested anchor, clamped to viewport
+  const pw = 280, ph = 200;
+  let left = Math.min(Math.max(12, x), window.innerWidth - pw - 12);
+  let top  = Math.min(Math.max(12, y), window.innerHeight - ph - 12);
+  pop.style.left = left + 'px';
+  pop.style.top  = top + 'px';
+
+  pop.querySelector('.ecp-close').addEventListener('click', hideEvtxCorrelatePopover);
 
   pop.querySelectorAll('.ecp-btn').forEach(btn => {
     btn.addEventListener('click', () => {
@@ -2655,6 +2925,31 @@ function showEvtxCorrelatePopover(rec, x, y) {
       hideEvtxCorrelatePopover();
     });
   });
+
+  // Make the popover draggable by its header
+  const header = pop.querySelector('.ecp-header');
+  let dragging = false, sx = 0, sy = 0, ox = 0, oy = 0;
+  header.addEventListener('mousedown', (e) => {
+    if (e.target.closest('button')) return;
+    dragging = true;
+    const r = pop.getBoundingClientRect();
+    sx = e.clientX; sy = e.clientY; ox = r.left; oy = r.top;
+    e.preventDefault();
+  });
+  const onMove = (e) => {
+    if (!dragging) return;
+    let nl = Math.max(0, Math.min(ox + (e.clientX - sx), window.innerWidth - 60));
+    let nt = Math.max(0, Math.min(oy + (e.clientY - sy), window.innerHeight - 30));
+    pop.style.left = nl + 'px';
+    pop.style.top = nt + 'px';
+  };
+  const onUp = () => { dragging = false; };
+  // Avoid stacking duplicate listeners across re-opens
+  document.removeEventListener('mousemove', pop._ecpMove || (()=>{}));
+  document.removeEventListener('mouseup', pop._ecpUp || (()=>{}));
+  pop._ecpMove = onMove; pop._ecpUp = onUp;
+  document.addEventListener('mousemove', onMove);
+  document.addEventListener('mouseup', onUp);
 }
 function hideEvtxCorrelatePopover() {
   const pop = document.getElementById('evtx-correlate-pop');
