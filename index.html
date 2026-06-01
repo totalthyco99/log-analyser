@@ -2518,6 +2518,54 @@ if (typeof window !== 'undefined') window.parseHar = parseHar;
     color: var(--accent-purple); font-size: 10px; padding: 2px 8px; cursor: pointer; transition: all 0.12s;
   }
   #btn-preload-kb:hover { background: rgba(167,139,250,0.12); }
+  /* Recognised-errors preview — opt-in panel before anything is added to notes */
+  #notes-kb-preview {
+    border: 1px solid var(--accent-purple); border-radius: var(--radius-sm);
+    background: var(--bg-base); margin-bottom: 8px;
+    display: flex; flex-direction: column; max-height: 260px;
+  }
+  #notes-kb-preview.hidden { display: none; }
+  #notes-kb-preview-head {
+    display: flex; align-items: center; gap: 8px; padding: 6px 10px;
+    background: rgba(167,139,250,0.10); border-bottom: 1px solid var(--border);
+    font-size: 11px; font-weight: 700; color: var(--accent-purple);
+  }
+  #notes-kb-preview-title { flex: 1; }
+  #btn-kb-preview-close {
+    width: 18px; height: 18px; line-height: 1; padding: 0;
+    border: 1px solid transparent; border-radius: 4px; background: none;
+    color: var(--text-muted); font-size: 12px; cursor: pointer;
+    display: flex; align-items: center; justify-content: center; transition: all 0.12s;
+  }
+  #btn-kb-preview-close:hover { color: var(--level-error); border-color: var(--level-error); }
+  #notes-kb-preview-body {
+    flex: 1; overflow-y: auto; padding: 8px 10px;
+    font-size: 11px; font-family: var(--font-mono); color: var(--text-secondary);
+    display: flex; flex-direction: column; gap: 8px;
+  }
+  #notes-kb-preview-body .kbpv-empty { color: var(--text-muted); }
+  .kbpv-item {
+    border-left: 2px solid var(--accent-purple); padding: 2px 0 2px 8px;
+  }
+  .kbpv-item .kbpv-title { color: var(--text-primary); font-weight: 700; font-family: var(--font-ui); }
+  .kbpv-item .kbpv-meta { color: var(--text-muted); font-size: 10px; margin-top: 2px; }
+  .kbpv-item .kbpv-meta a { color: var(--accent-teal); text-decoration: none; }
+  .kbpv-item .kbpv-meta a:hover { text-decoration: underline; }
+  .kbpv-item .kbpv-example { color: var(--text-secondary); font-size: 10px; margin-top: 2px; }
+  #notes-kb-preview-actions {
+    display: flex; justify-content: flex-end; gap: 6px; padding: 6px 10px;
+    border-top: 1px solid var(--border);
+  }
+  #notes-kb-preview-actions button {
+    font-size: 11px; padding: 4px 12px; border-radius: var(--radius-sm); cursor: pointer; transition: all 0.12s;
+    border: 1px solid var(--border); background: var(--bg-elevated); color: var(--text-secondary);
+  }
+  #btn-kb-preview-cancel:hover { border-color: var(--level-error); color: var(--level-error); }
+  #notes-kb-preview-actions button.primary {
+    background: var(--accent-purple); color: #fff; border-color: var(--accent-purple); font-weight: 700;
+  }
+  #notes-kb-preview-actions button.primary:hover { opacity: 0.9; }
+  #notes-kb-preview-actions button:disabled { opacity: 0.4; cursor: not-allowed; }
   #notes-pins-list { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 6px; }
   .pin-item {
     border: 1px solid var(--border); border-radius: var(--radius-sm);
@@ -3427,9 +3475,20 @@ if (typeof window !== 'undefined') window.parseHar = parseHar;
       <div id="notes-pins-head">
         <span>📌 Pinned entries (<span id="notes-pins-count">0</span>)</span>
         <span style="display:flex; gap:6px">
-          <button id="btn-preload-kb" title="Scan the loaded logs for recognised errors, add a summary to the note, and pin one matched example of each">➕ Recognised errors</button>
+          <button id="btn-preload-kb" title="Preview the recognised errors found in the loaded logs, then choose whether to add a summary to your note and pin one example of each">⚠ Recognised errors…</button>
           <button id="btn-pins-clear" class="hidden" title="Remove all pinned entries">Clear all</button>
         </span>
+      </div>
+      <div id="notes-kb-preview" class="hidden">
+        <div id="notes-kb-preview-head">
+          <span id="notes-kb-preview-title">Recognised errors</span>
+          <button id="btn-kb-preview-close" title="Close preview">✕</button>
+        </div>
+        <div id="notes-kb-preview-body"></div>
+        <div id="notes-kb-preview-actions">
+          <button id="btn-kb-preview-cancel">Cancel</button>
+          <button id="btn-kb-preview-add" class="primary">➕ Add to notes</button>
+        </div>
       </div>
       <div id="notes-pins-list"></div>
     </div>
@@ -7388,20 +7447,9 @@ function updateRecognisedCount() {
   btn.innerHTML = n > 0
     ? `⚠ Recognised errors <span class="kb-count">${n}</span>`
     : '⚠ Recognised errors';
-  // The first time recognised errors appear for a given notes session, seed the
-  // notes with them + a pinned example each (once per session; idempotent and
-  // non-clobbering, so it never overwrites the user's own text).
-  if (n > 0) {
-    try {
-      if (typeof Notes !== 'undefined' && Notes.preloadRecognised && Notes.getCurrentId) {
-        const sid = Notes.getCurrentId();
-        if (sid && sid !== window._kbAutoSeededId) {
-          window._kbAutoSeededId = sid;
-          Notes.preloadRecognised(true);
-        }
-      }
-    } catch (_) {}
-  }
+  // Note: recognised errors are no longer auto-added to notes. The user can
+  // preview and add them on demand via the "Recognised errors" button in the
+  // Notes panel (see the preview flow).
 }
 
 // ── Transient toast notification ──
@@ -9258,12 +9306,10 @@ const Notes = (function () {
     return (note.slice(0, s) + note.slice(end)).replace(/\n{3,}/g, '\n\n').trim();
   }
 
-  function preloadRecognised(silent) {
-    if (typeof kbMatchLine !== 'function' || !state.loadedData) {
-      if (!silent) showAppToast('Recognised-error knowledge base isn\'t ready yet');
-      return 0;
-    }
-    // Collect distinct recognised signatures with one representative line each.
+  // Scan loaded logs for distinct recognised signatures with one representative
+  // line each. Pure: builds the data + the note block text, no side effects.
+  function collectRecognised() {
+    if (typeof kbMatchLine !== 'function' || !state.loadedData) return null;
     const found = new Map(); // sigId -> { sig, line, compId }
     for (const [compId, data] of Object.entries(state.loadedData)) {
       if (!data || !data.merged) continue;
@@ -9277,13 +9323,9 @@ const Notes = (function () {
       }
       if (found.size >= MAX_AUTO_SIGS) break;
     }
-    if (!found.size) {
-      if (!silent) showAppToast('No recognised errors found in the loaded logs');
-      return 0;
-    }
+    if (!found.size) return null;
     // Build the managed note block.
     const lines = [AUTO_START, `(${found.size} recognised error${found.size === 1 ? '' : 's'} detected — examples pinned below)`, ''];
-    let pinned = 0;
     found.forEach(({ sig, line, compId }) => {
       lines.push(`• ${sig.title}  [${sig.id}]`);
       if (sig.match) lines.push(`    matched phrase: "${sig.match}"`);
@@ -9296,11 +9338,23 @@ const Notes = (function () {
         : `${(data && data.compDef && data.compDef.path) || ''}${line._file ? '\\' + line._file : ''}`;
       lines.push(`    example: ${line._file || '?'}:${line.lineNo}${loc ? '  (' + loc + ')' : ''}`);
       lines.push('');
-      // Pin the example line (deferred save; flushed once at the end).
-      if (addPin(line, { compId, label: 'Example of: ' + sig.title, silent: true, deferSave: true })) pinned++;
     });
     lines.push(AUTO_END);
-    const block = lines.join('\n');
+    return { found, block: lines.join('\n') };
+  }
+
+  // Commit a previously-collected recognised-error set: merge the summary into
+  // the note (without clobbering the user's own text) and pin one example each.
+  function applyRecognised(collected, silent) {
+    if (!collected || !collected.found || !collected.found.size) {
+      if (!silent) showAppToast('No recognised errors found in the loaded logs');
+      return 0;
+    }
+    const { found, block } = collected;
+    let pinned = 0;
+    found.forEach(({ sig, line, compId }) => {
+      if (addPin(line, { compId, label: 'Example of: ' + sig.title, silent: true, deferSave: true })) pinned++;
+    });
     // Merge into the note without clobbering the user's own text.
     const ta = document.getElementById('notes-text');
     const current = ta ? ta.value : loadNote();
@@ -9314,6 +9368,15 @@ const Notes = (function () {
     if (clearBtn) clearBtn.classList.toggle('hidden', !merged.trim().length);
     if (!silent) showAppToast(`✓ Added ${found.size} recognised error${found.size === 1 ? '' : 's'} to your notes`);
     return found.size;
+  }
+
+  // Back-compat entry point: collect + apply in one shot (used by tests / API).
+  function preloadRecognised(silent) {
+    if (typeof kbMatchLine !== 'function' || !state.loadedData) {
+      if (!silent) showAppToast('Recognised-error knowledge base isn\'t ready yet');
+      return 0;
+    }
+    return applyRecognised(collectRecognised(), silent);
   }
 
   function updateBadge() {
@@ -9417,6 +9480,7 @@ const Notes = (function () {
   }
 
   return { init, addPin, jumpToPin, clearPins, buildExport, preloadRecognised,
+           collectRecognised, applyRecognised,
            newSession, switchSession, deleteSession, listSessions, currentName: () => current().name,
            getCurrentId: () => currentId,
            hasPins: () => pins.length > 0 };
@@ -9458,7 +9522,65 @@ const Notes = (function () {
     if (confirm('Remove all pinned entries? Your note text is kept.')) Notes.clearPins();
   });
   const preloadBtn = document.getElementById('btn-preload-kb');
-  if (preloadBtn) preloadBtn.addEventListener('click', () => Notes.preloadRecognised(false));
+  const kbPreview = document.getElementById('notes-kb-preview');
+  const kbPreviewBody = document.getElementById('notes-kb-preview-body');
+  const kbPreviewTitle = document.getElementById('notes-kb-preview-title');
+  const kbPreviewAdd = document.getElementById('btn-kb-preview-add');
+  const kbPreviewCancel = document.getElementById('btn-kb-preview-cancel');
+  const kbPreviewClose = document.getElementById('btn-kb-preview-close');
+  let kbPreviewData = null;
+
+  function closeKbPreview() {
+    kbPreviewData = null;
+    if (kbPreview) kbPreview.classList.add('hidden');
+  }
+
+  function openKbPreview() {
+    if (!kbPreview) return;
+    // Toggle: if already open, close it.
+    if (!kbPreview.classList.contains('hidden')) { closeKbPreview(); return; }
+    if (typeof kbMatchLine !== 'function') {
+      showAppToast('Recognised-error knowledge base isn\'t ready yet');
+      return;
+    }
+    kbPreviewData = Notes.collectRecognised();
+    const n = kbPreviewData && kbPreviewData.found ? kbPreviewData.found.size : 0;
+    if (kbPreviewTitle) kbPreviewTitle.textContent =
+      n ? `Recognised errors (${n})` : 'Recognised errors';
+    if (!n) {
+      kbPreviewBody.innerHTML = '<div class="kbpv-empty">No recognised errors found in the loaded logs.</div>';
+      if (kbPreviewAdd) kbPreviewAdd.disabled = true;
+    } else {
+      if (kbPreviewAdd) kbPreviewAdd.disabled = false;
+      let html = `<div class="kbpv-empty">Adding will append a summary to your note and pin one example of each (${n}). Your existing note text is kept.</div>`;
+      kbPreviewData.found.forEach(({ sig, line, compId }) => {
+        const data = state.loadedData[compId];
+        const docs = sig.url
+          ? `<a href="${escHtml(sig.url)}" target="_blank" rel="noopener">documentation ↗</a>`
+          : (sig.source === 'confluence' ? 'internal Confluence' : '');
+        html += `<div class="kbpv-item">
+          <div class="kbpv-title">${escHtml(sig.title)}</div>
+          <div class="kbpv-meta">[${escHtml(sig.id)}]${sig.match ? ' · matched: "' + escHtml(sig.match) + '"' : ''}${docs ? ' · ' + docs : ''}</div>
+          <div class="kbpv-example">example: ${escHtml(line._file || '?')}:${line.lineNo}${data && data.compDef ? '  (' + escHtml(data.compDef.name) + ')' : ''}</div>
+        </div>`;
+      });
+      kbPreviewBody.innerHTML = html;
+    }
+    kbPreview.classList.remove('hidden');
+    kbPreviewBody.scrollTop = 0;
+  }
+
+  if (preloadBtn) preloadBtn.addEventListener('click', openKbPreview);
+  if (kbPreviewCancel) kbPreviewCancel.addEventListener('click', closeKbPreview);
+  if (kbPreviewClose) kbPreviewClose.addEventListener('click', closeKbPreview);
+  if (kbPreviewAdd) kbPreviewAdd.addEventListener('click', () => {
+    const added = Notes.applyRecognised(kbPreviewData, false);
+    closeKbPreview();
+    if (added) {
+      const clr = document.getElementById('btn-note-clear');
+      if (clr) clr.classList.remove('hidden');
+    }
+  });
   const historyBtn = document.getElementById('btn-notes-history');
   const historyPanel = document.getElementById('notes-history-panel');
   function renderHistory() {
