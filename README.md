@@ -21,30 +21,50 @@ Select a product to get started. The tool explains what it does, confirms your d
 
 ![Welcome screen](screenshots/01-welcome.png)
 
-### Automatic component recognition
-Drop individual log files, an entire `.zip` (including the nested per-node and per-Distributed-Engine zips customers typically send), or a whole folder. Everything is unpacked in the browser and each file is matched to its component automatically by filename — including rolled logs like `SS.log.1`, `SS.log.2`. Matched components highlight in teal with the filename and size shown beneath. Once at least one file is matched, the **Analyse Logs** button activates.
+### Loading files, a zip, or a whole folder
+Drop individual log files, an entire `.zip` (including the nested per-node and per-Distributed-Engine zips customers typically send), or a whole folder. Everything is unpacked in the browser and each file is matched to its component automatically by filename — including rolled logs like `SS.log.1`. Matched components highlight in teal with the filename and size shown beneath.
 
-![File upload with auto-matched components](screenshots/02-upload.png)
+![Uploading a zip with auto-matched components](screenshots/02-upload.png)
+
+### Sidebar — components & file tree
+Loaded components are listed in the sidebar. When a zip or folder is loaded, a toggle lets you switch between the **Components** view and a **File tree** view that mirrors the original folder structure from the bundle.
+
+![Components and file tree views](screenshots/03-sidebar.png)
 
 ### Filtering by log level
-After analysing, use the filter bar to narrow results by **ERROR**, **CRITICAL**, **WARNING**, **INFO**, **VERBOSE**, or **DEBUG**. Results appear in the middle panel with the source file, line number, and a stripped message preview for each entry. Click any entry to jump to it in the log viewer on the right.
+Use the filter bar to narrow results by **ERROR**, **CRITICAL**, **WARNING**, **INFO**, **VERBOSE**, or **DEBUG**. Results appear in the middle panel with the source file, line number, and a stripped message preview for each entry. Click any entry to jump to it in the log viewer on the right.
 
-![Log level filtering](screenshots/03-filtering.png)
+![Log level filtering](screenshots/04-filtering.png)
+
+### Global time range
+Restrict every loaded log to a specific start/end window using the controls beneath the level filters, then **Apply**. This focuses all components on the moment an incident occurred; the reset button clears it instantly.
+
+![Global time range](screenshots/05-timerange.png)
+
+### Recognised errors
+The tool ships with a built-in knowledge base of known Delinea errors. Matching lines show an amber **!** badge linking to the documentation. The **Recognised errors** view lists each distinct known error once with its occurrence count — step through every occurrence with ▲▼, or jump to other components that hit the same error.
+
+![Recognised errors with knowledge base links](screenshots/06-recognised-errors.png)
 
 ### Log viewer — jump to line with full context
-Clicking a filtered entry opens the complete log file in the right-hand viewer with the selected line highlighted and centred. The viewer shows the full raw content including stack traces and continuation lines, with colour-coded log levels. The three panels can be resized by dragging the dividers between them, and your layout is remembered between sessions.
+Clicking an entry opens the complete log file with the selected line highlighted and centred. The viewer shows the full raw content including stack traces and continuation lines, with colour-coded log levels. Use the **±** buttons to narrow to a window around the entry. The three panels are resizable and your layout is remembered between sessions.
 
-![Log viewer](screenshots/04-viewer.png)
+![Log viewer](screenshots/07-viewer.png)
 
-### Time window navigation
-Use the **±** buttons in the viewer toolbar to narrow the visible lines to a window around the selected entry — 15 minutes, 30 minutes, 1 hour, or 4 hours. This cuts through noise in busy log files and lets you focus on what was happening immediately before and after an issue.
+### Similar entries
+Click **Similar** to open a full-screen view of every line sharing the same logger string. Edit the term to broaden or narrow it, navigate with ▲▼, and use the scrollbar markers to see where every match sits in the file.
 
-![Time window](screenshots/05-timewindow.png)
+![Similar entries](screenshots/08-similar.png)
+
+### Windows Event Logs (.evtx)
+Click **Upload & analyse EVTX** to add a Windows Event Log at any time. It opens in a draggable, resizable floating window with a summary (time range, level breakdown, top event IDs) and a browsable event list. **Sync all logs to this time** lines your other logs up around a chosen event so you can see what happened across the whole system at that moment.
+
+![EVTX floating window](screenshots/09-evtx.png)
 
 ### PII scrubbing
 Highlight any text in the log viewer, then click **Scrub PII & Copy** in the bottom bar. A preview shows every replacement before anything is copied — IP addresses, `DOMAIN\username` pairs, email addresses, SIDs, GUIDs, UNC paths, and more are replaced with clearly labelled placeholders. A copyable text box is provided as a fallback if the browser blocks clipboard access.
 
-![PII scrub demo](screenshots/06-scrub.gif)
+![PII scrub demo](screenshots/10-scrub.gif)
 
 ---
 
@@ -93,6 +113,12 @@ Highlight any text in the log viewer, then click **Scrub PII & Copy** in the bot
 - Opens in a draggable, resizable floating window with a summary (time range, level breakdown, top event IDs) and a browsable event list
 - **Sync all logs to this time** lines your other logs up around a chosen event, and a correlation option pulls entries from ±10/15/20 minutes around it — so you can see what happened across the whole system at that moment
 - EVTX parsing is best-effort: it decodes what it can from the binary format and is honest about anything it can't
+
+### PII scrubbing
+- Highlight any text in the log viewer with your mouse
+- The **Scrub PII & Copy** button shows a preview of every replacement before anything is copied
+- Patterns scrubbed: IPv4 and IPv6 addresses, email addresses, `DOMAIN\username` pairs, UPNs, Windows SIDs, UNC paths, GUIDs, and key=value username fields
+- A copyable text box is provided as a fallback if the browser blocks clipboard access
 
 ### Appearance & convenience
 - **Light and dark mode** toggle — your preference is remembered
