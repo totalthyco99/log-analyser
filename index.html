@@ -885,6 +885,11 @@ window.__EVTX_PARSER_SRC__ = document.getElementById("evtx-parser-lib").textCont
     font-family: var(--font-mono); font-size: 10px; font-weight: 700;
     background: #F59E0B; color: #1a1a1a; border-radius: 8px; padding: 0 6px;
   }
+  .level-group .rg-count {
+    font-family: var(--font-mono); font-size: 10px; font-weight: 700;
+    background: var(--bg-elevated); color: var(--text-secondary);
+    border: 1px solid var(--border); border-radius: 8px; padding: 0 6px;
+  }
   .recognised-group .rg-snippet {
     font-size: 10px; color: var(--text-muted); font-family: var(--font-mono);
     margin-top: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
@@ -3254,6 +3259,9 @@ document.querySelectorAll('.level-filter-btn').forEach(btn => {
     document.querySelectorAll('.level-filter-btn').forEach(b => b.classList.remove('active'));
     btn.classList.add('active');
     state.activeLevel = btn.dataset.level;
+    // Changing the filter set invalidates any active occurrence navigation
+    const occBar = document.getElementById('occurrence-bar');
+    if (occBar) occBar.style.display = 'none';
     applyFilter();
   });
 });
@@ -3284,9 +3292,78 @@ function applyFilter() {
     return;
   }
 
-  document.getElementById('result-count').textContent = `${entries.length.toLocaleString()} entries`;
-  document.getElementById('results-header-count').textContent = entries.length.toLocaleString();
-  renderResults(entries, data);
+  // Normal mode: collapse to one row per DISTINCT error (level + logger +
+  // normalised message), showing the latest occurrence with a count. Clicking
+  // opens the latest and enables ▲▼ navigation through all occurrences.
+  renderLevelGroups(entries, data);
+}
+
+// Group level-filtered entries by their normalised key. One collapsed row per
+// distinct error, latest-first; click → latest occurrence + ▲▼ navigation.
+function renderLevelGroups(entries, data) {
+  const groups = new Map(); // key -> { key, sample, occurrences:[lines] }
+  for (const l of entries) {
+    const key = normaliseForGrouping(l);
+    let g = groups.get(key);
+    if (!g) { g = { key, occurrences: [] }; groups.set(key, g); }
+    g.occurrences.push(l);
+  }
+  const groupList = [...groups.values()];
+  groupList.forEach(g => g.occurrences.sort((a,b) => (b.ts||0) - (a.ts||0)));
+  groupList.sort((a,b) => (b.occurrences[0].ts||0) - (a.occurrences[0].ts||0));
+
+  document.getElementById('result-count').textContent =
+    `${groupList.length.toLocaleString()} distinct ${groupList.length===1?'entry':'entries'}`;
+  document.getElementById('results-header-count').textContent = groupList.length.toLocaleString();
+
+  RS.entries = null; // not using the windowed plain renderer in grouped mode
+  const list = document.getElementById('results-list');
+  list.onscroll = null;
+  list.innerHTML = '';
+  if (!groupList.length) {
+    list.innerHTML = '<div class="empty-state"><div class="empty-state-icon">📋</div><div>No entries in this view</div></div>';
+    return;
+  }
+
+  // Render incrementally in batches to stay responsive for many distinct errors
+  let idx = 0;
+  const BATCH = 80;
+  const renderBatch = () => {
+    const end = Math.min(idx + BATCH, groupList.length);
+    for (; idx < end; idx++) {
+      const g = groupList[idx];
+      const latest = g.occurrences[0];
+      const kb = kbMatchLine(latest);
+      const item = document.createElement('div');
+      item.className = 'result-item level-group';
+      item.innerHTML = `
+        <div class="ri-meta">
+          ${kb ? kbBadgeHtml() : ''}
+          <span class="level-badge ${latest.level||'?'}">${latest.level||'?'}</span>
+          ${g.occurrences.length > 1 ? `<span class="rg-count">${g.occurrences.length}×</span>` : ''}
+          <span class="ri-line">L${latest.lineNo}</span>
+          <span class="ri-file">${escHtml(latest._file || '')}</span>
+        </div>
+        <div class="ri-msg">${getStrippedHtml(latest)}</div>
+      `;
+      item.addEventListener('click', (e) => {
+        if (e.target.closest('.kb-badge')) return;
+        document.querySelectorAll('.result-item').forEach(i => i.classList.remove('focused'));
+        item.classList.add('focused');
+        openOccurrenceGroup(g.occurrences, data, latest.level ? `${latest.level} · ${g.occurrences.length}×` : `${g.occurrences.length}×`);
+      });
+      if (kb) {
+        const b = item.querySelector('.kb-badge');
+        if (b) b.addEventListener('click', ev => { ev.stopPropagation(); showKbPopover(kb, latest.text, b); });
+      }
+      list.appendChild(item);
+    }
+    if (idx < groupList.length) {
+      // Yield, then continue (keeps UI responsive on huge distinct counts)
+      requestAnimationFrame(renderBatch);
+    }
+  };
+  renderBatch();
 }
 
 // Group recognised-error entries by signature id, newest occurrence first.
@@ -3310,6 +3387,7 @@ function renderRecognisedGroups(entries, data) {
   document.getElementById('results-header-count').textContent = groupList.length.toLocaleString();
 
   const list = document.getElementById('results-list');
+  list.onscroll = null;
   list.innerHTML = '';
   if (!groupList.length) {
     list.innerHTML = '<div class="empty-state"><div class="empty-state-icon">⚠</div><div>No recognised errors in this view</div></div>';
@@ -3398,18 +3476,22 @@ document.addEventListener('click', (e) => {
   }
 });
 
-// ── Occurrence navigation through one signature's matches ──
+// ── Occurrence navigation through a group's matches ──
 const OCC = { occurrences: [], index: 0, data: null, sig: null };
 
 function openRecognisedOccurrences(group, data) {
-  OCC.occurrences = group.occurrences; // already newest-first
+  openOccurrenceGroup(group.occurrences, data, group.sig.title);
+}
+
+// Open a list of occurrences (newest-first) in the viewer with ▲▼ navigation.
+function openOccurrenceGroup(occurrences, data, label) {
+  OCC.occurrences = occurrences;
   OCC.index = 0;
   OCC.data = data;
-  OCC.sig = group.sig;
   showOccurrence();
   const bar = document.getElementById('occurrence-bar');
   bar.style.display = 'flex';
-  document.getElementById('occ-label').textContent = group.sig.title;
+  document.getElementById('occ-label').textContent = label || '';
 }
 
 function showOccurrence() {
@@ -4859,6 +4941,31 @@ function stripTimestampAndLevelMain(text) {
   return s.trim() || text;
 }
 
+// Normalise a message for grouping: strip the timestamp/level/bracket prefixes,
+// then mask the variable parts (GUIDs, hex, numbers, quoted strings, paths,
+// IPs, emails) so that two lines describing the "same" error — differing only
+// in their specific values — collapse to one group. Cached on the line.
+function normaliseForGrouping(line) {
+  if (line._normKey !== undefined) return line._normKey;
+  let s = stripTimestampAndLevelMain(line.text);
+  s = s
+    .replace(/\b[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}\b/g, '§GUID§')
+    .replace(/\b[0-9a-fA-F]{16,}\b/g, '§HEX§')
+    .replace(/0x[0-9a-fA-F]+/g, '§HEX§')
+    .replace(/\b(?:\d{1,3}\.){3}\d{1,3}\b/g, '§IP§')
+    .replace(/[\w.+-]+@[\w.-]+\.[A-Za-z]{2,}/g, '§EMAIL§')
+    .replace(/["'][^"']*["']/g, '§STR§')              // quoted strings
+    .replace(/\b[A-Za-z]:\\[^\s]+/g, '§PATH§')          // windows paths
+    .replace(/\\\\[^\s]+/g, '§PATH§')                    // UNC paths
+    .replace(/\/[^\s]{3,}/g, '§PATH§')                   // unix-ish paths
+    .replace(/\b\d+\b/g, '§N§')                          // any remaining numbers
+    .replace(/\s+/g, ' ')
+    .trim();
+  // Group key = level + logger + normalised message
+  line._normKey = `${line.level || '?'}|${line.logger || ''}|${s}`;
+  return line._normKey;
+}
+
 // Lazily compute + cache the escaped HTML for a line, only when it's actually
 // rendered. This keeps memory low (we no longer store these for every line up
 // front) while avoiding recomputation when scrolling back over the same line.
@@ -4929,7 +5036,7 @@ function initResizers() {
 // Bump APP_VERSION whenever you deploy a new build. On load, if the
 // stored version differs, we clear caches + update the service worker
 // so users never get a stale copy.
-const APP_VERSION = '2026.06.01b';
+const APP_VERSION = '2026.06.01d';
 
 (function autoCacheBust() {
   try {
@@ -5086,7 +5193,7 @@ const TOUR_STEPS = [
   {
     id: 'filters',
     title: '5 — Filter by log level',
-    body: 'Filter entries by ERROR, CRITICAL, WARNING, INFO, VERBOSE and DEBUG. Stack-trace and continuation lines are handled automatically, so you only filter on real log entries.',
+    body: 'Filter entries by ERROR, CRITICAL, WARNING, INFO, VERBOSE and DEBUG. Results are grouped so each <em>distinct</em> error appears once with a count (e.g. <code>12×</code>) — no scrolling past hundreds of identical lines. Stack-trace and continuation lines are handled automatically.',
     target: '#top-bar',
     position: 'below',
     setup: () => tourEnsureAnalyser(),
@@ -5109,8 +5216,8 @@ const TOUR_STEPS = [
   },
   {
     id: 'results',
-    title: '8 — Filtered results',
-    body: 'Matching entries appear here, most-recent-first, with level, line number and source file. Click any entry to jump straight to it in the log viewer.',
+    title: '8 — Results & occurrence navigation',
+    body: 'Each distinct error shows once here, latest-first, with its level, count and source file. Click one to jump to the most recent occurrence in the viewer — a ▲▼ bar then lets you step through every other occurrence of that same error without losing your place.',
     target: '#results-panel',
     position: 'right',
     setup: () => tourEnsureAnalyser(),
@@ -5142,7 +5249,7 @@ const TOUR_STEPS = [
   {
     id: 'evtx',
     title: '12 — Windows Event Logs (.evtx)',
-    body: 'Click <strong>⬆ Upload & analyse EVTX</strong> to add a Windows Event Log at any time. It opens in a draggable floating window with a summary and event list — and a <strong>Sync all logs to this time</strong> button that lines your other logs up around an event, so you can see what happened across the system at that moment.',
+    body: 'Click <strong>⬆ Upload & analyse EVTX</strong> to add a Windows Event Log at any time. It\'s fully decoded in your browser — real event messages, provider, event ID and level — and opens in a draggable floating window with a summary and searchable event list. Click any event and <strong>Sync all logs to this time</strong> lines your other logs up around it, so you can see what happened across the whole system at that moment.',
     target: '#btn-add-evtx',
     position: 'below',
     setup: () => tourEnsureAnalyser(),
