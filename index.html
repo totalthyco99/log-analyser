@@ -2012,6 +2012,10 @@ function parseEvtx(arrayBuffer) {
     const chunkStart = offset;
     const chunkEnd = offset + CHUNK_SIZE;
 
+    // Hard safety bound: stop after a large number of records so a malformed
+    // or enormous file can never hang the tab. (Summary stays representative.)
+    if (result.decodedRecords + result.failedRecords > 200000) { result.capped = true; break; }
+
     // Walk records within the chunk. Records start after the 512-byte chunk header.
     let p = chunkStart + 512;
     while (p + 24 < chunkEnd) {
@@ -2093,23 +2097,26 @@ function evtxSummary(name, parsed) {
 }
 
 // Ingest an EVTX file (ArrayBuffer) into pendingEvtx
-function ingestEvtxBuffer(name, arrayBuffer, path) {
+function ingestEvtxBuffer(name, arrayBuffer, path, bulk) {
   try {
     const parsed = parseEvtx(arrayBuffer);
     const summary = evtxSummary(name, parsed);
     summary.path = path || name;
     pendingEvtx[path || name] = summary;
-    if (!parsed.valid) {
-      flashUploadMsg(`⚠ "${name}" doesn't look like a valid .evtx file`, 4000);
-    } else if (summary.decoded === 0) {
-      flashUploadMsg(`⚠ "${name}" — couldn't decode any event records (unusual format)`, 4000);
-    } else {
-      flashUploadMsg(`✓ Parsed ${name}: ${summary.decoded} events${summary.failed ? ` (${summary.failed} undecodable)` : ''}`, 3500);
+    if (!bulk) {
+      if (!parsed.valid) {
+        flashUploadMsg(`⚠ "${name}" doesn't look like a valid .evtx file`, 4000);
+      } else if (summary.decoded === 0) {
+        flashUploadMsg(`⚠ "${name}" — couldn't decode any event records (unusual format)`, 4000);
+      } else {
+        flashUploadMsg(`✓ Parsed ${name}: ${summary.decoded} events${summary.failed ? ` (${summary.failed} undecodable)` : ''}`, 3500);
+      }
     }
   } catch (e) {
-    flashUploadMsg(`⚠ Failed to parse "${name}" as EVTX`, 4000);
+    console.warn('evtx parse failed', name, e);
+    if (!bulk) flashUploadMsg(`⚠ Failed to parse "${name}" as EVTX`, 4000);
   }
-  refreshComponentHighlights();
+  if (!bulk) refreshComponentHighlights();
 }
 
 function handleEvtxFile(file, path) {
@@ -2554,36 +2561,63 @@ async function handleZipFile(file, basePath) {
   flashUploadMsg(`⏳ Extracting ${file.name}…`, 0);
   try {
     const buf = await file.arrayBuffer();
-    await extractZipBuffer(buf, basePath);
-    flashUploadMsg(`✓ Extracted ${file.name}`, 3000);
+    const stats = { files: 0, skipped: 0, evtx: 0 };
+    await extractZipBuffer(buf, basePath, stats);
+    flashUploadMsg(`✓ Extracted ${file.name} — ${stats.files} log file(s)${stats.evtx?`, ${stats.evtx} event log(s)`:''}${stats.skipped?`, ${stats.skipped} skipped`:''}`, 4000);
     refreshComponentHighlights();
   } catch (e) {
-    flashUploadMsg(`⚠ Could not read ${file.name} — is it a valid zip?`, 4000);
+    console.error('zip extract failed', e);
+    flashUploadMsg(`⚠ Could not read ${file.name} — ${e.message || 'is it a valid zip?'}`, 5000);
   }
 }
 
-async function extractZipBuffer(buf, basePath) {
+const MAX_TEXT_BYTES = 80 * 1024 * 1024; // 80MB per file safety cap
+
+async function extractZipBuffer(buf, basePath, stats) {
+  stats = stats || { files: 0, skipped: 0, evtx: 0 };
   const zip = await JSZip.loadAsync(buf);
   const entries = [];
   zip.forEach((relPath, entry) => { if (!entry.dir) entries.push([relPath, entry]); });
 
+  let processed = 0;
   for (const [relPath, entry] of entries) {
     const fullPath = basePath ? `${basePath}/${relPath}` : relPath;
     const lower = relPath.toLowerCase();
     const baseName = relPath.split('/').pop();
 
-    if (lower.endsWith('.zip')) {
-      // Nested zip — recurse, keeping the folder structure
-      const nestedBuf = await entry.async('arraybuffer');
-      await extractZipBuffer(nestedBuf, fullPath.replace(/\.zip$/i, ''));
-    } else if (lower.endsWith('.evtx')) {
-      const ab = await entry.async('arraybuffer');
-      ingestEvtxBuffer(baseName, ab, fullPath);
-    } else if (isProbablyText(baseName)) {
-      const text = await entry.async('text');
-      ingestTextFile(baseName, text, text.length, fullPath);
+    // Skip macOS resource forks and hidden junk
+    if (baseName.startsWith('._') || relPath.includes('__MACOSX')) { stats.skipped++; continue; }
+
+    try {
+      if (lower.endsWith('.zip')) {
+        const nestedBuf = await entry.async('arraybuffer');
+        await extractZipBuffer(nestedBuf, fullPath.replace(/\.zip$/i, ''), stats);
+      } else if (lower.endsWith('.evtx')) {
+        const ab = await entry.async('arraybuffer');
+        ingestEvtxBuffer(baseName, ab, fullPath, true);
+        stats.evtx++;
+      } else if (isProbablyText(baseName)) {
+        // Size guard — uncompressed size if available
+        const uncompressed = entry._data && entry._data.uncompressedSize;
+        if (uncompressed && uncompressed > MAX_TEXT_BYTES) { stats.skipped++; continue; }
+        const text = await entry.async('text');
+        if (ingestTextFile(baseName, text, text.length, fullPath)) stats.files++;
+        else stats.skipped++;
+      } else {
+        stats.skipped++;
+      }
+    } catch (err) {
+      console.warn('skipped entry', relPath, err);
+      stats.skipped++;
+    }
+
+    // Yield to the UI every few files so the tab doesn't appear frozen
+    if (++processed % 5 === 0) {
+      flashUploadMsg(`⏳ Extracting… ${processed}/${entries.length} in ${basePath.split('/').pop()}`, 0);
+      await new Promise(r => setTimeout(r, 0));
     }
   }
+  return stats;
 }
 
 function isProbablyText(name) {
@@ -2752,7 +2786,13 @@ function analyseFiles() {
     Object.keys(pendingFiles).forEach(k => delete pendingFiles[k]);
   };
 
-  compIds.forEach(compId => {
+  // Process components ONE AT A TIME. Spawning a worker for every component
+  // simultaneously floods the main thread with large postMessage payloads and
+  // can lock up the tab on big bundles. Sequential keeps memory/CPU bounded.
+  let idx = 0;
+  const processNext = () => {
+    if (idx >= compIds.length) { allDone(); return; }
+    const compId = compIds[idx];
     const comp = prod.components.find(c => c.id === compId);
     const files = pendingFiles[compId] || [];
     const worker = makeWorker();
@@ -2765,29 +2805,41 @@ function analyseFiles() {
       const existing = state.loadedData[compId];
       let allParsed = parsed;
       if (existing && existing.files) {
-        // Avoid duplicate files by name
         const haveNames = new Set(existing.files.map(f => f.name));
         const newOnes = parsed.filter(f => !haveNames.has(f.name));
         allParsed = existing.files.concat(newOnes);
       }
 
+      // Build merged as REFERENCES (not clones) — cloning every line was the
+      // freeze cause. Sort the reference array only.
       let merged = [];
-      allParsed.forEach(f => f.lines.forEach(l => merged.push({ ...l })));
-      merged.sort((a,b) => {
-        if (a.ts && b.ts) return a.ts - b.ts;
-        return 0;
-      });
-      merged.forEach((l,i) => l.mergedNo = i+1);
+      for (const f of allParsed) {
+        const lines = f.lines;
+        for (let i = 0; i < lines.length; i++) merged.push(lines[i]);
+      }
+      merged.sort((a,b) => (a.ts && b.ts) ? a.ts - b.ts : 0);
+      for (let i = 0; i < merged.length; i++) merged[i].mergedNo = i + 1;
 
       state.loadedData[compId] = { compDef: comp, files: allParsed, merged };
 
       completed++;
       bar.style.transform = `scaleX(${0.05 + 0.95 * (completed/total)})`;
-      if (completed === total) allDone();
+      idx++;
+      // Yield to the UI between components so the progress bar repaints
+      setTimeout(processNext, 0);
+    };
+
+    worker.onerror = err => {
+      console.error('worker failed for', compId, err);
+      worker.terminate();
+      completed++;
+      idx++;
+      setTimeout(processNext, 0);
     };
 
     worker.postMessage({ compId, files });
-  });
+  };
+  processNext();
 }
 
 // ═══════════════════════════════════════════════════════════════
