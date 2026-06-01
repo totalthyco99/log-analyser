@@ -1304,34 +1304,52 @@ if (typeof window !== 'undefined') window.parseHar = parseHar;
 
   /* GLOBAL TIME RANGE */
   #global-time-range {
-    display: flex; align-items: center; gap: 5px;
-    margin-right: 8px;
-    padding: 3px 8px;
-    border: 1px solid var(--border);
-    border-radius: var(--radius-md);
-    background: var(--bg-elevated);
+    position: relative; display: flex; align-items: center; gap: 4px; margin-right: 8px;
   }
-  #global-time-range.active { border-color: var(--accent-teal); background: var(--highlight-similar); }
-  #global-time-range .gtr-label { font-size: 11px; color: var(--text-secondary); font-weight: 600; white-space: nowrap; }
-  #global-time-range .gtr-to { color: var(--text-muted); font-size: 11px; }
-  #global-time-range input[type="datetime-local"] {
-    background: var(--bg-base);
-    border: 1px solid var(--border);
-    border-radius: var(--radius-sm);
-    color: var(--text-primary);
-    font-size: 11px; font-family: var(--font-mono);
-    padding: 2px 5px;
-    color-scheme: dark;
+  #btn-gtr {
+    display: flex; align-items: center; gap: 6px; padding: 4px 10px;
+    border: 1px solid var(--border); border-radius: var(--radius-md);
+    background: var(--bg-elevated); color: var(--text-secondary);
+    font-size: 11px; font-weight: 600; cursor: pointer; transition: all 0.12s; white-space: nowrap;
   }
-  :root[data-theme="light"] #global-time-range input[type="datetime-local"] { color-scheme: light; }
-  #gtr-apply, #gtr-reset {
-    padding: 3px 8px; border-radius: var(--radius-sm);
-    border: 1px solid var(--border); background: var(--bg-base);
-    color: var(--text-secondary); font-size: 11px; font-weight: 600;
-    cursor: pointer; transition: all 0.12s;
+  #btn-gtr:hover { border-color: var(--accent-teal); color: var(--text-primary); }
+  #global-time-range.active #btn-gtr { border-color: var(--accent-teal); color: var(--accent-teal); background: var(--highlight-similar); }
+  #gtr-reset {
+    width: 22px; height: 22px; border-radius: var(--radius-sm); flex-shrink: 0;
+    border: 1px solid var(--border); background: var(--bg-base); color: var(--text-muted);
+    font-size: 11px; cursor: pointer; transition: all 0.12s;
   }
-  #gtr-apply:hover { border-color: var(--accent-teal); color: var(--accent-teal); }
   #gtr-reset:hover { border-color: var(--level-error); color: var(--level-error); }
+  #gtr-reset.hidden { display: none; }
+  #gtr-popover {
+    position: absolute; top: calc(100% + 6px); left: 0; z-index: 500;
+    width: 260px; padding: 12px; background: var(--bg-base);
+    border: 1px solid var(--accent-teal); border-radius: var(--radius-lg); box-shadow: var(--shadow-lg);
+    display: flex; flex-direction: column; gap: 8px;
+  }
+  #gtr-popover.hidden { display: none; }
+  .gtr-pop-title { font-size: 10px; font-weight: 800; letter-spacing: 1px; text-transform: uppercase; color: var(--text-muted); }
+  .gtr-presets { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+  .gtr-presets button {
+    padding: 6px 8px; border: 1px solid var(--border); border-radius: var(--radius-sm);
+    background: var(--bg-elevated); color: var(--text-secondary); font-size: 11px; cursor: pointer; transition: all 0.12s; text-align: left;
+  }
+  .gtr-presets button:hover { border-color: var(--accent-teal); color: var(--text-primary); }
+  .gtr-presets button.active { border-color: var(--accent-teal); background: var(--highlight-similar); color: var(--accent-teal); font-weight: 700; }
+  .gtr-presets button.gtr-all { grid-column: 1 / -1; text-align: center; }
+  .gtr-pop-note { font-size: 9px; color: var(--text-muted); line-height: 1.4; }
+  .gtr-custom { display: flex; flex-direction: column; gap: 6px; }
+  .gtr-custom label { font-size: 10px; color: var(--text-secondary); display: flex; flex-direction: column; gap: 3px; }
+  .gtr-custom input[type="datetime-local"] {
+    background: var(--bg-elevated); border: 1px solid var(--border); border-radius: var(--radius-sm);
+    color: var(--text-primary); font-size: 11px; font-family: var(--font-mono); padding: 4px 6px; color-scheme: dark;
+  }
+  :root[data-theme="light"] .gtr-custom input[type="datetime-local"] { color-scheme: light; }
+  #gtr-apply {
+    padding: 6px 8px; border-radius: var(--radius-sm); border: 1px solid var(--accent-teal);
+    background: var(--accent-teal-dim); color: var(--accent-teal); font-size: 11px; font-weight: 700; cursor: pointer; transition: all 0.12s;
+  }
+  #gtr-apply:hover { background: var(--accent-teal); color: #fff; }
 
   /* CONTENT AREA */
   #content-area { flex: 1; display: flex; overflow: hidden; }
@@ -1357,6 +1375,27 @@ if (typeof window !== 'undefined') window.parseHar = parseHar;
     display: flex; align-items: center; gap: 6px;
     flex-shrink: 0;
   }
+  #results-control {
+    display: flex; align-items: center; gap: 6px; padding: 7px 10px;
+    border-bottom: 1px solid var(--border); flex-shrink: 0; flex-wrap: wrap;
+  }
+  #results-logger {
+    flex: 0 1 auto; max-width: 45%; font-size: 11px; padding: 4px 6px;
+    background: var(--bg-elevated); color: var(--text-primary);
+    border: 1px solid var(--border); border-radius: var(--radius-sm); cursor: pointer;
+  }
+  #results-term {
+    flex: 1 1 90px; min-width: 70px; font-size: 11px; padding: 4px 8px;
+    background: var(--bg-base); color: var(--text-primary);
+    border: 1px solid var(--border); border-radius: var(--radius-sm); font-family: var(--font-mono);
+  }
+  #results-term:focus, #results-logger:focus { border-color: var(--accent-teal); outline: none; }
+  #btn-run-results {
+    flex: 0 0 auto; font-size: 11px; font-weight: 700; padding: 4px 12px;
+    background: var(--accent-teal-dim); color: var(--accent-teal);
+    border: 1px solid var(--accent-teal); border-radius: var(--radius-sm); cursor: pointer; transition: all 0.12s;
+  }
+  #btn-run-results:hover { background: var(--accent-teal); color: #fff; }
   #results-list { flex: 1; overflow-y: auto; }
   .result-group-header {
     padding: 6px 10px 3px;
@@ -2117,15 +2156,46 @@ if (typeof window !== 'undefined') window.parseHar = parseHar;
     background: var(--bg-elevated); color: var(--text-muted); cursor: pointer; transition: all 0.12s;
   }
   #btn-timeline-close:hover { border-color: var(--level-error); color: var(--level-error); }
-  #timeline-legend {
-    flex-shrink: 0; display: flex; flex-wrap: wrap; gap: 12px; padding: 8px 14px;
-    border-bottom: 1px solid var(--border); font-size: 11px;
+  /* Component include/exclude chips */
+  #timeline-comps {
+    flex-shrink: 0; display: flex; flex-wrap: wrap; gap: 8px; padding: 8px 14px;
+    border-bottom: 1px solid var(--border);
   }
-  #timeline-legend .tl-leg { display: flex; align-items: center; gap: 5px; color: var(--text-secondary); }
-  #timeline-legend .tl-dot { width: 10px; height: 10px; border-radius: 3px; flex-shrink: 0; }
+  #timeline-comps .tl-chip {
+    display: flex; align-items: center; gap: 6px; font-size: 11px; padding: 3px 9px;
+    border: 1px solid var(--border); border-radius: 12px; cursor: pointer; user-select: none;
+    color: var(--text-secondary); transition: all 0.12s;
+  }
+  #timeline-comps .tl-chip:hover { border-color: var(--text-muted); }
+  #timeline-comps .tl-chip .tl-dot { width: 9px; height: 9px; border-radius: 3px; flex-shrink: 0; }
+  #timeline-comps .tl-chip.excluded { opacity: 0.4; text-decoration: line-through; }
+  /* Window navigation + search */
+  #timeline-nav {
+    flex-shrink: 0; display: flex; align-items: center; gap: 8px; padding: 7px 14px;
+    border-bottom: 1px solid var(--border); flex-wrap: wrap;
+  }
+  #timeline-nav button {
+    font-size: 11px; padding: 3px 10px; background: var(--bg-elevated); color: var(--text-secondary);
+    border: 1px solid var(--border); border-radius: var(--radius-sm); cursor: pointer; transition: all 0.12s;
+  }
+  #timeline-nav button:hover:not(:disabled) { border-color: var(--accent-teal); color: var(--text-primary); }
+  #timeline-nav button:disabled { opacity: 0.35; cursor: default; }
+  #tl-window-label { font-size: 12px; font-weight: 700; color: var(--text-primary); font-family: var(--font-mono); min-width: 210px; text-align: center; }
+  #tl-search {
+    flex: 1 1 160px; min-width: 120px; font-size: 11px; padding: 4px 8px;
+    background: var(--bg-base); color: var(--text-primary);
+    border: 1px solid var(--border); border-radius: var(--radius-sm); font-family: var(--font-mono);
+  }
+  #tl-search:focus { border-color: var(--accent-teal); outline: none; }
+  #tl-match-count { font-size: 10px; color: var(--accent-teal); font-family: var(--font-mono); min-width: 60px; text-align: right; }
   #timeline-list { flex: 1; overflow-y: auto; font-family: var(--font-mono); font-size: 11px; }
+  .tl-day-sep {
+    position: sticky; top: 0; z-index: 1; padding: 4px 14px; background: var(--bg-surface);
+    border-bottom: 1px solid var(--border); border-top: 1px solid var(--border);
+    font-size: 10px; font-weight: 800; letter-spacing: 1px; text-transform: uppercase; color: var(--text-muted);
+  }
   .tl-row {
-    display: grid; grid-template-columns: 150px 160px 70px 1fr; gap: 10px; align-items: baseline;
+    display: grid; grid-template-columns: 90px 150px 60px 1fr; gap: 10px; align-items: baseline;
     padding: 4px 14px; border-bottom: 1px solid rgba(255,255,255,0.03); border-left: 3px solid transparent;
   }
   .tl-row:hover { background: var(--bg-hover); cursor: pointer; }
@@ -2133,6 +2203,10 @@ if (typeof window !== 'undefined') window.parseHar = parseHar;
   .tl-row .tl-comp { font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .tl-row .tl-lvl { font-size: 9px; font-weight: 700; }
   .tl-row .tl-msg { color: var(--text-secondary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .tl-row.tl-match { background: rgba(245,179,1,0.10); }
+  .tl-row.tl-match .tl-msg { color: var(--text-primary); }
+  .tl-row.tl-current { background: rgba(245,179,1,0.28); outline: 1px solid var(--accent-amber, #f5b301); }
+  .tl-empty { padding: 30px 14px; text-align: center; color: var(--text-muted); font-size: 12px; }
   /* ════ Export findings modal ════ */
   #export-modal {
     position: fixed; inset: 0; z-index: 10040; display: flex; align-items: center; justify-content: center;
@@ -2160,27 +2234,6 @@ if (typeof window !== 'undefined') window.parseHar = parseHar;
     color: var(--text-secondary); font-size: 11px; padding: 4px 10px; cursor: pointer; transition: all 0.12s;
   }
   #btn-timeline:hover, #btn-export-findings:hover, #btn-tz-toggle:hover { border-color: var(--accent-teal); color: var(--text-primary); }
-  /* ════ KB test panel ════ */
-  #kbtest-modal {
-    position: fixed; inset: 0; z-index: 10045; display: flex; align-items: center; justify-content: center;
-    background: rgba(0,0,0,0.5);
-  }
-  #kbtest-modal.hidden { display: none; }
-  #kbtest-input {
-    width: 100%; resize: vertical; font-family: var(--font-mono); font-size: 12px;
-    background: var(--bg-base); color: var(--text-primary); border: 1px solid var(--border);
-    border-radius: var(--radius-sm); padding: 10px; line-height: 1.5;
-  }
-  #kbtest-input:focus { border-color: var(--accent-purple); outline: none; }
-  #kbtest-result { min-height: 40px; font-size: 12px; }
-  #kbtest-result .kbt-hit {
-    border: 1px solid var(--accent-teal); border-radius: var(--radius-sm); padding: 10px;
-    background: rgba(20,184,166,0.08);
-  }
-  #kbtest-result .kbt-hit .kbt-title { font-weight: 700; color: var(--text-primary); margin-bottom: 4px; }
-  #kbtest-result .kbt-hit .kbt-meta { font-size: 11px; color: var(--text-secondary); font-family: var(--font-mono); }
-  #kbtest-result .kbt-hit a { color: var(--accent-teal); }
-  #kbtest-result .kbt-miss { color: var(--text-muted); padding: 10px; font-style: italic; }
   /* ════ Diagnostics modal ════ */
   #diag-modal {
     position: fixed; inset: 0; z-index: 10046; display: flex; align-items: center; justify-content: center;
@@ -2211,6 +2264,135 @@ if (typeof window !== 'undefined') window.parseHar = parseHar;
   #diag-body .dg-row.lvl-error .dg-msg { color: var(--level-error); }
   #diag-body .dg-row.lvl-warn .dg-msg { color: var(--level-warn); }
   #diag-body .dg-empty { color: var(--text-muted); font-style: italic; }
+  /* ════ Notes & pins floating panel ════ */
+  #notes-pin-badge {
+    display: inline-flex; align-items: center; justify-content: center;
+    min-width: 16px; height: 16px; padding: 0 4px; margin-left: 2px;
+    border-radius: 8px; background: var(--accent-purple); color: #fff;
+    font-size: 10px; font-weight: 700; vertical-align: middle;
+  }
+  #notes-pin-badge.hidden { display: none; }
+  #notes-overlay {
+    position: fixed; z-index: 470; bottom: 56px; right: 18px;
+    width: min(420px, 94vw); height: min(560px, 78vh);
+    display: flex; flex-direction: column;
+    background: var(--bg-base); border: 1px solid var(--accent-amber, #f5b301);
+    border-radius: var(--radius-lg); box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+    overflow: hidden; resize: both; min-width: 300px; min-height: 280px;
+  }
+  #notes-overlay.hidden { display: none; }
+  #notes-header {
+    height: 46px; flex-shrink: 0; background: var(--bg-surface);
+    border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; gap: 10px; padding: 0 12px;
+    cursor: move; user-select: none;
+  }
+  #notes-icon { font-size: 17px; }
+  #notes-title { font-size: 13px; font-weight: 700; color: var(--text-primary); }
+  #notes-saved { font-size: 10px; color: var(--accent-teal); opacity: 0; transition: opacity 0.3s; font-family: var(--font-mono); }
+  #notes-saved.show { opacity: 1; }
+  #notes-scrub-toggle {
+    display: flex; align-items: center; gap: 4px; font-size: 10px; color: var(--text-secondary);
+    cursor: pointer; user-select: none; white-space: nowrap;
+  }
+  #notes-scrub-toggle input { cursor: pointer; margin: 0; }
+  #notes-scrub-toggle:hover { color: var(--text-primary); }
+  #btn-notes-close {
+    width: 26px; height: 26px; border-radius: var(--radius-sm); border: 1px solid var(--border);
+    background: var(--bg-elevated); color: var(--text-muted); font-size: 12px; cursor: pointer; transition: all 0.12s;
+  }
+  #btn-notes-close:hover { border-color: var(--level-error); color: var(--level-error); }
+  .notes-act-btn {
+    width: 26px; height: 26px; border-radius: var(--radius-sm); border: 1px solid var(--border);
+    background: var(--bg-elevated); color: var(--text-secondary); font-size: 12px; cursor: pointer; transition: all 0.12s;
+  }
+  .notes-act-btn:hover { border-color: var(--accent-purple); color: var(--text-primary); }
+  #notes-body { flex: 1; display: flex; flex-direction: column; min-height: 0; padding: 10px; gap: 10px; }
+  #notes-session-bar {
+    display: flex; align-items: center; gap: 6px; font-size: 11px;
+    padding: 6px 8px; background: var(--bg-surface); border: 1px solid var(--border); border-radius: var(--radius-sm);
+  }
+  #notes-session-label { color: var(--text-muted); }
+  #notes-session-name { font-weight: 700; color: var(--accent-purple); flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  #btn-notes-history {
+    background: none; border: 1px solid var(--border); border-radius: var(--radius-sm);
+    color: var(--text-secondary); font-size: 10px; padding: 2px 8px; cursor: pointer; transition: all 0.12s; white-space: nowrap;
+  }
+  #btn-notes-history:hover { border-color: var(--accent-purple); color: var(--text-primary); }
+  #notes-history-panel {
+    border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--bg-base);
+    max-height: 180px; overflow-y: auto;
+  }
+  #notes-history-panel.hidden { display: none; }
+  .nh-item {
+    display: flex; align-items: center; gap: 8px; padding: 7px 10px; cursor: pointer;
+    border-bottom: 1px solid rgba(255,255,255,0.04); font-size: 11px;
+  }
+  .nh-item:hover { background: var(--bg-hover); }
+  .nh-item.current { background: rgba(167,139,250,0.10); }
+  .nh-name { flex: 1; color: var(--text-primary); font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .nh-meta { color: var(--text-muted); font-family: var(--font-mono); font-size: 10px; white-space: nowrap; }
+  .nh-current-tag { color: var(--accent-purple); font-size: 9px; font-weight: 700; text-transform: uppercase; }
+  #notes-note-head {
+    display: flex; align-items: center; justify-content: space-between;
+    font-size: 11px; font-weight: 700; color: var(--text-secondary); margin-bottom: -4px;
+  }
+  #btn-note-clear {
+    background: none; border: 1px solid var(--border); border-radius: var(--radius-sm);
+    color: var(--text-muted); font-size: 10px; padding: 2px 8px; cursor: pointer; transition: all 0.12s;
+  }
+  #btn-note-clear:hover { border-color: var(--level-error); color: var(--level-error); }
+  #btn-note-clear.hidden { display: none; }
+  #notes-text {
+    flex: 0 0 38%; min-height: 80px; resize: none;
+    background: var(--bg-elevated); border: 1px solid var(--border); border-radius: var(--radius-sm);
+    color: var(--text-primary); font-family: var(--font-ui); font-size: 12px; line-height: 1.5; padding: 8px;
+  }
+  #notes-text:focus { border-color: var(--accent-purple); outline: none; }
+  #notes-pins-section { flex: 1; display: flex; flex-direction: column; min-height: 0; }
+  #notes-pins-head {
+    display: flex; align-items: center; justify-content: space-between;
+    font-size: 11px; font-weight: 700; color: var(--text-secondary); margin-bottom: 6px;
+  }
+  #btn-pins-clear {
+    background: none; border: 1px solid var(--border); border-radius: var(--radius-sm);
+    color: var(--text-muted); font-size: 10px; padding: 2px 8px; cursor: pointer; transition: all 0.12s;
+  }
+  #btn-pins-clear:hover { border-color: var(--level-error); color: var(--level-error); }
+  #btn-pins-clear.hidden { display: none; }
+  #btn-preload-kb {
+    background: none; border: 1px solid var(--accent-purple); border-radius: var(--radius-sm);
+    color: var(--accent-purple); font-size: 10px; padding: 2px 8px; cursor: pointer; transition: all 0.12s;
+  }
+  #btn-preload-kb:hover { background: rgba(167,139,250,0.12); }
+  #notes-pins-list { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 6px; }
+  .pin-item {
+    border: 1px solid var(--border); border-radius: var(--radius-sm);
+    padding: 7px 8px; background: var(--bg-surface); cursor: pointer; transition: all 0.12s;
+    border-left: 3px solid var(--text-muted);
+  }
+  .pin-item:hover { background: var(--bg-hover); border-color: var(--accent-purple); }
+  .pin-item.lvl-ERROR, .pin-item.lvl-CRITICAL { border-left-color: var(--level-error); }
+  .pin-item.lvl-WARNING { border-left-color: var(--level-warn); }
+  .pin-item.lvl-INFO { border-left-color: var(--level-info); }
+  .pin-meta { display: flex; align-items: center; gap: 6px; font-size: 10px; color: var(--text-muted); font-family: var(--font-mono); margin-bottom: 3px; }
+  .pin-meta .pin-file { color: var(--text-secondary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 180px; }
+  .pin-meta .pin-unpin { margin-left: auto; cursor: pointer; color: var(--text-muted); padding: 0 3px; border-radius: 3px; }
+  .pin-meta .pin-unpin:hover { color: var(--level-error); background: var(--bg-elevated); }
+  .pin-text {
+    font-family: var(--font-mono); font-size: 11px; color: var(--text-primary);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .pin-note { font-size: 10px; color: var(--text-secondary); font-style: italic; margin-top: 2px; }
+  .pin-loc {
+    font-size: 9px; color: var(--text-muted); font-family: var(--font-mono); margin-top: 3px;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  #notes-pins-list .pin-empty { color: var(--text-muted); font-size: 11px; font-style: italic; padding: 8px 2px; }
+  #notes-footer {
+    flex-shrink: 0; padding: 6px 12px; font-size: 9px; color: var(--text-muted);
+    background: var(--bg-surface); border-top: 1px solid var(--border); line-height: 1.4;
+  }
   #evtx-summary-panel {
     width: 320px; flex-shrink: 0; overflow-y: auto;
     border-right: 1px solid var(--border); padding: 16px;
@@ -2598,7 +2780,7 @@ if (typeof window !== 'undefined') window.parseHar = parseHar;
     <div class="divider"></div>
     <div class="spacer"></div>
     <button id="btn-github" title="View on GitHub" onclick="window.open('https://github.com/totalthyco99/log-analyser','_blank')">⭐ GitHub</button>
-    <button id="btn-kb-test" title="Test a log line against the recognised-error knowledge base">🧪 Test KB</button>
+    <button id="btn-notes" title="Open your persistent notes &amp; pinned log entries (saved on this device, survives reloads)">🗒 Notes <span id="notes-pin-badge" class="hidden"></span></button>
     <button id="btn-diagnostics" title="View / export diagnostics to help troubleshoot a reported issue (no log content — metadata only)">🩺 Diagnostics</button>
     <button id="btn-feedback" title="Submit feedback" onclick="window.open('https://forms.microsoft.com/r/tpeMyjq0V4','_blank')">💬 Feedback</button>
     <button id="btn-hard-refresh" title="Clears the cached app and reloads the very latest version from the server. Use this if you suspect you're seeing an outdated version of the tool." onclick="hardRefresh()">↻ Hard refresh</button>
@@ -2738,13 +2920,29 @@ if (typeof window !== 'undefined') window.parseHar = parseHar;
             <input type="file" id="har-input" accept=".har,.json" multiple style="display:none">
           </div>
           <div class="topbar-row topbar-row-secondary">
-            <div id="global-time-range" title="Restrict all results and the viewer to entries within this time range">
-              <span class="gtr-label">⏱ Time range:</span>
-              <input type="datetime-local" id="gtr-start" step="1">
-              <span class="gtr-to">→</span>
-              <input type="datetime-local" id="gtr-end" step="1">
-              <button id="gtr-apply" title="Apply time range">Apply</button>
-              <button id="gtr-reset" title="Clear the time range">✕ Reset</button>
+            <div id="global-time-range" title="Restrict all results and the viewer to a time range">
+              <button id="btn-gtr" title="Choose a time range">⏱ <span id="gtr-label-text">All time</span> <span style="opacity:.6">▾</span></button>
+              <button id="gtr-reset" class="hidden" title="Clear the time range">✕</button>
+              <div id="gtr-popover" class="hidden">
+                <div class="gtr-pop-title">Quick ranges</div>
+                <div class="gtr-presets">
+                  <button data-min="15">Last 15 minutes</button>
+                  <button data-min="60">Last 1 hour</button>
+                  <button data-min="360">Last 6 hours</button>
+                  <button data-min="1440">Last 24 hours</button>
+                  <button data-min="4320">Last 3 days</button>
+                  <button data-min="10080">Last 7 days</button>
+                  <button data-min="43200">Last 30 days</button>
+                  <button data-min="0" class="gtr-all">All time</button>
+                </div>
+                <div class="gtr-pop-note">Measured back from the most recent log entry.</div>
+                <div class="gtr-pop-title">Custom range</div>
+                <div class="gtr-custom">
+                  <label>From <input type="datetime-local" id="gtr-start" step="1"></label>
+                  <label>To <input type="datetime-local" id="gtr-end" step="1"></label>
+                  <button id="gtr-apply" title="Apply this custom range">Apply custom range</button>
+                </div>
+              </div>
             </div>
             <div class="topbar-spacer"></div>
             <button id="btn-timeline" title="Merge all components into one chronological stream for the current time range">🕒 Cross-component timeline</button>
@@ -2763,10 +2961,17 @@ if (typeof window !== 'undefined') window.parseHar = parseHar;
               <button id="btn-clear-search">✕ Clear search</button>
               <span id="results-header-count" style="font-family:var(--font-mono);font-size:10px;color:var(--accent-teal)"></span>
             </div>
+            <div id="results-control">
+              <select id="results-logger" title="Pick a logger present in this file/component (or all), then Run">
+                <option value="">All loggers</option>
+              </select>
+              <input id="results-term" type="text" placeholder="logger or keyword…" autocomplete="off" title="Preselected from the dropdown — edit to any logger or keyword">
+              <button id="btn-run-results" title="Group the entries by logger (with similar entries collapsed)">▶ Run</button>
+            </div>
             <div id="results-list">
               <div class="empty-state">
                 <div class="empty-state-icon">🔍</div>
-                <div>Select a level filter to see entries</div>
+                <div>Select a component or file to begin</div>
               </div>
             </div>
           </div>
@@ -2977,7 +3182,17 @@ if (typeof window !== 'undefined') window.parseHar = parseHar;
     <label id="timeline-errors-only-wrap" title="Show only ERROR/CRITICAL lines"><input type="checkbox" id="timeline-errors-only"> Errors only</label>
     <button id="btn-timeline-close" title="Close">✕</button>
   </div>
-  <div id="timeline-legend"></div>
+  <div id="timeline-comps" title="Click a component to include/exclude it from the timeline"></div>
+  <div id="timeline-nav">
+    <button id="tl-prev" title="Move the window back 5 days">◀ 5 days</button>
+    <div id="tl-window-label"></div>
+    <button id="tl-next" title="Move the window forward 5 days">5 days ▶</button>
+    <div class="evtx-spacer"></div>
+    <input id="tl-search" type="text" placeholder="Filter by logger or keyword…" autocomplete="off">
+    <span id="tl-match-count"></span>
+    <button id="tl-match-prev" title="Previous match (jumps the window)">▲</button>
+    <button id="tl-match-next" title="Next match (jumps the window)">▼</button>
+  </div>
   <div id="timeline-list"></div>
 </div>
 
@@ -3001,20 +3216,6 @@ if (typeof window !== 'undefined') window.parseHar = parseHar;
   </div>
 </div>
 
-<!-- KB TEST PANEL -->
-<div id="kbtest-modal" class="hidden">
-  <div class="export-modal-card" style="border-color:var(--accent-purple)">
-    <div class="export-modal-title">🧪 Test the knowledge base <span id="kbtest-version" style="font-weight:400;color:var(--text-muted);font-size:12px"></span></div>
-    <div class="export-modal-sub">Paste a log line to see whether it matches a recognised error signature.</div>
-    <textarea id="kbtest-input" spellcheck="false" placeholder="Paste a log line here…" style="min-height:90px"></textarea>
-    <div id="kbtest-result"></div>
-    <div class="export-actions">
-      <span id="kbtest-status" style="flex:1;font-size:11px;color:var(--text-muted)"></span>
-      <button class="wizard-btn secondary" id="btn-kbtest-close">Close</button>
-    </div>
-  </div>
-</div>
-
 <!-- DIAGNOSTICS MODAL -->
 <div id="diag-modal" class="hidden">
   <div class="export-modal-card" style="border-color:var(--accent-teal);width:min(760px,94vw)">
@@ -3034,6 +3235,47 @@ if (typeof window !== 'undefined') window.parseHar = parseHar;
       <button class="wizard-btn secondary" id="btn-diag-close">Close</button>
     </div>
   </div>
+</div>
+
+<!-- NOTES & PINS — persistent floating panel -->
+<div id="notes-overlay" class="hidden">
+  <div id="notes-header">
+    <span id="notes-icon">🗒</span>
+    <div id="notes-title">Notes &amp; pinned entries</div>
+    <div class="evtx-spacer"></div>
+    <label id="notes-scrub-toggle" title="When on, the copied/exported text has PII (IPs, usernames, SIDs, emails…) replaced with placeholders. Your stored pins and the logs are never changed.">
+      <input type="checkbox" id="notes-scrub-check" checked>
+      <span>Scrub on copy/export</span>
+    </label>
+    <span id="notes-saved" title="Saved on this device">saved ✓</span>
+    <button id="btn-notes-copy" class="notes-act-btn" title="Copy the note and all pinned entries to the clipboard">📋</button>
+    <button id="btn-notes-export" class="notes-act-btn" title="Download the note and pinned entries as a text file">⬇</button>
+    <button id="btn-notes-close" title="Close">✕</button>
+  </div>
+  <div id="notes-body">
+    <div id="notes-session-bar">
+      <span id="notes-session-label">Session:</span>
+      <span id="notes-session-name" title="This note set is named after the loaded zip, or the product and time for loose files">Notes</span>
+      <button id="btn-notes-history" title="View and reopen earlier note sessions (last 10 kept)">🕘 History</button>
+    </div>
+    <div id="notes-history-panel" class="hidden"></div>
+    <div id="notes-note-head">
+      <span>📝 Note</span>
+      <button id="btn-note-clear" class="hidden" title="Clear the note text (pinned entries are kept)">✕ Clear</button>
+    </div>
+    <textarea id="notes-text" spellcheck="true" placeholder="Jot down anything as you review — root-cause theories, timestamps of interest, ticket numbers… Saved automatically on this device and kept across reloads."></textarea>
+    <div id="notes-pins-section">
+      <div id="notes-pins-head">
+        <span>📌 Pinned entries (<span id="notes-pins-count">0</span>)</span>
+        <span style="display:flex; gap:6px">
+          <button id="btn-preload-kb" title="Scan the loaded logs for recognised errors, add a summary to the note, and pin one matched example of each">➕ Recognised errors</button>
+          <button id="btn-pins-clear" class="hidden" title="Remove all pinned entries">Clear all</button>
+        </span>
+      </div>
+      <div id="notes-pins-list"></div>
+    </div>
+  </div>
+  <div id="notes-footer">Stored only in this browser, on this device. Survives reloads and cache-busting, but not a manual "clear site data". Pinned text may include log content — keep it on a trusted machine.</div>
 </div>
 
 <!-- KB ARTICLE POPOVER -->
@@ -3316,7 +3558,12 @@ const state = {
   recognisedOnly: false,
   gtrStart: null,  // global time range start (epoch ms) or null
   gtrEnd: null,    // global time range end (epoch ms) or null
-  sidebarView: 'components', // 'components' | 'tree'
+  gtrLabel: '',    // human label for the time-range trigger button
+  gtrPresetMin: 0, // active preset in minutes (0 = all time, null = custom)
+  sidebarView: 'tree', // 'components' | 'tree' — default to the file tree
+  activeFileName: null, // when set, results are scoped to this single file within the active component
+  resultsTerm: '',      // on-demand logger/keyword filter for the grouped results
+  resultsRun: false,    // whether grouped results have been run for the current selection
   loadedEvtx: {}, // path -> evtx summary
   loadedPcap: {}, // name -> { name, format, linkType, packets }
   activePcap: null,
@@ -3435,10 +3682,12 @@ const KB = {
   prepared: [],
   source: 'inline',
   version: KB_INLINE.version,
+  _gen: 0, // bumped whenever the KB is (re)prepared; invalidates per-line caches
 };
 
 // Lower-case match strings once for fast comparison
 function kbPrepare() {
+  KB._gen++; // invalidates cached per-line matches and recognised-count caches
   KB.prepared = KB.signatures.map(s => ({ ...s, _matchL: s.match.toLowerCase() }));
   // Build a single combined regex so one pass replaces 51 substring scans per
   // line. Capture-group index → signature, so we recover which one matched.
@@ -3501,9 +3750,10 @@ function kbMatch(rawText) {
 // Cached per-line variant — used in hot paths (counts, rendering, filtering).
 // Stores the result (or false) on the line so repeated checks are free.
 function kbMatchLine(line) {
-  if (line._kb !== undefined) return line._kb;
+  if (line._kb !== undefined && line._kbGen === KB._gen) return line._kb;
   const m = kbMatch(line.text);
   line._kb = m || false;
+  line._kbGen = KB._gen;
   return line._kb;
 }
 
@@ -4261,13 +4511,16 @@ function syncLogsToTime(ts, win) {
   };
   document.getElementById('gtr-start').value = toLocal(state.gtrStart);
   document.getElementById('gtr-end').value = toLocal(state.gtrEnd);
+  state.gtrLabel = `± ${win}m around event`;
+  state.gtrPresetMin = null;
+  if (typeof refreshGtrLabel === 'function') refreshGtrLabel();
   document.getElementById('global-time-range').classList.add('active');
   document.getElementById('evtx-overlay').classList.add('hidden');
   // Apply to whichever component is active
   if (!state.activeCompId) {
     const first = Object.keys(state.loadedData)[0];
     if (first) activateComponent(first);
-  } else {
+  } else if (state.resultsRun) {
     applyFilter();
   }
 }
@@ -4540,6 +4793,8 @@ function handleFileList(fileList) {
 // Recursively extract a zip (including nested zips), preserving folder paths
 async function handleZipFile(file, basePath) {
   basePath = basePath || file.name.replace(/\.zip$/i, '');
+  // Remember the (first) zip of this staging batch to name the notes session.
+  if (!state._stagedZipName) state._stagedZipName = file.name;
   flashUploadMsg(`⏳ Extracting ${file.name}…`, 0);
   try {
     const buf = await file.arrayBuffer();
@@ -4721,14 +4976,60 @@ function analyseFiles() {
   const compIds = [...state.selectedComponents].filter(id => (pendingFiles[id]||[]).length > 0);
 
   const goToAnalyser = () => {
+    // Notes sessions: a fresh load starts a new named session (zip name, or
+    // "Product — date/time" for loose files); "+ Add more" appends to current.
+    try {
+      if (typeof Notes !== 'undefined' && Notes.newSession) {
+        if (state._addMore) {
+          // keep the current session
+        } else {
+          let name = state._stagedZipName;
+          if (!name) {
+            const d = new Date();
+            const stamp = d.toLocaleString(undefined, { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+            name = `${prod ? prod.label : 'Logs'} — ${stamp}`;
+          }
+          Notes.newSession(name);
+        }
+      }
+    } catch (_) {}
+    state._addMore = false;
+    state._stagedZipName = null;
     document.getElementById('wizard').style.display = 'none';
     document.getElementById('analyser').style.display = 'flex';
     initResizers();
+    // Default to the file-tree view on a fresh load.
+    if (!state._addMore) state.sidebarView = 'tree';
     renderSidebar();
-    const first = state.activeCompId && state.loadedData[state.activeCompId]
-      ? state.activeCompId
-      : Object.keys(state.loadedData)[0];
-    if (first) activateComponent(first);
+    // Default selection: keep the current component if still loaded, otherwise
+    // the main application log — the first product component that's loaded, and
+    // its primary (current, non-rolled) file.
+    let first = state.activeCompId && state.loadedData[state.activeCompId] ? state.activeCompId : null;
+    if (!first) {
+      const order = (prod && prod.components) ? prod.components.map(c => c.id) : [];
+      first = order.find(id => state.loadedData[id]) || Object.keys(state.loadedData)[0];
+    }
+    if (first) {
+      const data = state.loadedData[first];
+      // Primary file = the loaded file with the most recent activity (the
+      // current log), so the tree lands on the main application log by default.
+      let primaryFile = null;
+      const loaded = data && data.files ? data.files.filter(f => f.loaded !== false && f.lines && f.lines.length) : [];
+      if (loaded.length) {
+        primaryFile = loaded.reduce((best, f) => {
+          const t = f.lines[f.lines.length - 1].ts || 0;
+          const bt = best ? (best.lines[best.lines.length - 1].ts || 0) : -1;
+          return t > bt ? f : best;
+        }, null);
+      }
+      activateComponent(first, primaryFile ? primaryFile.name : null);
+      // Reflect the selection in the tree highlight.
+      try {
+        document.querySelectorAll('.tree-file').forEach(el => {
+          if (primaryFile && el.textContent.includes(primaryFile.name)) el.classList.add('active');
+        });
+      } catch (_) {}
+    }
     else if (Object.keys(state.loadedEvtx).length) {
       openEvtxWindow(Object.keys(state.loadedEvtx)[0]);
     }
@@ -4859,8 +5160,8 @@ async function loadOlderLogs(compId) {
   }
   data.merged = buildMerged(data.files);
   data.hasOlder = false;
-  // Re-render current view
-  if (state.activeCompId === compId && !globalSearchActive) applyFilter();
+  // Re-render current view (only if grouped results were already run)
+  if (state.activeCompId === compId && !globalSearchActive) { if (state.resultsRun) applyFilter(); else { populateResultsLoggers(); } }
   renderSidebar();
   document.querySelectorAll('.component-item').forEach(el =>
     el.classList.toggle('active', el.dataset.compId === compId));
@@ -5000,7 +5301,7 @@ function buildTreeDom(node, prefix) {
       fileEl.addEventListener('click', () => {
         container_clearTreeActive();
         fileEl.classList.add('active');
-        activateComponent(f.compId);
+        activateComponent(f.compId, f.name); // scope results to this file only
         // If this specific file isn't loaded, offer to load older logs
         if (f.loaded === false) loadOlderLogs(f.compId);
       });
@@ -5034,8 +5335,9 @@ function renderEvtxSidebarItems(container) {
   });
 }
 
-function activateComponent(compId) {
+function activateComponent(compId, fileName) {
   state.activeCompId = compId;
+  state.activeFileName = fileName || null; // null = whole component (all files merged)
   document.querySelectorAll('.component-item').forEach(el => {
     el.classList.toggle('active', el.dataset.compId === compId);
   });
@@ -5056,7 +5358,17 @@ function activateComponent(compId) {
     olderBtn.textContent = `⏬ Load ${unloaded} older log${unloaded === 1 ? '' : 's'}`;
   }
   // Don't overwrite search results when in search mode
-  if (!globalSearchActive) applyFilter();
+  if (!globalSearchActive) {
+    // Reset the on-demand results control for the new selection.
+    state.resultsTerm = '';
+    state.resultsRun = false;
+    const termEl = document.getElementById('results-term');
+    if (termEl) termEl.value = '';
+    populateResultsLoggers();
+    // Show the most recent entries in the viewer; grouped results are opt-in.
+    openLatestForSelection(compId, state.activeFileName);
+    showResultsHint();
+  }
 }
 
 document.getElementById('btn-load-older').addEventListener('click', () => {
@@ -5073,6 +5385,17 @@ document.querySelectorAll('.svt-btn').forEach(btn => {
   });
 });
 
+// On-demand grouped results: dropdown preselects a logger into the editable
+// term box; Run (button / hint / Enter) executes the grouping.
+(function () {
+  const sel = document.getElementById('results-logger');
+  const term = document.getElementById('results-term');
+  const runBtn = document.getElementById('btn-run-results');
+  if (sel && term) sel.addEventListener('change', () => { term.value = sel.value; term.focus(); });
+  if (runBtn) runBtn.addEventListener('click', runResults);
+  if (term) term.addEventListener('keydown', (e) => { if (e.key === 'Enter') runResults(); });
+})();
+
 // ═══════════════════════════════════════════════════════════════
 //  FILTER & RESULTS
 // ═══════════════════════════════════════════════════════════════
@@ -5084,9 +5407,84 @@ document.querySelectorAll('.level-filter-btn').forEach(btn => {
     // Changing the filter set invalidates any active occurrence navigation
     const occBar = document.getElementById('occurrence-bar');
     if (occBar) occBar.style.display = 'none';
+    state.resultsRun = true; // a level click is an explicit request to see grouped results
     applyFilter();
   });
 });
+
+// Open the viewer at the most recent entries for the current selection: the
+// bottom of the newest log (the file with the latest activity, or the chosen file).
+function openLatestForSelection(compId, fileName) {
+  const data = state.loadedData[compId];
+  if (!data || !data.files) return;
+  let file = null;
+  if (fileName) file = data.files.find(f => f.name === fileName && f.loaded !== false && f.lines && f.lines.length);
+  if (!file) {
+    const loaded = data.files.filter(f => f.loaded !== false && f.lines && f.lines.length);
+    if (!loaded.length) return;
+    // Newest = the file whose last line has the greatest timestamp (the current,
+    // non-rolled log holds the most recent entries).
+    file = loaded.reduce((best, f) => {
+      const t = f.lines[f.lines.length - 1].ts || 0;
+      const bt = best ? (best.lines[best.lines.length - 1].ts || 0) : -1;
+      return t > bt ? f : best;
+    }, null);
+  }
+  if (!file || !file.lines || !file.lines.length) return;
+  // Focus the last line → renderViewerLines scrolls it into view (bottom = newest).
+  openInViewer(file.lines[file.lines.length - 1], data);
+}
+
+// Fill the logger dropdown from the distinct loggers present in the current
+// scope (the selected file, or the whole component).
+function populateResultsLoggers() {
+  const sel = document.getElementById('results-logger');
+  if (!sel) return;
+  const data = state.activeCompId && state.loadedData[state.activeCompId];
+  const loggers = new Set();
+  if (data && data.merged) {
+    for (const l of data.merged) {
+      if (l.isContinuation || !l.level) continue;
+      if (state.activeFileName && l._file !== state.activeFileName) continue;
+      if (l.logger) loggers.add(l.logger);
+    }
+  }
+  const sorted = [...loggers].sort((a, b) => a.localeCompare(b));
+  sel.innerHTML = '<option value="">All loggers</option>'
+    + sorted.map(lg => `<option value="${escHtml(lg)}">${escHtml(lg)}</option>`).join('');
+  sel.value = '';
+}
+
+// Show a prompt in the results panel instead of auto-running the grouped view.
+function showResultsHint() {
+  const list = document.getElementById('results-list');
+  if (!list) return;
+  const data = state.activeCompId && state.loadedData[state.activeCompId];
+  const scope = state.activeFileName
+    ? state.activeFileName
+    : (data && data.compDef ? data.compDef.name : 'this component');
+  list.innerHTML = `
+    <div class="empty-state">
+      <div class="empty-state-icon">📊</div>
+      <div>Showing the latest entries for <strong>${escHtml(scope)}</strong> in the viewer →</div>
+      <div style="margin-top:8px;color:var(--text-muted);font-size:11px">Pick a logger (or type a keyword) above and press <strong>▶ Run</strong> to group the entries by logger.</div>
+      <button id="btn-hint-run" style="margin-top:12px">▶ Run grouped results</button>
+    </div>`;
+  const hintRun = document.getElementById('btn-hint-run');
+  if (hintRun) hintRun.addEventListener('click', runResults);
+  const label = document.getElementById('results-header-label');
+  if (label) label.textContent = state.activeFileName ? 'Filtered Entries — file' : 'Filtered Entries';
+  const count = document.getElementById('results-header-count');
+  if (count) count.textContent = '';
+}
+
+// Run the grouped results on command (from the Run button, the hint, Enter, or a level click).
+function runResults() {
+  const term = document.getElementById('results-term');
+  state.resultsTerm = term ? term.value : '';
+  state.resultsRun = true;
+  applyFilter();
+}
 
 function applyFilter() {
   if (!state.activeCompId) return;
@@ -5094,6 +5492,10 @@ function applyFilter() {
   if (!data) return;
 
   let entries = data.merged;
+  // Scope to a single file when one is selected in the tree (null = whole component).
+  if (state.activeFileName) {
+    entries = entries.filter(l => l._file === state.activeFileName);
+  }
   if (state.activeLevel !== 'ALL') {
     const want = state.activeLevel === 'ERROR' ? ['ERROR','CRITICAL'] : [state.activeLevel];
     entries = entries.filter(l => !l.isContinuation && want.includes(l.level));
@@ -5104,6 +5506,12 @@ function applyFilter() {
   // Global time range
   if (state.gtrStart != null || state.gtrEnd != null) {
     entries = entries.filter(l => inGlobalRange(l.ts));
+  }
+
+  // On-demand logger/keyword term (matches the logger name or the message text)
+  if (state.resultsTerm && state.resultsTerm.trim()) {
+    const t = state.resultsTerm.trim().toLowerCase();
+    entries = entries.filter(l => (l.logger || '').toLowerCase().includes(t) || (l.text || '').toLowerCase().includes(t));
   }
 
   // Recognised-errors mode: collapse to one row per distinct signature,
@@ -5343,6 +5751,7 @@ function showOtherComponentsPopover(sig, others, anchorEl) {
       // Re-apply recognised filter in the newly-activated component
       state.recognisedOnly = true;
       document.getElementById('btn-recognised-errors').classList.add('active');
+      state.resultsRun = true;
       applyFilter();
     });
     pop.appendChild(b);
@@ -5463,7 +5872,7 @@ function renderResultsBatch() {
         ${kbBadge}
         <span class="level-badge ${level}">${level}</span>
         <span class="ri-line">L${entry.lineNo}</span>
-        <span class="ri-file">${entry._file}</span>
+        <span class="ri-file">${escHtml(entry._file)}</span>
       </div>
       <div class="ri-msg">${getStrippedHtml(entry)}</div>
     `;
@@ -6315,6 +6724,7 @@ document.getElementById('btn-recognised-errors').addEventListener('click', () =>
     document.getElementById('occurrence-bar').style.display = 'none';
     OCC.occurrences = [];
   }
+  state.resultsRun = true; // explicit request to view (recognised) results
   applyFilter();
 });
 
@@ -6326,17 +6736,38 @@ function updateRecognisedCount() {
     return;
   }
   const data = state.loadedData[state.activeCompId];
-  // Count DISTINCT recognised signatures (the same error repeated counts once)
-  const distinct = new Set();
-  for (const l of data.merged) {
-    if (l.isContinuation || !l.level) continue;
-    const sig = kbMatchLine(l);
-    if (sig) distinct.add(sig.id);
+  // Count DISTINCT recognised signatures (the same error repeated counts once).
+  // Cached per component, invalidated when the merged log grows or the KB changes.
+  let n;
+  if (data._kbCount && data._kbCount.lines === data.merged.length && data._kbCount.gen === KB._gen) {
+    n = data._kbCount.n;
+  } else {
+    const distinct = new Set();
+    for (const l of data.merged) {
+      if (l.isContinuation || !l.level) continue;
+      const sig = kbMatchLine(l);
+      if (sig) distinct.add(sig.id);
+    }
+    n = distinct.size;
+    data._kbCount = { n, lines: data.merged.length, gen: KB._gen };
   }
-  const n = distinct.size;
   btn.innerHTML = n > 0
     ? `⚠ Recognised errors <span class="kb-count">${n}</span>`
     : '⚠ Recognised errors';
+  // The first time recognised errors appear for a given notes session, seed the
+  // notes with them + a pinned example each (once per session; idempotent and
+  // non-clobbering, so it never overwrites the user's own text).
+  if (n > 0) {
+    try {
+      if (typeof Notes !== 'undefined' && Notes.preloadRecognised && Notes.getCurrentId) {
+        const sid = Notes.getCurrentId();
+        if (sid && sid !== window._kbAutoSeededId) {
+          window._kbAutoSeededId = sid;
+          Notes.preloadRecognised(true);
+        }
+      }
+    } catch (_) {}
+  }
 }
 
 // ── Transient toast notification ──
@@ -6372,6 +6803,7 @@ function showLogContextMenu(x, y, entry) {
     <div class="lcm-hint">Log entry actions</div>
     <button class="lcm-item" data-act="yext">🔎 Search in Yext (scrubbed)</button>
     <button class="lcm-item" data-act="copy">📋 Copy scrubbed text</button>
+    <button class="lcm-item" data-act="pin">📌 Pin this line</button>
   `;
   menu.classList.remove('hidden');
   // Position, clamped to viewport
@@ -6410,6 +6842,11 @@ function showLogContextMenu(x, y, entry) {
     }
     hideLogContextMenu();
   };
+  const pinBtn = menu.querySelector('[data-act="pin"]');
+  if (pinBtn) pinBtn.onclick = () => {
+    try { Notes.addPin(entry); } catch (_) { showAppToast('⚠ Could not pin this line'); }
+    hideLogContextMenu();
+  };
 }
 function hideLogContextMenu() {
   const menu = document.getElementById('log-context-menu');
@@ -6427,7 +6864,7 @@ function refreshKbAffectedViews() {
   kbPrepare();
   if (state.activeCompId) {
     updateRecognisedCount();
-    if (!simOverlay || simOverlay.classList.contains('hidden')) applyFilter();
+    if ((!simOverlay || simOverlay.classList.contains('hidden')) && state.resultsRun) applyFilter();
   }
 }
 
@@ -6792,7 +7229,10 @@ function clearGlobalSearch() {
   document.querySelectorAll('.comp-search-check').forEach(cb => {
     cb.classList.remove('excluded'); cb.textContent = '✓'; cb.onclick = null;
   });
-  applyFilter();
+  // Return to the current selection's view: re-run grouped results only if the
+  // user had already run them, otherwise restore the latest-entries + hint.
+  if (state.resultsRun) applyFilter();
+  else if (state.activeCompId) showResultsHint();
 }
 
 document.getElementById('btn-clear-search').addEventListener('click', clearGlobalSearch);
@@ -6845,6 +7285,9 @@ document.getElementById('btn-home').addEventListener('click', () => {
     gtr.classList.remove('active');
     document.getElementById('gtr-start').value = '';
     document.getElementById('gtr-end').value = '';
+    state.gtrStart = null; state.gtrEnd = null; state.gtrLabel = ''; state.gtrPresetMin = 0;
+    const rb = document.getElementById('gtr-reset'); if (rb) rb.classList.add('hidden');
+    const lt = document.getElementById('gtr-label-text'); if (lt) lt.textContent = 'All time';
   }
 
   // Reset UI
@@ -6873,6 +7316,7 @@ document.getElementById('btn-home').addEventListener('click', () => {
   document.getElementById('wizard').style.display = 'flex';
 });
 document.getElementById('btn-add-more').addEventListener('click', () => {
+  state._addMore = true; // next analyse appends to the current session
   document.getElementById('analyser').style.display = 'none';
   document.getElementById('wizard').style.display = 'flex';
 });
@@ -7482,74 +7926,232 @@ function componentColorMap() {
   return map;
 }
 
+// ═══════════════════════════════════════════════════════════════
+//  CROSS-COMPONENT TIMELINE
+//  • per-component include/exclude   • 5-day window (newest first)
+//  • logger/keyword filter highlights matches; ▲▼ jump across the
+//    whole range, moving the window to land on each match.
+// ═══════════════════════════════════════════════════════════════
+const TL = {
+  WINDOW_MS: 5 * 24 * 60 * 60 * 1000,
+  included: null,   // Set of compIds shown (null = not yet initialised)
+  windowEnd: null,  // epoch ms — most-recent edge of the visible window
+  query: '',
+  matches: [],      // row objects (across the whole range) matching the query
+  matchIdx: -1,
+  allRows: [],      // every eligible row across included comps (asc by ts)
+  dataMin: null, dataMax: null,
+};
+
 document.getElementById('btn-timeline').addEventListener('click', () => {
   if (!Object.keys(state.loadedData || {}).length) { showAppToast && showAppToast('Load some logs first'); return; }
   document.getElementById('timeline-overlay').classList.remove('hidden');
-  buildTimeline();
+  // Include all components by default.
+  TL.included = new Set(Object.keys(state.loadedData));
+  TL.query = ''; TL.matches = []; TL.matchIdx = -1; TL.windowEnd = null;
+  const searchEl = document.getElementById('tl-search');
+  if (searchEl) searchEl.value = '';
+  rebuildTimelineData(true);
+  renderTimelineChips();
+  renderTimeline();
 });
 document.getElementById('btn-timeline-close').addEventListener('click', () => {
   document.getElementById('timeline-overlay').classList.add('hidden');
 });
-document.getElementById('timeline-errors-only').addEventListener('change', buildTimeline);
+document.getElementById('timeline-errors-only').addEventListener('change', () => {
+  rebuildTimelineData(false); recomputeMatches(); renderTimeline();
+});
+document.getElementById('tl-prev').addEventListener('click', () => { shiftWindow(-1); });
+document.getElementById('tl-next').addEventListener('click', () => { shiftWindow(1); });
+let tlSearchDebounce = null;
+document.getElementById('tl-search').addEventListener('input', (e) => {
+  TL.query = e.target.value;
+  clearTimeout(tlSearchDebounce);
+  tlSearchDebounce = setTimeout(() => { recomputeMatches(); renderTimeline(); }, 200);
+});
+document.getElementById('tl-match-prev').addEventListener('click', () => stepMatch(-1));
+document.getElementById('tl-match-next').addEventListener('click', () => stepMatch(1));
+document.getElementById('tl-search').addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') {
+    clearTimeout(tlSearchDebounce);
+    if (TL.matches.length === 0 || (TL.query || '').trim()) recomputeMatches();
+    stepMatch(e.shiftKey ? -1 : 1);
+  }
+});
 
-function buildTimeline() {
-  const colors = componentColorMap();
+// Gather every eligible row across the included components. Optionally reset
+// the window to the most recent activity.
+function rebuildTimelineData(resetWindow) {
   const errorsOnly = document.getElementById('timeline-errors-only').checked;
-  // Merge all components' timestamped, non-continuation lines (respect global range)
-  let rows = [];
+  const rows = [];
   for (const [compId, data] of Object.entries(state.loadedData || {})) {
+    if (TL.included && !TL.included.has(compId)) continue;
     const name = data.compDef ? data.compDef.name : compId;
     for (const l of data.merged) {
       if (l.isContinuation || l.ts == null || !l.level) continue;
       if (errorsOnly && l.level !== 'ERROR' && l.level !== 'CRITICAL') continue;
-      if (!inGlobalRange(l.ts)) continue;
       rows.push({ ts: l.ts, compId, compName: name, line: l, data });
     }
   }
   rows.sort((a, b) => a.ts - b.ts);
+  TL.allRows = rows;
+  TL.dataMin = rows.length ? rows[0].ts : null;
+  TL.dataMax = rows.length ? rows[rows.length - 1].ts : null;
+  if (resetWindow || TL.windowEnd == null) {
+    TL.windowEnd = TL.dataMax != null ? TL.dataMax : Date.now();
+  } else {
+    clampWindow();
+  }
+}
 
-  // Legend
-  const legend = document.getElementById('timeline-legend');
-  legend.innerHTML = Object.entries(state.loadedData || {}).map(([id, d]) =>
-    `<span class="tl-leg"><span class="tl-dot" style="background:${colors[id]}"></span>${escHtml(d.compDef ? d.compDef.name : id)}</span>`).join('');
+function clampWindow() {
+  if (TL.dataMax == null) return;
+  // windowEnd must stay within [dataMin + WINDOW_MS .. dataMax] where possible.
+  const minEnd = (TL.dataMin != null) ? TL.dataMin + TL.WINDOW_MS : TL.dataMax;
+  if (TL.windowEnd > TL.dataMax) TL.windowEnd = TL.dataMax;
+  if (TL.windowEnd < Math.min(minEnd, TL.dataMax)) TL.windowEnd = Math.min(minEnd, TL.dataMax);
+}
 
-  // Sub label
-  const rangeNote = (state.gtrStart != null || state.gtrEnd != null) ? ' · within active time range' : '';
-  document.getElementById('timeline-sub').textContent = `${rows.length.toLocaleString()} entries${rangeNote}`;
+function shiftWindow(dir) {
+  if (TL.windowEnd == null) return;
+  TL.windowEnd += dir * TL.WINDOW_MS;
+  clampWindow();
+  renderTimeline();
+}
 
+function recomputeMatches() {
+  const q = (TL.query || '').trim().toLowerCase();
+  if (!q) { TL.matches = []; TL.matchIdx = -1; return; }
+  TL.matches = TL.allRows.filter(r =>
+    (r.line.logger || '').toLowerCase().includes(q) || (r.line.text || '').toLowerCase().includes(q));
+  TL.matchIdx = -1;
+}
+
+// Move to the next/previous match across the whole range, jumping the window.
+function stepMatch(dir) {
+  if (!TL.matches.length) return;
+  if (TL.matchIdx === -1) {
+    // First jump: pick the match nearest the current window (newest within or
+    // just before the window end), then step from there.
+    let start = TL.matches.findIndex(m => m.ts > TL.windowEnd);
+    if (dir > 0) TL.matchIdx = (start === -1) ? 0 : start;
+    else TL.matchIdx = (start === -1) ? TL.matches.length - 1 : Math.max(0, start - 1);
+  } else {
+    TL.matchIdx = (TL.matchIdx + dir + TL.matches.length) % TL.matches.length;
+  }
+  const m = TL.matches[TL.matchIdx];
+  // Centre the window on the match.
+  TL.windowEnd = m.ts + Math.floor(TL.WINDOW_MS / 2);
+  clampWindow();
+  renderTimeline(m);
+}
+
+function renderTimelineChips() {
+  const colors = componentColorMap();
+  const wrap = document.getElementById('timeline-comps');
+  if (!wrap) return;
+  wrap.innerHTML = '';
+  Object.entries(state.loadedData || {}).forEach(([id, d]) => {
+    const chip = document.createElement('div');
+    const on = TL.included.has(id);
+    chip.className = 'tl-chip' + (on ? '' : ' excluded');
+    chip.innerHTML = `<span class="tl-dot" style="background:${colors[id]}"></span>${escHtml(d.compDef ? d.compDef.name : id)}`;
+    chip.addEventListener('click', () => {
+      if (TL.included.has(id)) { if (TL.included.size > 1) TL.included.delete(id); }
+      else TL.included.add(id);
+      renderTimelineChips();
+      rebuildTimelineData(false);
+      recomputeMatches();
+      renderTimeline();
+    });
+    wrap.appendChild(chip);
+  });
+}
+
+function fmtDay(ts) {
+  return new Date(ts).toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' });
+}
+function fmtClock(ts) {
+  // Reuse the app's TZ-aware time formatter but keep just the clock portion.
+  return fmtTimeTz(ts, true);
+}
+
+function renderTimeline(focusRow) {
+  const colors = componentColorMap();
   const list = document.getElementById('timeline-list');
+  if (!list) return;
+
+  // Window bounds
+  const winEnd = TL.windowEnd != null ? TL.windowEnd : (TL.dataMax || Date.now());
+  const winStart = winEnd - TL.WINDOW_MS;
+  const windowRows = TL.allRows.filter(r => r.ts > winStart && r.ts <= winEnd);
+
+  // Header sub + window label
+  document.getElementById('timeline-sub').textContent =
+    `${TL.allRows.length.toLocaleString()} entries · ${TL.included.size} component${TL.included.size === 1 ? '' : 's'}`;
+  const label = document.getElementById('tl-window-label');
+  if (label) {
+    if (TL.dataMax == null) label.textContent = '—';
+    else label.textContent = `${new Date(Math.max(winStart, TL.dataMin)).toLocaleDateString(undefined,{day:'numeric',month:'short'})} – ${new Date(winEnd).toLocaleDateString(undefined,{day:'numeric',month:'short',year:'numeric'})}`;
+  }
+  // Enable/disable nav buttons
+  const prevBtn = document.getElementById('tl-prev'), nextBtn = document.getElementById('tl-next');
+  if (prevBtn) prevBtn.disabled = (TL.dataMin == null) || (winStart <= TL.dataMin);
+  if (nextBtn) nextBtn.disabled = (TL.dataMax == null) || (winEnd >= TL.dataMax);
+
+  // Match count
+  const mc = document.getElementById('tl-match-count');
+  if (mc) {
+    if (!TL.query.trim()) mc.textContent = '';
+    else mc.textContent = TL.matches.length
+      ? `${TL.matchIdx >= 0 ? TL.matchIdx + 1 : '–'}/${TL.matches.length}`
+      : '0 matches';
+  }
+  const matchPrev = document.getElementById('tl-match-prev'), matchNext = document.getElementById('tl-match-next');
+  if (matchPrev) matchPrev.disabled = !TL.matches.length;
+  if (matchNext) matchNext.disabled = !TL.matches.length;
+
+  // Build the list with day separators
   list.innerHTML = '';
-  if (!rows.length) {
-    list.innerHTML = '<div class="empty-state" style="padding:40px"><div>No entries to show</div></div>';
+  if (!windowRows.length) {
+    list.innerHTML = '<div class="tl-empty">No entries in this 5-day window. Use ◀ / ▶ to move, or adjust the component filters.</div>';
     return;
   }
-  let idx = 0;
-  const BATCH = 150;
-  const renderBatch = () => {
-    const frag = document.createDocumentFragment();
-    const end = Math.min(idx + BATCH, rows.length);
-    for (; idx < end; idx++) {
-      const r = rows[idx];
-      const row = document.createElement('div');
-      row.className = 'tl-row';
-      row.style.borderLeftColor = colors[r.compId];
-      row.innerHTML = `
-        <span class="tl-ts">${fmtTimeTz(r.ts, true)}</span>
-        <span class="tl-comp" style="color:${colors[r.compId]}">${escHtml(r.compName)}</span>
-        <span class="tl-lvl level-${r.line.level}"><span class="level-badge ${r.line.level}">${r.line.level}</span></span>
-        <span class="tl-msg">${escHtml(stripTimestampAndLevelMain(r.line.text)).slice(0,400)}</span>
-      `;
-      row.addEventListener('click', () => {
-        document.getElementById('timeline-overlay').classList.add('hidden');
-        if (state.activeCompId !== r.compId) activateComponent(r.compId);
-        openInViewer(r.line, r.data);
-      });
-      frag.appendChild(row);
+  const q = (TL.query || '').trim().toLowerCase();
+  const curMatch = (TL.matchIdx >= 0 && TL.matches[TL.matchIdx]) ? TL.matches[TL.matchIdx] : (focusRow || null);
+  const frag = document.createDocumentFragment();
+  let lastDay = '';
+  let currentEl = null;
+  windowRows.forEach(r => {
+    const day = fmtDay(r.ts);
+    if (day !== lastDay) {
+      const sep = document.createElement('div');
+      sep.className = 'tl-day-sep';
+      sep.textContent = day;
+      frag.appendChild(sep);
+      lastDay = day;
     }
-    list.appendChild(frag);
-    if (idx < rows.length) requestAnimationFrame(renderBatch);
-  };
-  renderBatch();
+    const isMatch = q && ((r.line.logger || '').toLowerCase().includes(q) || (r.line.text || '').toLowerCase().includes(q));
+    const isCurrent = curMatch && r.line === curMatch.line && r.compId === curMatch.compId;
+    const row = document.createElement('div');
+    row.className = 'tl-row' + (isMatch ? ' tl-match' : '') + (isCurrent ? ' tl-current' : '');
+    row.style.borderLeftColor = colors[r.compId];
+    row.innerHTML = `
+      <span class="tl-ts">${fmtClock(r.ts)}</span>
+      <span class="tl-comp" style="color:${colors[r.compId]}">${escHtml(r.compName)}</span>
+      <span class="tl-lvl level-${r.line.level}"><span class="level-badge ${r.line.level}">${r.line.level}</span></span>
+      <span class="tl-msg">${escHtml(stripTimestampAndLevelMain(r.line.text)).slice(0,400)}</span>
+    `;
+    row.addEventListener('click', () => {
+      document.getElementById('timeline-overlay').classList.add('hidden');
+      if (state.activeCompId !== r.compId) activateComponent(r.compId);
+      openInViewer(r.line, r.data);
+    });
+    if (isCurrent) currentEl = row;
+    frag.appendChild(row);
+  });
+  list.appendChild(frag);
+  if (currentEl) currentEl.scrollIntoView({ block: 'center' });
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -7647,42 +8249,6 @@ function buildExportFindings() {
   lines.push('(All log text above was PII-scrubbed in-browser before export.)');
   document.getElementById('export-output').value = lines.join('\n');
   document.getElementById('export-status').textContent = '';
-}
-
-// ═══════════════════════════════════════════════════════════════
-//  KB TEST PANEL
-// ═══════════════════════════════════════════════════════════════
-document.getElementById('btn-kb-test').addEventListener('click', () => {
-  document.getElementById('kbtest-modal').classList.remove('hidden');
-  const src = KB.source === 'hosted' ? 'hosted error-signatures.json' : 'built-in (inline) dictionary';
-  document.getElementById('kbtest-version').textContent =
-    `— v${KB.version != null ? KB.version : '?'} · ${KB.signatures.length} signatures · ${src}`;
-  const inp = document.getElementById('kbtest-input');
-  inp.focus();
-  runKbTest();
-});
-document.getElementById('btn-kbtest-close').addEventListener('click', () =>
-  document.getElementById('kbtest-modal').classList.add('hidden'));
-document.getElementById('kbtest-input').addEventListener('input', runKbTest);
-
-function runKbTest() {
-  const text = document.getElementById('kbtest-input').value;
-  const out = document.getElementById('kbtest-result');
-  if (!text.trim()) { out.innerHTML = '<div class="kbt-miss">Waiting for input…</div>'; return; }
-  const sig = kbMatch(text);
-  if (!sig) {
-    out.innerHTML = '<div class="kbt-miss">✗ No recognised-error signature matches this line.</div>';
-    return;
-  }
-  const link = sig.url
-    ? `<a href="${escHtml(sig.url)}" target="_blank" rel="noopener">Open documentation ↗</a>`
-    : (sig.source === 'confluence' ? 'Source: internal Confluence' : 'Recognised error');
-  out.innerHTML = `
-    <div class="kbt-hit">
-      <div class="kbt-title">✓ ${escHtml(sig.title)}</div>
-      <div class="kbt-meta">id: ${escHtml(sig.id)} · matched phrase: "${escHtml(sig.match)}"${sig.products ? ' · ' + escHtml(sig.products.join(', ')) : ''}</div>
-      <div class="kbt-meta" style="margin-top:6px">${link}</div>
-    </div>`;
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -7802,6 +8368,487 @@ function diagText(which) {
   return out;
 }
 
+// ═══════════════════════════════════════════════════════════════
+//  NOTES & PINS — persistent, on-device note + pinned log entries
+//  Stored in localStorage so they survive reloads and SW cache-busting.
+// ═══════════════════════════════════════════════════════════════
+const Notes = (function () {
+  const SESS_KEY = 'tse-sessions';     // array of { id, name, createdAt, note, pins }
+  const CUR_KEY  = 'tse-current';      // id of the active session
+  const OLD_NOTE_KEY = 'tse-note';     // legacy single-note (migrated once)
+  const OLD_PINS_KEY = 'tse-pins';     // legacy pins (migrated once)
+  const MAX_PIN_TEXT = 2000;
+  const MAX_SESSIONS = 10;
+  let sessions = [];                   // most-recent-first
+  let currentId = null;
+  let saveTimer = null;
+
+  function persist() {
+    try {
+      localStorage.setItem(SESS_KEY, JSON.stringify(sessions));
+      localStorage.setItem(CUR_KEY, currentId || '');
+    } catch (_) {}
+  }
+  function current() {
+    let s = sessions.find(x => x.id === currentId);
+    if (!s) {
+      // Always have a current session to write into.
+      s = makeSession('Notes');
+      sessions.unshift(s); currentId = s.id; prune(); persist();
+    }
+    return s;
+  }
+  function makeSession(name) {
+    return { id: 'sess_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6),
+             name: name || 'Notes', createdAt: Date.now(), note: '', pins: [] };
+  }
+  function prune() { if (sessions.length > MAX_SESSIONS) sessions.length = MAX_SESSIONS; }
+
+  // `pins` is a live reference to the current session's pins array, so the rest
+  // of the module (addPin/renderPins/etc.) keeps working unchanged.
+  let pins = [];
+  function bindPins() { pins = current().pins; }
+  function savePins() { current().pins = pins; persist(); }
+
+  function loadNote() { return current().note || ''; }
+  function saveNote(text) {
+    current().note = text; persist();
+    const tag = document.getElementById('notes-saved');
+    if (tag) { tag.classList.add('show'); clearTimeout(saveTimer); saveTimer = setTimeout(() => tag.classList.remove('show'), 1200); }
+  }
+
+  function loadSessions() {
+    try {
+      const raw = localStorage.getItem(SESS_KEY);
+      if (raw) {
+        sessions = JSON.parse(raw); if (!Array.isArray(sessions)) sessions = [];
+        currentId = localStorage.getItem(CUR_KEY) || (sessions[0] && sessions[0].id) || null;
+      } else {
+        sessions = [];
+      }
+    } catch (_) { sessions = []; }
+    // One-time migration of the legacy single note + pins.
+    if (!sessions.length) {
+      let oldNote = '', oldPins = [];
+      try { oldNote = localStorage.getItem(OLD_NOTE_KEY) || ''; } catch (_) {}
+      try { oldPins = JSON.parse(localStorage.getItem(OLD_PINS_KEY) || '[]'); if (!Array.isArray(oldPins)) oldPins = []; } catch (_) {}
+      const s = makeSession(oldNote || oldPins.length ? 'Imported notes' : 'Notes');
+      s.note = oldNote; s.pins = oldPins;
+      sessions = [s]; currentId = s.id;
+      persist();
+      try { localStorage.removeItem(OLD_NOTE_KEY); localStorage.removeItem(OLD_PINS_KEY); } catch (_) {}
+    }
+    bindPins();
+  }
+
+  // Start a fresh named session (called when a new set of logs is loaded).
+  function newSession(name) {
+    const s = makeSession(name);
+    sessions.unshift(s);
+    currentId = s.id;
+    prune();
+    persist();
+    bindPins();
+    refreshUI();
+    return s.id;
+  }
+  function switchSession(id) {
+    if (!sessions.find(x => x.id === id)) return;
+    currentId = id; persist(); bindPins(); refreshUI();
+  }
+  function refreshUI() {
+    const ta = document.getElementById('notes-text');
+    if (ta) ta.value = current().note || '';
+    renderPins(); updateBadge(); renderSessionHeader();
+    const clearBtn = document.getElementById('btn-note-clear');
+    if (clearBtn) clearBtn.classList.toggle('hidden', !(current().note || '').trim().length);
+  }
+  function renderSessionHeader() {
+    const el = document.getElementById('notes-session-name');
+    if (el) el.textContent = current().name || 'Notes';
+  }
+
+  function addPin(entry, opts) {
+    opts = opts || {};
+    // Capture enough to display and to jump back later (within a session where
+    // the file is still loaded). Text is stored verbatim but length-capped.
+    const text = String(entry.text || '').slice(0, MAX_PIN_TEXT);
+    const compId = opts.compId || state.activeCompId || '';
+    const data = state.loadedData[compId];
+    const fileName = entry._file || (currentFocusEntry && currentFocusEntry._file) || '';
+    // Resolve where this line lives:
+    //  • uploadPath  — the path/folder structure from the uploaded zip/folder
+    //  • installPath — the component's canonical on-server log location
+    //  • compName    — friendly component name
+    let uploadPath = '', installPath = '', compName = '';
+    if (data) {
+      compName = data.compDef ? data.compDef.name : '';
+      installPath = data.compDef ? (data.compDef.path || '') : '';
+      const f = data.files && data.files.find(ff => ff.name === fileName);
+      if (f && f.path) uploadPath = f.path;
+    }
+    // Folder = directory portion of the upload path (if it has folders),
+    // else the canonical install path.
+    let folder = '';
+    if (uploadPath && /[\/\\]/.test(uploadPath)) {
+      folder = uploadPath.replace(/[\/\\][^\/\\]*$/, '');
+    } else {
+      folder = installPath;
+    }
+    const pin = {
+      id: 'pin_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7),
+      text,
+      lineNo: entry.lineNo,
+      file: fileName,
+      folder,
+      uploadPath,
+      installPath,
+      compId,
+      compName,
+      level: entry.isContinuation ? '' : (entry.level || ''),
+      ts: entry.ts || null,
+      label: opts.label || '',
+      pinnedAt: Date.now(),
+    };
+    // De-dupe: same file + line already pinned
+    if (pins.some(p => p.file === pin.file && p.lineNo === pin.lineNo && p.compId === pin.compId)) {
+      if (!opts.silent) showAppToast('📌 That line is already pinned');
+      return false;
+    }
+    pins.unshift(pin);
+    if (!opts.deferSave) { savePins(); renderPins(); updateBadge(); }
+    if (!opts.silent) showAppToast('📌 Pinned — see it under 🗒 Notes');
+    return true;
+  }
+
+  function removePin(id) {
+    pins = pins.filter(p => p.id !== id);
+    savePins(); renderPins(); updateBadge();
+  }
+  function clearPins() {
+    pins = []; savePins(); renderPins(); updateBadge();
+  }
+
+  function jumpToPin(pin) {
+    const data = state.loadedData[pin.compId];
+    if (data && data.files) {
+      const file = data.files.find(f => f.name === pin.file);
+      if (file && file.lines) {
+        const line = file.lines.find(l => l.lineNo === pin.lineNo);
+        if (line) {
+          document.getElementById('wizard').style.display = 'none';
+          document.getElementById('analyser').style.display = 'flex';
+          activateComponent(pin.compId);
+          openInViewer(line, data);
+          return true;
+        }
+      }
+    }
+    return false;
+  }
+
+  function renderPins() {
+    const list = document.getElementById('notes-pins-list');
+    const countEl = document.getElementById('notes-pins-count');
+    const clearBtn = document.getElementById('btn-pins-clear');
+    if (!list) return;
+    if (countEl) countEl.textContent = pins.length;
+    if (clearBtn) clearBtn.classList.toggle('hidden', pins.length === 0);
+    if (!pins.length) {
+      list.innerHTML = '<div class="pin-empty">No pinned entries yet. Right-click any log line → <strong>Pin this line</strong>.</div>';
+      return;
+    }
+    list.innerHTML = '';
+    pins.forEach(pin => {
+      const div = document.createElement('div');
+      div.className = 'pin-item' + (pin.level ? ' lvl-' + pin.level : '');
+      const when = pin.ts ? fmtPcapTime(pin.ts) : '';
+      const loc = pin.folder ? `${pin.folder}` : '';
+      div.innerHTML = `
+        <div class="pin-meta">
+          ${pin.level ? `<span>${escHtml(pin.level)}</span>` : ''}
+          ${when ? `<span>${escHtml(when)}</span>` : ''}
+          <span class="pin-file" title="${escHtml(pin.file)} · line ${pin.lineNo}">${escHtml(pin.file)}:${pin.lineNo}</span>
+          <span class="pin-unpin" title="Unpin" data-id="${pin.id}">✕</span>
+        </div>
+        <div class="pin-text" title="${escHtml(pin.text)}">${escHtml(pin.text)}</div>
+        ${loc ? `<div class="pin-loc" title="${escHtml(loc)}">📂 ${escHtml(loc)}${pin.compName ? ` · ${escHtml(pin.compName)}` : ''}</div>` : ''}
+        ${pin.label ? `<div class="pin-note">${escHtml(pin.label)}</div>` : ''}
+      `;
+      div.querySelector('.pin-unpin').addEventListener('click', (e) => {
+        e.stopPropagation();
+        removePin(pin.id);
+      });
+      div.addEventListener('click', () => {
+        const ok = jumpToPin(pin);
+        if (!ok) showAppToast('That file isn\'t loaded right now — showing the saved text only');
+      });
+      list.appendChild(div);
+    });
+  }
+
+  // Pre-load recognised-error KB findings into the note, and pin one matched
+  // example line per signature. Safe to re-run: the note's auto block is
+  // replaced (never duplicated) and pins are de-duped.
+  const AUTO_START = '----- Recognised errors (auto-added) -----';
+  const AUTO_END = '----- end recognised errors -----';
+  const MAX_AUTO_SIGS = 12;
+
+  function stripAutoBlock(note) {
+    const s = note.indexOf(AUTO_START);
+    if (s === -1) return note;
+    const e = note.indexOf(AUTO_END, s);
+    const end = e === -1 ? note.length : e + AUTO_END.length;
+    return (note.slice(0, s) + note.slice(end)).replace(/\n{3,}/g, '\n\n').trim();
+  }
+
+  function preloadRecognised(silent) {
+    if (typeof kbMatchLine !== 'function' || !state.loadedData) {
+      if (!silent) showAppToast('Recognised-error knowledge base isn\'t ready yet');
+      return 0;
+    }
+    // Collect distinct recognised signatures with one representative line each.
+    const found = new Map(); // sigId -> { sig, line, compId }
+    for (const [compId, data] of Object.entries(state.loadedData)) {
+      if (!data || !data.merged) continue;
+      for (const l of data.merged) {
+        if (l.isContinuation || !l.level) continue;
+        const sig = kbMatchLine(l);
+        if (sig && !found.has(sig.id)) {
+          found.set(sig.id, { sig, line: l, compId });
+          if (found.size >= MAX_AUTO_SIGS) break;
+        }
+      }
+      if (found.size >= MAX_AUTO_SIGS) break;
+    }
+    if (!found.size) {
+      if (!silent) showAppToast('No recognised errors found in the loaded logs');
+      return 0;
+    }
+    // Build the managed note block.
+    const lines = [AUTO_START, `(${found.size} recognised error${found.size === 1 ? '' : 's'} detected — examples pinned below)`, ''];
+    let pinned = 0;
+    found.forEach(({ sig, line, compId }) => {
+      lines.push(`• ${sig.title}  [${sig.id}]`);
+      if (sig.match) lines.push(`    matched phrase: "${sig.match}"`);
+      if (sig.url) lines.push(`    docs: ${sig.url}`);
+      else if (sig.source === 'confluence') lines.push('    source: internal Confluence');
+      const data = state.loadedData[compId];
+      const f = data && data.files && data.files.find(ff => ff.name === line._file);
+      const loc = f && f.path && /[\/\\]/.test(f.path)
+        ? f.path
+        : `${(data && data.compDef && data.compDef.path) || ''}${line._file ? '\\' + line._file : ''}`;
+      lines.push(`    example: ${line._file || '?'}:${line.lineNo}${loc ? '  (' + loc + ')' : ''}`);
+      lines.push('');
+      // Pin the example line (deferred save; flushed once at the end).
+      if (addPin(line, { compId, label: 'Example of: ' + sig.title, silent: true, deferSave: true })) pinned++;
+    });
+    lines.push(AUTO_END);
+    const block = lines.join('\n');
+    // Merge into the note without clobbering the user's own text.
+    const ta = document.getElementById('notes-text');
+    const current = ta ? ta.value : loadNote();
+    const userPart = stripAutoBlock(current);
+    const merged = (userPart ? userPart + '\n\n' : '') + block + '\n';
+    if (ta) ta.value = merged;
+    saveNote(merged);
+    // Flush the deferred pins once.
+    savePins(); renderPins(); updateBadge();
+    const clearBtn = document.getElementById('btn-note-clear');
+    if (clearBtn) clearBtn.classList.toggle('hidden', !merged.trim().length);
+    if (!silent) showAppToast(`✓ Added ${found.size} recognised error${found.size === 1 ? '' : 's'} to your notes`);
+    return found.size;
+  }
+
+  function updateBadge() {
+    const badge = document.getElementById('notes-pin-badge');
+    if (!badge) return;
+    if (pins.length) { badge.textContent = pins.length; badge.classList.remove('hidden'); }
+    else badge.classList.add('hidden');
+  }
+
+  // Assemble a plain-text artifact: the note + every pinned entry with its
+  // location, so it's a useful handoff even when the logs aren't loaded.
+  function buildExport() {
+    const noteEl = document.getElementById('notes-text');
+    const scrubChk = document.getElementById('notes-scrub-check');
+    const doScrub = !!(scrubChk && scrubChk.checked);
+    let replacements = 0;
+    // Scrub only the free-text fields that can carry PII (the note and each
+    // captured log line) — NOT the structural location metadata (file, folder,
+    // paths, component), which is the whole point of pinning and contains
+    // Windows paths the PII rules would otherwise mangle.
+    const scrub = (s) => {
+      if (!doScrub || !s) return s;
+      try { const r = scrubPII(s); replacements += (r.changes ? r.changes.length : 0); return r.scrubbed; }
+      catch (_) { return s; }
+    };
+    const note = (noteEl ? noteEl.value : loadNote()).trim();
+    const out = [];
+    out.push('=== Log Analyser — notes & pinned entries ===');
+    out.push('session: ' + current().name);
+    out.push('exported: ' + new Date().toISOString());
+    if (doScrub) out.push('(PII in the note and log lines has been scrubbed; file paths are kept for reference.)');
+    out.push('');
+    out.push('--- Note ---');
+    out.push(note ? scrub(note) : '(empty)');
+    out.push('');
+    out.push(`--- Pinned entries (${pins.length}) ---`);
+    if (!pins.length) {
+      out.push('(none)');
+    } else {
+      pins.forEach((p, i) => {
+        const when = p.ts ? new Date(p.ts).toISOString() : '';
+        out.push(`#${i + 1}  ${p.level || ''}${when ? '  ' + when : ''}`);
+        out.push(`    file:   ${p.file || '(unknown)'}${p.lineNo != null ? '  (line ' + p.lineNo + ')' : ''}`);
+        if (p.compName)    out.push(`    source: ${p.compName}`);
+        if (p.folder)      out.push(`    folder: ${p.folder}`);
+        if (p.uploadPath && p.uploadPath !== p.file) out.push(`    upload path: ${p.uploadPath}`);
+        if (p.installPath && p.installPath !== p.folder) out.push(`    install path: ${p.installPath}`);
+        out.push(`    line:   ${scrub(p.text)}`);
+        out.push('');
+      });
+    }
+    out.push('(Saved locally on this device. Pinned text may contain log content — handle accordingly.)');
+    let text = out.join('\n');
+    if (doScrub && replacements) {
+      text += `\n(PII scrubbed before export: ${replacements} replacement${replacements === 1 ? '' : 's'}.)`;
+    }
+    return text;
+  }
+
+  function init() {
+    loadSessions();
+    const ta = document.getElementById('notes-text');
+    const clearBtn = document.getElementById('btn-note-clear');
+    const syncClearBtn = () => { if (clearBtn) clearBtn.classList.toggle('hidden', !(ta && ta.value.trim().length)); };
+    if (ta) {
+      ta.value = loadNote();
+      ta.addEventListener('input', () => { saveNote(ta.value); syncClearBtn(); });
+    }
+    if (clearBtn) {
+      clearBtn.addEventListener('click', () => {
+        if (!ta) return;
+        if (ta.value.trim() && !confirm('Clear the note text? Pinned entries are kept.')) return;
+        ta.value = '';
+        saveNote('');
+        syncClearBtn();
+        ta.focus();
+      });
+    }
+    syncClearBtn();
+    // Restore the scrub-on-export preference (default ON for safety).
+    const scrubChk = document.getElementById('notes-scrub-check');
+    if (scrubChk) {
+      try {
+        const pref = localStorage.getItem('tse-note-scrub');
+        scrubChk.checked = (pref === null) ? true : (pref === '1');
+      } catch (_) {}
+      scrubChk.addEventListener('change', () => {
+        try { localStorage.setItem('tse-note-scrub', scrubChk.checked ? '1' : '0'); } catch (_) {}
+      });
+    }
+    renderPins();
+    updateBadge();
+    renderSessionHeader();
+  }
+
+  // History list for the session picker: [{id, name, createdAt, isCurrent, pinCount}]
+  function listSessions() {
+    return sessions.map(s => ({ id: s.id, name: s.name, createdAt: s.createdAt,
+                                isCurrent: s.id === currentId, pinCount: (s.pins || []).length }));
+  }
+
+  return { init, addPin, jumpToPin, clearPins, buildExport, preloadRecognised,
+           newSession, switchSession, listSessions, currentName: () => current().name,
+           getCurrentId: () => currentId,
+           hasPins: () => pins.length > 0 };
+})();
+
+// Wire up the Notes panel chrome
+(function () {
+  const overlay = document.getElementById('notes-overlay');
+  const openBtn = document.getElementById('btn-notes');
+  const closeBtn = document.getElementById('btn-notes-close');
+  const clearBtn = document.getElementById('btn-pins-clear');
+  if (openBtn) openBtn.addEventListener('click', () => {
+    overlay.classList.toggle('hidden');
+  });
+  if (closeBtn) closeBtn.addEventListener('click', () => overlay.classList.add('hidden'));
+  const copyBtn = document.getElementById('btn-notes-copy');
+  if (copyBtn) copyBtn.addEventListener('click', () => {
+    const txt = Notes.buildExport();
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(txt)
+        .then(() => showAppToast('✓ Notes & pins copied to clipboard'))
+        .catch(() => showAppToast('⚠ Couldn\'t copy — try Export instead'));
+    } else {
+      showAppToast('⚠ Clipboard unavailable — try Export instead');
+    }
+  });
+  const exportBtn = document.getElementById('btn-notes-export');
+  if (exportBtn) exportBtn.addEventListener('click', () => {
+    const txt = Notes.buildExport();
+    const blob = new Blob([txt], { type: 'text/plain' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `log-analyser-notes-${new Date().toISOString().slice(0,19).replace(/[:T]/g,'-')}.txt`;
+    document.body.appendChild(a); a.click();
+    setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1000);
+    showAppToast('⬇ Notes exported');
+  });
+  if (clearBtn) clearBtn.addEventListener('click', () => {
+    if (confirm('Remove all pinned entries? Your note text is kept.')) Notes.clearPins();
+  });
+  const preloadBtn = document.getElementById('btn-preload-kb');
+  if (preloadBtn) preloadBtn.addEventListener('click', () => Notes.preloadRecognised(false));
+  const historyBtn = document.getElementById('btn-notes-history');
+  const historyPanel = document.getElementById('notes-history-panel');
+  function renderHistory() {
+    if (!historyPanel) return;
+    const items = Notes.listSessions();
+    historyPanel.innerHTML = items.map(s => {
+      const when = new Date(s.createdAt).toLocaleString();
+      return `<div class="nh-item${s.isCurrent ? ' current' : ''}" data-id="${s.id}">
+        <span class="nh-name">${escHtml(s.name)}</span>
+        <span class="nh-meta">${s.pinCount} pin${s.pinCount === 1 ? '' : 's'} · ${when}</span>
+        ${s.isCurrent ? '<span class="nh-current-tag">current</span>' : ''}
+      </div>`;
+    }).join('') || '<div class="nh-item" style="cursor:default;color:var(--text-muted)">No sessions yet</div>';
+    historyPanel.querySelectorAll('.nh-item[data-id]').forEach(el => {
+      el.addEventListener('click', () => {
+        Notes.switchSession(el.dataset.id);
+        historyPanel.classList.add('hidden');
+      });
+    });
+  }
+  if (historyBtn) historyBtn.addEventListener('click', () => {
+    if (historyPanel.classList.contains('hidden')) { renderHistory(); historyPanel.classList.remove('hidden'); }
+    else historyPanel.classList.add('hidden');
+  });
+  // Draggable
+  const header = document.getElementById('notes-header');
+  if (overlay && header) {
+    let dragging = false, sx = 0, sy = 0, ox = 0, oy = 0;
+    header.addEventListener('mousedown', e => {
+      if (e.target.closest('button')) return;
+      dragging = true;
+      const r = overlay.getBoundingClientRect();
+      overlay.style.bottom = 'auto'; overlay.style.right = 'auto';
+      overlay.style.left = r.left + 'px'; overlay.style.top = r.top + 'px';
+      sx = e.clientX; sy = e.clientY; ox = r.left; oy = r.top;
+      document.body.style.userSelect = 'none'; e.preventDefault();
+    });
+    document.addEventListener('mousemove', e => {
+      if (!dragging) return;
+      overlay.style.left = Math.max(0, ox + e.clientX - sx) + 'px';
+      overlay.style.top = Math.max(0, oy + e.clientY - sy) + 'px';
+    });
+    document.addEventListener('mouseup', () => { dragging = false; document.body.style.userSelect = ''; });
+  }
+})();
+try { Notes.init(); } catch (_) {}
+
 
 // ═══════════════════════════════════════════════════════════════
 //  GLOBAL TIME RANGE
@@ -7812,24 +8859,92 @@ function parseLocalDatetime(v) {
   return isNaN(t) ? null : t;
 }
 
+// ── Time range: presets (anchored on newest log entry) + custom range ──
+function dataMaxTs() {
+  let max = null;
+  for (const d of Object.values(state.loadedData || {})) {
+    if (!d || !d.merged) continue;
+    for (let i = d.merged.length - 1; i >= 0; i--) {
+      const t = d.merged[i].ts;
+      if (t != null) { if (max == null || t > max) max = t; break; }
+    }
+  }
+  return max;
+}
+
+function refreshGtrLabel() {
+  const txt = document.getElementById('gtr-label-text');
+  const active = state.gtrStart != null || state.gtrEnd != null;
+  document.getElementById('global-time-range').classList.toggle('active', active);
+  document.getElementById('gtr-reset').classList.toggle('hidden', !active);
+  if (txt) txt.textContent = active ? (state.gtrLabel || 'Custom range') : 'All time';
+  // Reflect the active preset (if any) in the popover.
+  document.querySelectorAll('.gtr-presets button').forEach(b =>
+    b.classList.toggle('active', state.gtrPresetMin != null && String(state.gtrPresetMin) === b.dataset.min && active === (b.dataset.min !== '0')));
+}
+
+function rerunForGtr() {
+  if (globalSearchActive) runGlobalSearch(state.globalSearchTerm);
+  else if (state.resultsRun) applyFilter();
+}
+
+// Apply a quick preset measured back from the most recent log entry.
+function applyGtrPreset(min, label) {
+  if (!min || min <= 0) {            // "All time" → clear
+    state.gtrStart = null; state.gtrEnd = null; state.gtrLabel = ''; state.gtrPresetMin = 0;
+  } else {
+    const end = dataMaxTs();
+    if (end == null) { showAppToast && showAppToast('Load some logs first'); return; }
+    state.gtrEnd = end;
+    state.gtrStart = end - min * 60000;
+    state.gtrLabel = label;
+    state.gtrPresetMin = min;
+    // Mirror into the custom inputs so they stay in sync.
+    const toLocal = (ms) => { const d = new Date(ms - new Date(ms).getTimezoneOffset() * 60000); return d.toISOString().slice(0, 19); };
+    document.getElementById('gtr-start').value = toLocal(state.gtrStart);
+    document.getElementById('gtr-end').value = toLocal(state.gtrEnd);
+  }
+  refreshGtrLabel();
+  document.getElementById('gtr-popover').classList.add('hidden');
+  rerunForGtr();
+}
+
+document.querySelectorAll('.gtr-presets button').forEach(btn => {
+  btn.addEventListener('click', () => applyGtrPreset(parseInt(btn.dataset.min, 10), btn.textContent.trim()));
+});
+
 document.getElementById('gtr-apply').addEventListener('click', () => {
   state.gtrStart = parseLocalDatetime(document.getElementById('gtr-start').value);
   state.gtrEnd   = parseLocalDatetime(document.getElementById('gtr-end').value);
-  const active = state.gtrStart != null || state.gtrEnd != null;
-  document.getElementById('global-time-range').classList.toggle('active', active);
-  // Re-run whichever view is active
-  if (globalSearchActive) runGlobalSearch(state.globalSearchTerm);
-  else applyFilter();
+  state.gtrPresetMin = null;
+  // Short human label for the trigger button.
+  const fmt = (ms) => ms == null ? '…' : fmtTimeTz(ms, false);
+  state.gtrLabel = (state.gtrStart != null || state.gtrEnd != null)
+    ? `${fmt(state.gtrStart)} → ${fmt(state.gtrEnd)}` : '';
+  refreshGtrLabel();
+  document.getElementById('gtr-popover').classList.add('hidden');
+  rerunForGtr();
 });
 
 document.getElementById('gtr-reset').addEventListener('click', () => {
-  state.gtrStart = null;
-  state.gtrEnd = null;
+  state.gtrStart = null; state.gtrEnd = null; state.gtrLabel = ''; state.gtrPresetMin = 0;
   document.getElementById('gtr-start').value = '';
   document.getElementById('gtr-end').value = '';
-  document.getElementById('global-time-range').classList.remove('active');
-  if (globalSearchActive) runGlobalSearch(state.globalSearchTerm);
-  else applyFilter();
+  refreshGtrLabel();
+  rerunForGtr();
+});
+
+// Popover open/close
+document.getElementById('btn-gtr').addEventListener('click', (e) => {
+  e.stopPropagation();
+  document.getElementById('gtr-popover').classList.toggle('hidden');
+});
+document.addEventListener('click', (e) => {
+  const pop = document.getElementById('gtr-popover');
+  if (pop && !pop.classList.contains('hidden') && !e.target.closest('#global-time-range')) pop.classList.add('hidden');
+});
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') { const p = document.getElementById('gtr-popover'); if (p) p.classList.add('hidden'); }
 });
 
 // ═══════════════════════════════════════════════════════════════
@@ -7991,6 +9106,25 @@ const APP_VERSION = '2026.06.01e';
   } catch (e) { /* ignore */ }
 })();
 
+// ═══════════════════════════════════════════════════════════════
+//  SHELL — keep the sidebar hidden on the welcome screen, shown in
+//  the analyser. Driven off the analyser's visibility so it stays
+//  correct through every view transition without touching each one.
+// ═══════════════════════════════════════════════════════════════
+(function () {
+  const analyser = document.getElementById('analyser');
+  const sidebar  = document.getElementById('sidebar');
+  const resizer  = document.getElementById('resizer-sidebar');
+  if (!analyser || !sidebar) return;
+  const sync = () => {
+    const active = getComputedStyle(analyser).display !== 'none';
+    sidebar.style.display = active ? '' : 'none';
+    if (resizer) resizer.style.display = active ? '' : 'none';
+  };
+  sync(); // hide on initial welcome screen
+  new MutationObserver(sync).observe(analyser, { attributes: true, attributeFilter: ['style'] });
+})();
+
 async function clearAppCaches() {
   try {
     if ('caches' in window) {
@@ -8082,7 +9216,7 @@ if ('serviceWorker' in navigator) {
 // ═══════════════════════════════════════════════════════════════
 //  GUIDED TOUR
 // ═══════════════════════════════════════════════════════════════
-const TOUR_KEY = 'tour-completed-v2';
+const TOUR_KEY = 'tour-completed-v3';
 
 const TOUR_STEPS = [
   {
@@ -8152,7 +9286,7 @@ const TOUR_STEPS = [
   {
     id: 'recognised',
     title: 'Recognised errors',
-    body: 'The tool ships with a knowledge base of known Delinea errors. Lines that match show an amber <strong>!</strong> badge linking to the documentation. Click <strong>⚠ Recognised errors</strong> to list each distinct known error once — then step through every occurrence with ▲▼, or jump to other components that hit the same error. The footer\'s <strong>🧪 Test KB</strong> button lets you paste any line to check whether it matches a signature.',
+    body: 'The tool ships with a knowledge base of known Delinea errors. Lines that match show an amber <strong>!</strong> badge linking to the documentation. Click <strong>⚠ Recognised errors</strong> to list each distinct known error once — then step through every occurrence with ▲▼, or jump to other components that hit the same error.',
     target: '#btn-recognised-errors',
     position: 'below',
     setup: () => tourEnsureAnalyser(),
@@ -8187,6 +9321,22 @@ const TOUR_STEPS = [
     body: 'Select any text in the viewer, then click <strong>Scrub PII & Copy</strong>. A preview shows every replacement — IPs, usernames, domain\\user pairs, SIDs, GUIDs and more — before anything reaches your clipboard. You can also <strong>right-click any log line</strong> to copy a scrubbed copy of it or search it in Yext — the text is always scrubbed first.',
     target: '#scrub-bar',
     position: 'above',
+    setup: () => tourEnsureAnalyser(),
+  },
+  {
+    id: 'notes',
+    title: 'Notes & pinned entries',
+    body: 'Open <strong>🗒 Notes</strong> for a persistent scratchpad that\'s saved on your device and survives reloads. Type free-form notes, and <strong>right-click any log line → 📌 Pin this line</strong> to collect key entries — each pin records the line, its timestamp, and the file &amp; folder it came from, so you can find it again even after the logs are gone. Click a pin to jump back to it. Each set of logs you load gets its <strong>own named session</strong> (named after the zip, or the product and time), and <strong>🕘 History</strong> reopens the last 10.',
+    target: '#btn-notes',
+    position: 'below-left',
+    setup: () => tourEnsureAnalyser(),
+  },
+  {
+    id: 'notes-share',
+    title: 'Recognised errors & sharing notes',
+    body: 'When the loaded logs contain recognised errors, the current session\'s notes are <strong>auto-seeded</strong> with each one plus a pinned example — or hit <strong>➕ Recognised errors</strong> to do it on demand. When you\'re ready to hand off, <strong>📋 Copy</strong> or <strong>⬇ Export</strong> turns the session into text, and the <strong>Scrub on copy/export</strong> toggle redacts PII from your note and the pinned lines (file paths are kept) so nothing sensitive leaks into a ticket.',
+    target: '#btn-notes',
+    position: 'below-left',
     setup: () => tourEnsureAnalyser(),
   },
   {
@@ -8232,7 +9382,7 @@ const TOUR_STEPS = [
   {
     id: 'refresh',
     title: 'Staying up to date',
-    body: 'The tool updates itself automatically, but if you ever suspect you\'re seeing an old version, <strong>↻ Hard refresh</strong> clears the cache and pulls the latest. <strong>🌙 / ☀️</strong> toggles light and dark mode, and both your theme and panel sizes are remembered.',
+    body: 'The tool updates itself automatically, but if you ever suspect you\'re seeing an old version, <strong>↻ Hard refresh</strong> clears the cache and pulls the latest. If a user ever reports a problem, <strong>🩺 Diagnostics</strong> collects privacy-safe troubleshooting info (errors, memory, environment — never log content) to export. <strong>🌙 / ☀️</strong> toggles light and dark mode, and both your theme and panel sizes are remembered.',
     target: '#btn-hard-refresh',
     position: 'below-left',
     setup: () => tourEnsureAnalyser(),
@@ -8247,7 +9397,92 @@ const TOUR_STEPS = [
   },
 ];
 
-// ── Tour state setup helpers ──
+// ── Dev-time integrity check ──────────────────────────────────────
+// Runs once on load. Surfaces the class of silent structural bug that has
+// slipped past `node --check` before (duplicate object keys merging two tour
+// steps into one, missing fields, or a tour target pointing at a DOM id that
+// no longer exists). Warnings only — never throws, never affects users.
+function devSelfCheck() {
+  const problems = [];
+  // 1) Tour steps well-formed + unique ids + targets resolve.
+  const ids = new Set();
+  TOUR_STEPS.forEach((s, i) => {
+    if (!s.id) problems.push(`tour step ${i} missing id`);
+    else if (ids.has(s.id)) problems.push(`tour step duplicate id "${s.id}"`);
+    else ids.add(s.id);
+    if (!s.title) problems.push(`tour step "${s.id || i}" missing title`);
+    if (s.body === undefined && !s.isPrompt) problems.push(`tour step "${s.id || i}" missing body`);
+    if (s.target && !document.querySelector(s.target)) problems.push(`tour step "${s.id || i}" target not found: ${s.target}`);
+  });
+  // 2) A handful of structural DOM ids the app depends on.
+  ['analyser','wizard','sidebar','results-panel','log-viewer','timeline-overlay',
+   'notes-overlay','gtr-popover','btn-timeline','btn-notes'].forEach(id => {
+    if (!document.getElementById(id)) problems.push(`missing DOM id: #${id}`);
+  });
+  if (problems.length) {
+    console.warn('[log-analyser self-check] ' + problems.length + ' issue(s):\n• ' + problems.join('\n• '));
+  }
+}
+try { devSelfCheck(); } catch (_) {}
+
+// ── Accessibility for overlays/modals ─────────────────────────────
+// Centralised so each dialog's own open/close code is untouched:
+//  • role="dialog" + aria-modal + aria-label on each container
+//  • Escape closes the top-most open dialog (via its real close button so
+//    any cleanup runs)
+//  • focus moves into the dialog on open and returns to the trigger on close
+(function () {
+  const dialogs = [
+    { id: 'scrub-modal',     close: 'btn-scrub-close',    label: 'Scrub PII before sharing' },
+    { id: 'export-modal',    close: 'btn-export-close',   label: 'Export findings' },
+    { id: 'diag-modal',      close: 'btn-diag-close',     label: 'Diagnostics' },
+    { id: 'timeline-overlay',close: 'btn-timeline-close', label: 'Cross-component timeline' },
+    { id: 'notes-overlay',   close: 'btn-notes-close',    label: 'Notes and pinned entries' },
+    { id: 'evtx-overlay',    close: 'btn-evtx-close',     label: 'Windows Event Log viewer' },
+    { id: 'pcap-overlay',    close: 'btn-pcap-close',     label: 'Packet capture viewer' },
+    { id: 'har-overlay',     close: 'btn-har-close',      label: 'HAR network capture viewer' },
+  ];
+  dialogs.forEach(d => {
+    const el = document.getElementById(d.id);
+    if (!el) return;
+    el.setAttribute('role', 'dialog');
+    el.setAttribute('aria-modal', 'true');
+    el.setAttribute('aria-label', d.label);
+    let prevFocus = null;
+    new MutationObserver(() => {
+      const open = !el.classList.contains('hidden');
+      if (open && !el._a11yOpen) {
+        el._a11yOpen = true;
+        prevFocus = document.activeElement;
+        const closeBtn = document.getElementById(d.close);
+        if (closeBtn) setTimeout(() => { try { closeBtn.focus(); } catch (_) {} }, 0);
+      } else if (!open && el._a11yOpen) {
+        el._a11yOpen = false;
+        if (prevFocus && prevFocus.focus) { try { prevFocus.focus(); } catch (_) {} }
+      }
+    }).observe(el, { attributes: true, attributeFilter: ['class'] });
+  });
+  // Escape closes the top-most open dialog (only those not already handled).
+  document.addEventListener('keydown', (e) => {
+    if (e.key !== 'Escape') return;
+    for (const d of dialogs) {
+      const el = document.getElementById(d.id);
+      if (el && !el.classList.contains('hidden')) {
+        const closeBtn = document.getElementById(d.close);
+        if (closeBtn) closeBtn.click(); else el.classList.add('hidden');
+        e.stopPropagation();
+        return;
+      }
+    }
+  });
+  // Give icon-only buttons an accessible name from their tooltip text.
+  document.querySelectorAll('button[title]').forEach(b => {
+    if (!b.getAttribute('aria-label') && !b.textContent.trim().replace(/[^A-Za-z0-9]/g, '')) {
+      b.setAttribute('aria-label', b.getAttribute('title'));
+    }
+  });
+})();
+
 function tourEnsureWizard() {
   if (document.getElementById('wizard').style.display === 'none') {
     document.getElementById('analyser').style.display = 'none';
