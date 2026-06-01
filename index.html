@@ -439,6 +439,256 @@ if (typeof window !== 'undefined') window.decodeEvtxRecordsFallback = decodeEvtx
 
 
 </script>
+<script>
+// ════════ PCAP / PCAPNG parser (network capture support) ════════
+// Self-contained PCAP / PCAPNG parser → packet summaries.
+// Returns { format, linkType, packets:[{ts, srcIp, dstIp, srcPort, dstPort, proto, length, flags, info}] }
+// ts is epoch milliseconds (absolute), so it aligns directly with log timestamps.
+function parsePcap(arrayBuffer) {
+  const buf = arrayBuffer instanceof Uint8Array ? arrayBuffer : new Uint8Array(arrayBuffer);
+  const dv = new DataView(buf.buffer, buf.byteOffset, buf.byteLength);
+  if (buf.length < 24) throw new Error('Too small to be a capture file');
+  const magic = dv.getUint32(0, true);
+  // pcapng section header block magic = 0x0A0D0D0A
+  if (dv.getUint32(0, false) === 0x0A0D0D0A || dv.getUint32(0, true) === 0x0A0D0D0A) {
+    return parsePcapng(buf, dv);
+  }
+  // classic pcap
+  let le, nanos = false;
+  if (magic === 0xa1b2c3d4) { le = true; }
+  else if (magic === 0xd4c3b2a1) { le = false; }
+  else if (magic === 0xa1b23c4d) { le = true; nanos = true; }
+  else if (magic === 0x4d3cb2a1) { le = false; nanos = true; }
+  else throw new Error('Not a pcap file (bad magic 0x' + magic.toString(16) + ')');
+  const u32 = (o) => dv.getUint32(o, le);
+  const u16 = (o) => dv.getUint16(o, le);
+  const linkType = u32(20);
+  const packets = [];
+  let off = 24;
+  while (off + 16 <= buf.length) {
+    const tsSec = u32(off);
+    const tsFrac = u32(off + 4);
+    const capLen = u32(off + 8);
+    const origLen = u32(off + 12);
+    off += 16;
+    if (capLen === 0 || off + capLen > buf.length) break;
+    const tsMs = tsSec * 1000 + (nanos ? tsFrac / 1e6 : tsFrac / 1e3);
+    const pkt = dissect(buf, dv, off, capLen, linkType, origLen, tsMs);
+    if (pkt) packets.push(pkt);
+    off += capLen;
+  }
+  return { format: 'pcap', linkType, packets };
+}
+
+function parsePcapng(buf, dv) {
+  // Walk blocks. We need Interface Description Blocks (type 1) for tsresol,
+  // and Enhanced Packet Blocks (type 6) / Simple Packet Blocks (type 3).
+  let le = true;
+  // Determine endianness from the SHB byte-order magic at offset 8
+  const bom = dv.getUint32(8, true);
+  if (bom === 0x1A2B3C4D) le = true;
+  else if (dv.getUint32(8, false) === 0x1A2B3C4D) le = false;
+  const u32 = (o) => dv.getUint32(o, le);
+  const u16 = (o) => dv.getUint16(o, le);
+  const packets = [];
+  const ifaces = []; // {linkType, tsresol}
+  let off = 0;
+  let linkType = 1;
+  while (off + 12 <= buf.length) {
+    const blockType = u32(off);
+    const blockLen = u32(off + 4);
+    if (blockLen < 12 || off + blockLen > buf.length) break;
+    if (blockType === 0x00000001) { // Interface Description Block
+      const lt = u16(off + 8);
+      // options: scan for if_tsresol (code 9)
+      let tsresol = 6; // default 10^-6
+      let p = off + 16; // after blockType,len,linktype(2),reserved(2),snaplen(4)
+      const optEnd = off + blockLen - 4;
+      while (p + 4 <= optEnd) {
+        const code = u16(p); const olen = u16(p + 2); p += 4;
+        if (code === 0) break;
+        if (code === 9 && olen >= 1) { const v = buf[p]; tsresol = (v & 0x80) ? (v & 0x7f) : v; }
+        p += olen + ((4 - (olen % 4)) % 4);
+      }
+      ifaces.push({ linkType: lt, tsresol });
+      linkType = lt;
+    } else if (blockType === 0x00000006) { // Enhanced Packet Block
+      const ifaceId = u32(off + 8);
+      const tsHigh = u32(off + 12);
+      const tsLow = u32(off + 16);
+      const capLen = u32(off + 20);
+      const iface = ifaces[ifaceId] || ifaces[0] || { linkType: 1, tsresol: 6 };
+      const tsUnits = tsHigh * 4294967296 + tsLow;
+      const tsMs = tsUnits / Math.pow(10, iface.tsresol) * 1000;
+      const dataOff = off + 28;
+      if (capLen > 0 && dataOff + capLen <= buf.length) {
+        const pkt = dissect(buf, dv, dataOff, capLen, iface.linkType, u32(off + 24), tsMs);
+        if (pkt) packets.push(pkt);
+      }
+    } else if (blockType === 0x00000003) { // Simple Packet Block (no timestamp)
+      const iface = ifaces[0] || { linkType: 1, tsresol: 6 };
+      const origLen = u32(off + 8);
+      const dataOff = off + 12;
+      const capLen = Math.min(origLen, blockLen - 16);
+      if (capLen > 0 && dataOff + capLen <= buf.length) {
+        const pkt = dissect(buf, dv, dataOff, capLen, iface.linkType, origLen, null);
+        if (pkt) packets.push(pkt);
+      }
+    }
+    off += blockLen;
+  }
+  return { format: 'pcapng', linkType, packets };
+}
+
+// Dissect one frame: Ethernet → IPv4/IPv6 → TCP/UDP. Best-effort; returns a summary.
+function dissect(buf, dv, off, capLen, linkType, origLen, tsMs) {
+  const end = off + capLen;
+  let p = off;
+  let etherType = null;
+  if (linkType === 1) { // Ethernet
+    if (p + 14 > end) return baseRec(tsMs, origLen, 'Ethernet (truncated)');
+    etherType = (buf[p + 12] << 8) | buf[p + 13];
+    p += 14;
+    // VLAN 802.1Q
+    while (etherType === 0x8100 || etherType === 0x88a8) {
+      if (p + 4 > end) break;
+      etherType = (buf[p + 2] << 8) | buf[p + 3];
+      p += 4;
+    }
+  } else if (linkType === 101) { // RAW IP
+    const ver = buf[p] >> 4;
+    etherType = ver === 6 ? 0x86dd : 0x0800;
+  } else if (linkType === 113) { // Linux SLL
+    if (p + 16 > end) return baseRec(tsMs, origLen, 'SLL (truncated)');
+    etherType = (buf[p + 14] << 8) | buf[p + 15];
+    p += 16;
+  } else {
+    return baseRec(tsMs, origLen, 'LinkType ' + linkType);
+  }
+
+  if (etherType === 0x0800) return dissectIPv4(buf, dv, p, end, tsMs, origLen);
+  if (etherType === 0x86dd) return dissectIPv6(buf, dv, p, end, tsMs, origLen);
+  if (etherType === 0x0806) return { ...baseRec(tsMs, origLen, 'ARP'), proto: 'ARP' };
+  return baseRec(tsMs, origLen, 'EtherType 0x' + (etherType||0).toString(16));
+}
+
+function baseRec(tsMs, length, info) {
+  return { ts: tsMs, srcIp: null, dstIp: null, srcPort: null, dstPort: null, proto: 'OTHER', length, flags: '', info: info || '' };
+}
+
+function ipStr(buf, o) { return buf[o] + '.' + buf[o+1] + '.' + buf[o+2] + '.' + buf[o+3]; }
+
+function dissectIPv4(buf, dv, p, end, tsMs, origLen) {
+  if (p + 20 > end) return baseRec(tsMs, origLen, 'IPv4 (truncated)');
+  const ihl = (buf[p] & 0x0f) * 4;
+  const proto = buf[p + 9];
+  const srcIp = ipStr(buf, p + 12);
+  const dstIp = ipStr(buf, p + 16);
+  const l4 = p + ihl;
+  return dissectL4(buf, dv, l4, end, proto, srcIp, dstIp, tsMs, origLen);
+}
+
+function ip6Str(buf, o) {
+  const parts = [];
+  for (let i = 0; i < 16; i += 2) parts.push(((buf[o+i]<<8)|buf[o+i+1]).toString(16));
+  return parts.join(':').replace(/(^|:)0(:0)+(:|$)/, '::').replace(/:{3,}/, '::');
+}
+
+function dissectIPv6(buf, dv, p, end, tsMs, origLen) {
+  if (p + 40 > end) return baseRec(tsMs, origLen, 'IPv6 (truncated)');
+  const nextHdr = buf[p + 6];
+  const srcIp = ip6Str(buf, p + 8);
+  const dstIp = ip6Str(buf, p + 24);
+  return dissectL4(buf, dv, p + 40, end, nextHdr, srcIp, dstIp, tsMs, origLen);
+}
+
+function dissectL4(buf, dv, p, end, proto, srcIp, dstIp, tsMs, origLen) {
+  const rec = { ts: tsMs, srcIp, dstIp, srcPort: null, dstPort: null, proto: 'IP', length: origLen, flags: '', info: '' };
+  if (proto === 6) { // TCP
+    rec.proto = 'TCP';
+    if (p + 14 <= end) {
+      rec.srcPort = (buf[p] << 8) | buf[p+1];
+      rec.dstPort = (buf[p+2] << 8) | buf[p+3];
+      const flags = buf[p + 13];
+      const names = [];
+      if (flags & 0x02) names.push('SYN');
+      if (flags & 0x10) names.push('ACK');
+      if (flags & 0x01) names.push('FIN');
+      if (flags & 0x04) names.push('RST');
+      if (flags & 0x08) names.push('PSH');
+      if (flags & 0x20) names.push('URG');
+      rec.flags = names.join(',');
+      rec.info = names.join(' ');
+    }
+  } else if (proto === 17) { // UDP
+    rec.proto = 'UDP';
+    if (p + 8 <= end) {
+      rec.srcPort = (buf[p] << 8) | buf[p+1];
+      rec.dstPort = (buf[p+2] << 8) | buf[p+3];
+      if (rec.srcPort === 53 || rec.dstPort === 53) rec.info = 'DNS';
+    }
+  } else if (proto === 1) { rec.proto = 'ICMP'; }
+  else if (proto === 58) { rec.proto = 'ICMPv6'; }
+  else { rec.proto = 'IP proto ' + proto; }
+  return rec;
+}
+
+if (typeof window !== 'undefined') window.parsePcap = parsePcap;
+</script>
+<script>
+// ════════ HAR (HTTP Archive) parser ════════
+// HAR (HTTP Archive) parser → request summaries.
+// Returns { creator, entries:[{ts, time, method, url, host, path, status, statusText,
+//   statusClass, mime, reqSize, respSize, serverIp, timings:{...}, isError, slow}] }
+// ts is epoch ms (absolute, from startedDateTime) so it aligns with log timestamps.
+function parseHar(text) {
+  let har;
+  if (typeof text === 'string') har = JSON.parse(text);
+  else if (text instanceof ArrayBuffer || text instanceof Uint8Array) {
+    har = JSON.parse(new TextDecoder('utf-8').decode(text));
+  } else har = text;
+  if (!har || !har.log || !Array.isArray(har.log.entries)) {
+    throw new Error('Not a valid HAR file (missing log.entries)');
+  }
+  const creator = har.log.creator ? `${har.log.creator.name || ''} ${har.log.creator.version || ''}`.trim() : '';
+  const entries = [];
+  for (const e of har.log.entries) {
+    const req = e.request || {};
+    const res = e.response || {};
+    const ts = e.startedDateTime ? Date.parse(e.startedDateTime) : null;
+    const time = typeof e.time === 'number' ? Math.round(e.time) : null;
+    let host = '', path = '';
+    try { const u = new URL(req.url); host = u.host; path = u.pathname + (u.search || ''); }
+    catch (_) { path = req.url || ''; }
+    const status = typeof res.status === 'number' ? res.status : 0;
+    const statusClass = status >= 500 ? '5xx' : status >= 400 ? '4xx' : status >= 300 ? '3xx' : status >= 200 ? '2xx' : status > 0 ? '1xx' : 'err';
+    const t = e.timings || {};
+    const timings = {
+      blocked: numOrNull(t.blocked), dns: numOrNull(t.dns), connect: numOrNull(t.connect),
+      ssl: numOrNull(t.ssl), send: numOrNull(t.send), wait: numOrNull(t.wait), receive: numOrNull(t.receive)
+    };
+    entries.push({
+      ts, time,
+      method: (req.method || '').toUpperCase(),
+      url: req.url || '',
+      host, path,
+      status, statusText: res.statusText || '',
+      statusClass,
+      mime: (res.content && res.content.mimeType) ? res.content.mimeType.split(';')[0] : '',
+      reqSize: numOrNull(req.bodySize),
+      respSize: (res.content && numOrNull(res.content.size)) != null ? res.content.size : numOrNull(res.bodySize),
+      serverIp: e.serverIPAddress || '',
+      timings,
+      isError: status >= 400 || status === 0,
+      slow: time != null && time >= 1000
+    });
+  }
+  return { creator, entries };
+}
+function numOrNull(v) { return (typeof v === 'number' && v >= 0) ? v : null; }
+
+if (typeof window !== 'undefined') window.parseHar = parseHar;
+</script>
 <link rel="icon" type="image/x-icon" href="favicon.ico">
 <link rel="icon" type="image/png" sizes="32x32" href="icon-32.png">
 <link rel="icon" type="image/png" sizes="16x16" href="icon-16.png">
@@ -810,6 +1060,16 @@ if (typeof window !== 'undefined') window.decodeEvtxRecordsFallback = decodeEvtx
     margin-bottom: 12px;
   }
   .product-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 10px; margin-bottom: 24px; }
+  #wizard-standalone { margin-top: 22px; padding-top: 18px; border-top: 1px solid var(--border); }
+  .wizard-standalone-label { font-size: 11px; font-weight: 600; letter-spacing: 0.4px; text-transform: uppercase; color: var(--text-muted); margin-bottom: 10px; }
+  .wizard-standalone-row { display: flex; gap: 10px; flex-wrap: wrap; }
+  .wizard-standalone-btn {
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 9px 16px; border-radius: var(--radius-md); cursor: pointer;
+    background: var(--bg-elevated); border: 1px solid var(--border);
+    color: var(--text-secondary); font-size: 13px; font-weight: 600; transition: all 0.14s;
+  }
+  .wizard-standalone-btn:hover { border-color: var(--accent-purple); color: var(--text-primary); transform: translateY(-1px); }
   .product-btn {
     padding: 14px 12px;
     border: 1px solid var(--border);
@@ -1297,6 +1557,17 @@ if (typeof window !== 'undefined') window.decodeEvtxRecordsFallback = decodeEvtx
     font-family: var(--font-mono); font-size: 10px; font-weight: 700;
     background: var(--accent-purple); color: #fff; border-radius: 8px; padding: 0 7px; flex-shrink: 0;
   }
+  .logger-head .lg-sevwrap { display: flex; gap: 4px; flex-shrink: 0; margin-right: 2px; }
+  .logger-head .lg-sev {
+    font-family: var(--font-mono); font-size: 9px; font-weight: 700;
+    border-radius: 4px; padding: 0 4px; line-height: 16px;
+  }
+  .logger-head .lg-sev.level-CRITICAL { background: var(--level-critical-bg); color: var(--level-critical); }
+  .logger-head .lg-sev.level-ERROR    { background: var(--level-error-bg);    color: var(--level-error); }
+  .logger-head .lg-sev.level-WARNING  { background: var(--level-warn-bg);     color: var(--level-warn); }
+  .logger-head .lg-sev.level-INFO     { background: var(--level-info-bg);     color: var(--level-info); }
+  .logger-head .lg-sev.level-VERBOSE  { background: var(--level-verbose-bg);  color: var(--level-verbose); }
+  .logger-head .lg-sev.level-DEBUG    { background: var(--level-debug-bg);    color: var(--level-debug); }
   .logger-body { background: rgba(0,0,0,0.15); }
   .logger-body .logger-entry { padding-left: 26px; border-bottom: 1px solid rgba(255,255,255,0.04); }
   /* Recognised-error grouped rows */
@@ -1621,6 +1892,325 @@ if (typeof window !== 'undefined') window.decodeEvtxRecordsFallback = decodeEvtx
   }
   #btn-evtx-close:hover { border-color: var(--level-error); color: var(--level-error); }
   #evtx-overlay-body { flex: 1; display: flex; overflow: hidden; }
+  /* ════ PCAP floating window ════ */
+  #pcap-overlay {
+    position: fixed; z-index: 460;
+    top: 90px; left: 50%; transform: translateX(-50%);
+    width: min(960px, 94vw); height: min(640px, 82vh);
+    display: flex; flex-direction: column;
+    background: var(--bg-base); border: 1px solid var(--accent-teal);
+    border-radius: var(--radius-lg); box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+    overflow: hidden; resize: both; min-width: 520px; min-height: 340px;
+  }
+  #pcap-overlay.hidden { display: none; }
+  #pcap-overlay-header {
+    height: 50px; flex-shrink: 0; background: var(--bg-surface);
+    border-bottom: 1px solid var(--accent-teal);
+    display: flex; align-items: center; gap: 12px; padding: 0 14px;
+    cursor: move; user-select: none;
+  }
+  #pcap-overlay-icon { font-size: 20px; }
+  #pcap-overlay-titlewrap { display: flex; flex-direction: column; min-width: 0; }
+  #pcap-overlay-title { font-size: 13px; font-weight: 700; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  #pcap-overlay-sub { font-size: 10px; color: var(--text-muted); font-family: var(--font-mono); }
+  #pcap-file-switcher {
+    background: var(--bg-elevated); border: 1px solid var(--border);
+    border-radius: var(--radius-sm); color: var(--text-primary);
+    font-size: 11px; padding: 3px 6px; max-width: 160px;
+  }
+  #btn-pcap-close {
+    width: 28px; height: 28px; border-radius: var(--radius-sm);
+    border: 1px solid var(--border); background: var(--bg-elevated);
+    color: var(--text-muted); font-size: 13px; cursor: pointer; transition: all 0.12s;
+  }
+  #btn-pcap-close:hover { border-color: var(--level-error); color: var(--level-error); }
+  #pcap-tabs {
+    height: 38px; flex-shrink: 0; display: flex; align-items: center; gap: 4px;
+    padding: 0 10px; border-bottom: 1px solid var(--border); background: var(--bg-surface);
+  }
+  .pcap-tab {
+    background: transparent; border: none; border-bottom: 2px solid transparent;
+    color: var(--text-muted); font-size: 12px; font-weight: 600; padding: 8px 12px;
+    cursor: pointer; transition: all 0.12s;
+  }
+  .pcap-tab:hover { color: var(--text-primary); }
+  .pcap-tab.active { color: var(--accent-teal); border-bottom-color: var(--accent-teal); }
+  #pcap-filter {
+    background: var(--bg-elevated); border: 1px solid var(--border);
+    border-radius: var(--radius-sm); color: var(--text-primary);
+    font-size: 11px; padding: 4px 8px; width: 240px; font-family: var(--font-mono);
+  }
+  #pcap-filter:focus { border-color: var(--accent-teal); outline: none; }
+  #pcap-overlay-body { flex: 1; overflow: hidden; position: relative; }
+  .pcap-tab-pane { display: none; position: absolute; inset: 0; flex-direction: column; }
+  .pcap-tab-pane.active { display: flex; }
+  #pcap-summary-bar {
+    flex-shrink: 0; padding: 8px 14px; border-bottom: 1px solid var(--border);
+    font-size: 11px; color: var(--text-secondary); display: flex; gap: 16px; flex-wrap: wrap;
+    font-family: var(--font-mono);
+  }
+  #pcap-summary-bar strong { color: var(--text-primary); }
+  .pcap-row {
+    display: grid; grid-template-columns: 150px 64px 1fr 1fr 60px 1.4fr;
+    gap: 8px; padding: 5px 14px; font-size: 11px; font-family: var(--font-mono);
+    border-bottom: 1px solid rgba(255,255,255,0.04); align-items: center;
+  }
+  .pcap-head {
+    flex-shrink: 0; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;
+    color: var(--text-muted); font-size: 10px; font-family: var(--font-ui);
+    border-bottom: 1px solid var(--border); background: var(--bg-surface);
+  }
+  #pcap-packets-list { flex: 1; overflow-y: auto; }
+  .pcap-pkt { cursor: pointer; }
+  .pcap-pkt:hover { background: var(--bg-hover); }
+  .pcap-pkt.pcap-focus { background: rgba(20,184,166,0.12); }
+  .pcap-pkt .pc-time { color: var(--text-muted); }
+  .pcap-pkt .pc-proto { font-weight: 700; }
+  .pcap-pkt.proto-TCP .pc-proto { color: var(--accent-teal); }
+  .pcap-pkt.proto-UDP .pc-proto { color: var(--accent-purple); }
+  .pcap-pkt.flag-RST .pc-info, .pcap-pkt.flag-RST .pc-proto { color: var(--level-error); }
+  .pcap-pkt .pc-src, .pcap-pkt .pc-dst { color: var(--text-secondary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .pcap-pkt .pc-len { color: var(--text-muted); text-align: right; }
+  .pcap-pkt .pc-info { color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  #pcap-sync-toolbar {
+    flex-shrink: 0; display: flex; align-items: center; gap: 10px; padding: 8px 14px;
+    border-bottom: 1px solid var(--border); font-size: 11px; color: var(--text-secondary);
+  }
+  #pcap-sync-comp {
+    background: var(--bg-elevated); border: 1px solid var(--border);
+    border-radius: var(--radius-sm); color: var(--text-primary); font-size: 11px; padding: 3px 6px;
+  }
+  .pcap-sync-note { color: var(--text-muted); font-size: 10px; }
+  #pcap-sync-panes { flex: 1; display: flex; overflow: hidden; }
+  .pcap-sync-col { flex: 1; display: flex; flex-direction: column; overflow: hidden; min-width: 0; }
+  .pcap-sync-col:first-child { border-right: 1px solid var(--border); }
+  .pcap-sync-colhead {
+    flex-shrink: 0; padding: 6px 12px; font-size: 11px; font-weight: 700;
+    color: var(--text-muted); border-bottom: 1px solid var(--border); background: var(--bg-surface);
+  }
+  .pcap-sync-scroll { flex: 1; overflow-y: auto; font-family: var(--font-mono); font-size: 11px; }
+  .pcap-sync-scroll .psr {
+    padding: 3px 12px; border-bottom: 1px solid rgba(255,255,255,0.03);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .pcap-sync-scroll .psr .psr-ts { color: var(--text-muted); margin-right: 8px; }
+  .pcap-sync-scroll .psr.psr-near { background: rgba(20,184,166,0.10); }
+  #pcap-privacy-note {
+    flex-shrink: 0; padding: 6px 14px; font-size: 10px; color: var(--level-warn);
+    background: var(--level-warn-bg); border-top: 1px solid var(--border);
+  }
+  /* ════ HAR floating window ════ */
+  #har-overlay {
+    position: fixed; z-index: 465; top: 95px; left: 50%; transform: translateX(-50%);
+    width: min(980px, 94vw); height: min(640px, 82vh);
+    display: flex; flex-direction: column;
+    background: var(--bg-base); border: 1px solid var(--accent-purple);
+    border-radius: var(--radius-lg); box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+    overflow: hidden; resize: both; min-width: 520px; min-height: 340px;
+  }
+  #har-overlay.hidden { display: none; }
+  #har-overlay-header {
+    height: 50px; flex-shrink: 0; background: var(--bg-surface);
+    border-bottom: 1px solid var(--accent-purple);
+    display: flex; align-items: center; gap: 12px; padding: 0 14px;
+    cursor: move; user-select: none;
+  }
+  #har-overlay-icon { font-size: 20px; }
+  #har-overlay-titlewrap { display: flex; flex-direction: column; min-width: 0; }
+  #har-overlay-title { font-size: 13px; font-weight: 700; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  #har-overlay-sub { font-size: 10px; color: var(--text-muted); font-family: var(--font-mono); }
+  #har-file-switcher {
+    background: var(--bg-elevated); border: 1px solid var(--border);
+    border-radius: var(--radius-sm); color: var(--text-primary); font-size: 11px; padding: 3px 6px; max-width: 160px;
+  }
+  #btn-har-close {
+    width: 28px; height: 28px; border-radius: var(--radius-sm); border: 1px solid var(--border);
+    background: var(--bg-elevated); color: var(--text-muted); font-size: 13px; cursor: pointer; transition: all 0.12s;
+  }
+  #btn-har-close:hover { border-color: var(--level-error); color: var(--level-error); }
+  #har-toolbar {
+    height: 40px; flex-shrink: 0; display: flex; align-items: center; gap: 10px;
+    padding: 0 12px; border-bottom: 1px solid var(--border); background: var(--bg-surface);
+  }
+  #har-status-filters { display: flex; gap: 4px; }
+  .har-sf {
+    background: transparent; border: 1px solid var(--border); border-radius: var(--radius-sm);
+    color: var(--text-muted); font-size: 11px; font-weight: 600; padding: 4px 10px; cursor: pointer; transition: all 0.12s;
+  }
+  .har-sf:hover { color: var(--text-primary); }
+  .har-sf.active { color: var(--accent-purple); border-color: var(--accent-purple); background: rgba(167,139,250,0.12); }
+  #har-filter {
+    background: var(--bg-elevated); border: 1px solid var(--border); border-radius: var(--radius-sm);
+    color: var(--text-primary); font-size: 11px; padding: 4px 8px; width: 280px; font-family: var(--font-mono);
+  }
+  #har-filter:focus { border-color: var(--accent-purple); outline: none; }
+  #har-summary-bar {
+    flex-shrink: 0; padding: 8px 14px; border-bottom: 1px solid var(--border);
+    font-size: 11px; color: var(--text-secondary); display: flex; gap: 16px; flex-wrap: wrap; font-family: var(--font-mono);
+  }
+  #har-summary-bar strong { color: var(--text-primary); }
+  .har-row {
+    display: grid; grid-template-columns: 130px 64px 70px 1fr 90px; gap: 10px;
+    padding: 5px 14px; font-size: 11px; font-family: var(--font-mono);
+    border-bottom: 1px solid rgba(255,255,255,0.04); align-items: center;
+  }
+  .har-head-row {
+    flex-shrink: 0; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;
+    color: var(--text-muted); font-size: 10px; font-family: var(--font-ui);
+    border-bottom: 1px solid var(--border); background: var(--bg-surface);
+  }
+  #har-list { flex: 1; overflow-y: auto; }
+  .har-req { cursor: pointer; }
+  .har-req:hover { background: var(--bg-hover); }
+  .har-req.har-open { background: rgba(167,139,250,0.10); }
+  .har-req .hr-time { color: var(--text-muted); }
+  .har-req .hr-method { font-weight: 700; color: var(--text-secondary); }
+  .har-req .hr-status { font-weight: 700; }
+  .har-req.sc-2xx .hr-status { color: var(--accent-teal); }
+  .har-req.sc-3xx .hr-status { color: var(--level-info); }
+  .har-req.sc-4xx .hr-status { color: var(--level-warn); }
+  .har-req.sc-5xx .hr-status, .har-req.sc-err .hr-status { color: var(--level-error); }
+  .har-req .hr-url { color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .har-req .hr-url .hr-host { color: var(--text-muted); }
+  .har-req .hr-dur { color: var(--text-secondary); text-align: right; }
+  .har-req.is-slow .hr-dur { color: var(--level-warn); font-weight: 700; }
+  .har-detail {
+    grid-column: 1 / -1; padding: 8px 4px 4px; margin-top: 4px;
+    border-top: 1px dashed var(--border); display: none;
+  }
+  .har-req.har-open .har-detail { display: block; }
+  .har-timings { display: flex; align-items: stretch; height: 18px; border-radius: 3px; overflow: hidden; margin: 4px 0 6px; }
+  .har-timings .ht-seg { height: 100%; }
+  .har-timings .ht-blocked { background: #6B7280; }
+  .har-timings .ht-dns { background: #8B5CF6; }
+  .har-timings .ht-connect { background: #F59E0B; }
+  .har-timings .ht-ssl { background: #EC4899; }
+  .har-timings .ht-send { background: #3B82F6; }
+  .har-timings .ht-wait { background: #14B8A6; }
+  .har-timings .ht-receive { background: #22C55E; }
+  .har-timing-legend { display: flex; flex-wrap: wrap; gap: 10px; font-size: 10px; color: var(--text-muted); }
+  .har-timing-legend span { display: flex; align-items: center; gap: 4px; }
+  .har-timing-legend .htl-dot { width: 8px; height: 8px; border-radius: 2px; }
+  .har-detail-meta { font-size: 10px; color: var(--text-secondary); font-family: var(--font-mono); margin-top: 4px; word-break: break-all; }
+  #har-privacy-note {
+    flex-shrink: 0; padding: 6px 14px; font-size: 10px; color: var(--level-warn);
+    background: var(--level-warn-bg); border-top: 1px solid var(--border);
+  }
+  /* ════ Cross-component timeline ════ */
+  #timeline-overlay {
+    position: fixed; z-index: 470; top: 70px; left: 50%; transform: translateX(-50%);
+    width: min(1000px, 94vw); height: min(700px, 86vh);
+    display: flex; flex-direction: column;
+    background: var(--bg-base); border: 1px solid var(--accent-purple);
+    border-radius: var(--radius-lg); box-shadow: 0 20px 60px rgba(0,0,0,0.5); overflow: hidden;
+  }
+  #timeline-overlay.hidden { display: none; }
+  #timeline-header {
+    height: 48px; flex-shrink: 0; display: flex; align-items: center; gap: 12px;
+    padding: 0 14px; background: var(--bg-surface); border-bottom: 1px solid var(--accent-purple);
+  }
+  #timeline-title { font-size: 13px; font-weight: 700; color: var(--text-primary); }
+  #timeline-sub { font-size: 11px; color: var(--text-muted); font-family: var(--font-mono); }
+  #timeline-errors-only-wrap { font-size: 11px; color: var(--text-secondary); display: flex; align-items: center; gap: 5px; cursor: pointer; }
+  #btn-timeline-close {
+    width: 28px; height: 28px; border-radius: var(--radius-sm); border: 1px solid var(--border);
+    background: var(--bg-elevated); color: var(--text-muted); cursor: pointer; transition: all 0.12s;
+  }
+  #btn-timeline-close:hover { border-color: var(--level-error); color: var(--level-error); }
+  #timeline-legend {
+    flex-shrink: 0; display: flex; flex-wrap: wrap; gap: 12px; padding: 8px 14px;
+    border-bottom: 1px solid var(--border); font-size: 11px;
+  }
+  #timeline-legend .tl-leg { display: flex; align-items: center; gap: 5px; color: var(--text-secondary); }
+  #timeline-legend .tl-dot { width: 10px; height: 10px; border-radius: 3px; flex-shrink: 0; }
+  #timeline-list { flex: 1; overflow-y: auto; font-family: var(--font-mono); font-size: 11px; }
+  .tl-row {
+    display: grid; grid-template-columns: 150px 160px 70px 1fr; gap: 10px; align-items: baseline;
+    padding: 4px 14px; border-bottom: 1px solid rgba(255,255,255,0.03); border-left: 3px solid transparent;
+  }
+  .tl-row:hover { background: var(--bg-hover); cursor: pointer; }
+  .tl-row .tl-ts { color: var(--text-muted); }
+  .tl-row .tl-comp { font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .tl-row .tl-lvl { font-size: 9px; font-weight: 700; }
+  .tl-row .tl-msg { color: var(--text-secondary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  /* ════ Export findings modal ════ */
+  #export-modal {
+    position: fixed; inset: 0; z-index: 10040; display: flex; align-items: center; justify-content: center;
+    background: rgba(0,0,0,0.5);
+  }
+  #export-modal.hidden { display: none; }
+  .export-modal-card {
+    width: min(680px, 92vw); max-height: 86vh; display: flex; flex-direction: column; gap: 12px;
+    background: var(--bg-surface); border: 1px solid var(--accent-teal);
+    border-radius: var(--radius-lg); box-shadow: var(--shadow-lg); padding: 20px;
+  }
+  .export-modal-title { font-size: 16px; font-weight: 800; color: var(--text-primary); }
+  .export-modal-sub { font-size: 12px; color: var(--text-secondary); margin-top: -6px; }
+  .export-opts { display: flex; flex-direction: column; gap: 6px; }
+  .export-opts label { font-size: 12px; color: var(--text-secondary); display: flex; align-items: center; gap: 8px; cursor: pointer; }
+  #export-output {
+    width: 100%; min-height: 220px; resize: vertical; font-family: var(--font-mono); font-size: 11px;
+    background: var(--bg-base); color: var(--text-primary); border: 1px solid var(--border);
+    border-radius: var(--radius-sm); padding: 10px; line-height: 1.5;
+  }
+  .export-actions { display: flex; gap: 8px; justify-content: flex-end; align-items: center; }
+  #export-status { font-size: 11px; color: var(--accent-teal); flex: 1; }
+  #btn-timeline, #btn-export-findings, #btn-tz-toggle {
+    background: var(--bg-elevated); border: 1px solid var(--border); border-radius: var(--radius-sm);
+    color: var(--text-secondary); font-size: 11px; padding: 4px 10px; cursor: pointer; transition: all 0.12s;
+  }
+  #btn-timeline:hover, #btn-export-findings:hover, #btn-tz-toggle:hover { border-color: var(--accent-teal); color: var(--text-primary); }
+  /* ════ KB test panel ════ */
+  #kbtest-modal {
+    position: fixed; inset: 0; z-index: 10045; display: flex; align-items: center; justify-content: center;
+    background: rgba(0,0,0,0.5);
+  }
+  #kbtest-modal.hidden { display: none; }
+  #kbtest-input {
+    width: 100%; resize: vertical; font-family: var(--font-mono); font-size: 12px;
+    background: var(--bg-base); color: var(--text-primary); border: 1px solid var(--border);
+    border-radius: var(--radius-sm); padding: 10px; line-height: 1.5;
+  }
+  #kbtest-input:focus { border-color: var(--accent-purple); outline: none; }
+  #kbtest-result { min-height: 40px; font-size: 12px; }
+  #kbtest-result .kbt-hit {
+    border: 1px solid var(--accent-teal); border-radius: var(--radius-sm); padding: 10px;
+    background: rgba(20,184,166,0.08);
+  }
+  #kbtest-result .kbt-hit .kbt-title { font-weight: 700; color: var(--text-primary); margin-bottom: 4px; }
+  #kbtest-result .kbt-hit .kbt-meta { font-size: 11px; color: var(--text-secondary); font-family: var(--font-mono); }
+  #kbtest-result .kbt-hit a { color: var(--accent-teal); }
+  #kbtest-result .kbt-miss { color: var(--text-muted); padding: 10px; font-style: italic; }
+  /* ════ Diagnostics modal ════ */
+  #diag-modal {
+    position: fixed; inset: 0; z-index: 10046; display: flex; align-items: center; justify-content: center;
+    background: rgba(0,0,0,0.5);
+  }
+  #diag-modal.hidden { display: none; }
+  #diag-prev-alert {
+    font-size: 12px; padding: 8px 10px; border-radius: var(--radius-sm);
+    background: var(--level-warn-bg); color: var(--level-warn); border: 1px solid var(--level-warn);
+  }
+  #diag-prev-alert.hidden { display: none; }
+  #diag-tabs { display: flex; gap: 4px; border-bottom: 1px solid var(--border); }
+  .diag-tab {
+    background: transparent; border: none; border-bottom: 2px solid transparent;
+    color: var(--text-muted); font-size: 12px; font-weight: 600; padding: 8px 12px; cursor: pointer; transition: all 0.12s;
+  }
+  .diag-tab:hover { color: var(--text-primary); }
+  .diag-tab.active { color: var(--accent-teal); border-bottom-color: var(--accent-teal); }
+  #diag-body {
+    min-height: 240px; max-height: 50vh; overflow-y: auto;
+    background: var(--bg-base); border: 1px solid var(--border); border-radius: var(--radius-sm);
+    padding: 10px; font-family: var(--font-mono); font-size: 11px; line-height: 1.5; white-space: pre-wrap;
+  }
+  #diag-body .dg-env { color: var(--text-secondary); border-bottom: 1px dashed var(--border); padding-bottom: 8px; margin-bottom: 8px; }
+  #diag-body .dg-row { display: grid; grid-template-columns: 64px 56px 1fr; gap: 8px; }
+  #diag-body .dg-t { color: var(--text-muted); }
+  #diag-body .dg-cat { color: var(--accent-purple); }
+  #diag-body .dg-row.lvl-error .dg-msg { color: var(--level-error); }
+  #diag-body .dg-row.lvl-warn .dg-msg { color: var(--level-warn); }
+  #diag-body .dg-empty { color: var(--text-muted); font-style: italic; }
   #evtx-summary-panel {
     width: 320px; flex-shrink: 0; overflow-y: auto;
     border-right: 1px solid var(--border); padding: 16px;
@@ -2008,6 +2598,8 @@ if (typeof window !== 'undefined') window.decodeEvtxRecordsFallback = decodeEvtx
     <div class="divider"></div>
     <div class="spacer"></div>
     <button id="btn-github" title="View on GitHub" onclick="window.open('https://github.com/totalthyco99/log-analyser','_blank')">⭐ GitHub</button>
+    <button id="btn-kb-test" title="Test a log line against the recognised-error knowledge base">🧪 Test KB</button>
+    <button id="btn-diagnostics" title="View / export diagnostics to help troubleshoot a reported issue (no log content — metadata only)">🩺 Diagnostics</button>
     <button id="btn-feedback" title="Submit feedback" onclick="window.open('https://forms.microsoft.com/r/tpeMyjq0V4','_blank')">💬 Feedback</button>
     <button id="btn-hard-refresh" title="Clears the cached app and reloads the very latest version from the server. Use this if you suspect you're seeing an outdated version of the tool." onclick="hardRefresh()">↻ Hard refresh</button>
     <button id="btn-tour-replay" title="Replay guided tour">❓</button>
@@ -2105,6 +2697,21 @@ if (typeof window !== 'undefined') window.decodeEvtxRecordsFallback = decodeEvtx
             <div id="component-grid" class="component-grid"></div>
           </div>
 
+          <div id="wizard-standalone">
+            <div class="wizard-standalone-label">Or analyse a single file — no product needed</div>
+            <div class="wizard-standalone-row">
+              <button class="wizard-standalone-btn" id="btn-wizard-evtx" title="Decode a Windows Event Log on its own — opens in a floating window">
+                ⬆ Analyse an EVTX file
+              </button>
+              <button class="wizard-standalone-btn" id="btn-wizard-pcap" title="Inspect a network capture on its own — opens in a floating window">
+                🌐 Analyse a PCAP file
+              </button>
+              <button class="wizard-standalone-btn" id="btn-wizard-har" title="Inspect a browser HTTP archive on its own — opens in a floating window">
+                🔗 Analyse a HAR file
+              </button>
+            </div>
+          </div>
+
         </div>
       </div>
 
@@ -2125,6 +2732,10 @@ if (typeof window !== 'undefined') window.decodeEvtxRecordsFallback = decodeEvtx
             <button id="btn-add-more" title="Keep the files already loaded and add more on top">+ Upload additional files</button>
             <button id="btn-add-evtx" title="Upload a Windows Event Log (.evtx) and analyse it in a floating window">⬆ Upload &amp; analyse EVTX</button>
             <input type="file" id="evtx-input" accept=".evtx" multiple style="display:none">
+            <button id="btn-add-pcap" title="Upload a network capture (.pcap/.pcapng) and view it alongside your logs">🌐 Upload &amp; analyse PCAP</button>
+            <input type="file" id="pcap-input" accept=".pcap,.pcapng,.cap,.gz" multiple style="display:none">
+            <button id="btn-add-har" title="Upload a browser HAR (HTTP Archive) and view requests alongside your logs">🔗 Upload &amp; analyse HAR</button>
+            <input type="file" id="har-input" accept=".har,.json" multiple style="display:none">
           </div>
           <div class="topbar-row topbar-row-secondary">
             <div id="global-time-range" title="Restrict all results and the viewer to entries within this time range">
@@ -2135,6 +2746,10 @@ if (typeof window !== 'undefined') window.decodeEvtxRecordsFallback = decodeEvtx
               <button id="gtr-apply" title="Apply time range">Apply</button>
               <button id="gtr-reset" title="Clear the time range">✕ Reset</button>
             </div>
+            <div class="topbar-spacer"></div>
+            <button id="btn-timeline" title="Merge all components into one chronological stream for the current time range">🕒 Cross-component timeline</button>
+            <button id="btn-export-findings" title="Export selected entries as a PII-scrubbed support summary">📋 Export findings</button>
+            <button id="btn-tz-toggle" title="Toggle timestamp display between local time and UTC">🌍 <span id="tz-mode">Local</span></button>
           </div>
         </div>
 
@@ -2270,6 +2885,157 @@ if (typeof window !== 'undefined') window.decodeEvtxRecordsFallback = decodeEvtx
   </div>
 </div>
 
+<!-- PCAP FLOATING WINDOW -->
+<div id="pcap-overlay" class="hidden">
+  <div id="pcap-overlay-header">
+    <span id="pcap-overlay-icon">🌐</span>
+    <div id="pcap-overlay-titlewrap">
+      <div id="pcap-overlay-title">Network capture</div>
+      <div id="pcap-overlay-sub"></div>
+    </div>
+    <div class="evtx-spacer"></div>
+    <select id="pcap-file-switcher" title="Switch between loaded captures" style="display:none"></select>
+    <button id="btn-pcap-close" title="Close">✕</button>
+  </div>
+  <div id="pcap-tabs">
+    <button class="pcap-tab active" data-tab="list">Packets</button>
+    <button class="pcap-tab" data-tab="sync">Side-by-side with logs</button>
+    <span class="evtx-spacer"></span>
+    <input id="pcap-filter" type="text" placeholder="Filter: ip, port, proto, flag…" autocomplete="off" spellcheck="false">
+  </div>
+  <div id="pcap-overlay-body">
+    <!-- Packet list tab -->
+    <div id="pcap-list-tab" class="pcap-tab-pane active">
+      <div id="pcap-summary-bar"></div>
+      <div id="pcap-packets-head" class="pcap-row pcap-head">
+        <span class="pc-time">Time</span><span class="pc-proto">Proto</span>
+        <span class="pc-src">Source</span><span class="pc-dst">Destination</span>
+        <span class="pc-len">Len</span><span class="pc-info">Info</span>
+      </div>
+      <div id="pcap-packets-list"></div>
+    </div>
+    <!-- Side-by-side synced tab -->
+    <div id="pcap-sync-tab" class="pcap-tab-pane">
+      <div id="pcap-sync-toolbar">
+        <span>Component:</span>
+        <select id="pcap-sync-comp"></select>
+        <span class="pcap-sync-note">Scrolling either pane lines the other up by timestamp.</span>
+      </div>
+      <div id="pcap-sync-panes">
+        <div class="pcap-sync-col">
+          <div class="pcap-sync-colhead">📦 Packets</div>
+          <div id="pcap-sync-packets" class="pcap-sync-scroll"></div>
+        </div>
+        <div class="pcap-sync-col">
+          <div class="pcap-sync-colhead" id="pcap-sync-loghead">📄 Logs</div>
+          <div id="pcap-sync-logs" class="pcap-sync-scroll"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div id="pcap-privacy-note">⚠ Packet payloads can contain sensitive data (credentials, tokens). Everything stays in your browser — nothing is uploaded.</div>
+</div>
+
+<!-- HAR FLOATING WINDOW -->
+<div id="har-overlay" class="hidden">
+  <div id="har-overlay-header">
+    <span id="har-overlay-icon">🔗</span>
+    <div id="har-overlay-titlewrap">
+      <div id="har-overlay-title">HTTP Archive</div>
+      <div id="har-overlay-sub"></div>
+    </div>
+    <div class="evtx-spacer"></div>
+    <select id="har-file-switcher" title="Switch between loaded HAR files" style="display:none"></select>
+    <button id="btn-har-close" title="Close">✕</button>
+  </div>
+  <div id="har-toolbar">
+    <div id="har-status-filters">
+      <button class="har-sf active" data-sf="all">All</button>
+      <button class="har-sf" data-sf="err">Errors (4xx/5xx)</button>
+      <button class="har-sf" data-sf="slow">Slow (≥1s)</button>
+    </div>
+    <span class="evtx-spacer"></span>
+    <input id="har-filter" type="text" placeholder="Filter: method, status, host, path, mime…" autocomplete="off" spellcheck="false">
+  </div>
+  <div id="har-summary-bar"></div>
+  <div id="har-head" class="har-row har-head-row">
+    <span class="hr-time">Time</span><span class="hr-method">Method</span>
+    <span class="hr-status">Status</span><span class="hr-url">URL</span>
+    <span class="hr-dur">Duration</span>
+  </div>
+  <div id="har-list"></div>
+  <div id="har-privacy-note">⚠ HAR files routinely contain auth headers, cookies and tokens. This view shows method, status, URL and timing only — request/response headers are never displayed. Everything stays in your browser.</div>
+</div>
+
+<!-- CROSS-COMPONENT TIMELINE -->
+<div id="timeline-overlay" class="hidden">
+  <div id="timeline-header">
+    <span style="font-size:18px">🕒</span>
+    <div id="timeline-title">Cross-component timeline</div>
+    <div id="timeline-sub"></div>
+    <div class="evtx-spacer"></div>
+    <label id="timeline-errors-only-wrap" title="Show only ERROR/CRITICAL lines"><input type="checkbox" id="timeline-errors-only"> Errors only</label>
+    <button id="btn-timeline-close" title="Close">✕</button>
+  </div>
+  <div id="timeline-legend"></div>
+  <div id="timeline-list"></div>
+</div>
+
+<!-- EXPORT FINDINGS MODAL -->
+<div id="export-modal" class="hidden">
+  <div class="export-modal-card">
+    <div class="export-modal-title">📋 Export findings <span style="font-weight:400;color:var(--text-muted);font-size:12px">— PII-scrubbed support summary</span></div>
+    <div class="export-modal-sub">Pick what to include. All log text is scrubbed before it appears here.</div>
+    <div class="export-opts">
+      <label><input type="checkbox" id="exp-recognised" checked> Recognised errors (distinct, with counts)</label>
+      <label><input type="checkbox" id="exp-levels" checked> Error/Critical summary per component</label>
+      <label><input type="checkbox" id="exp-range" checked> Active time range &amp; correlation window</label>
+      <label><input type="checkbox" id="exp-evtx"> EVTX summary (if loaded)</label>
+    </div>
+    <textarea id="export-output" readonly spellcheck="false"></textarea>
+    <div class="export-actions">
+      <span id="export-status"></span>
+      <button class="wizard-btn secondary" id="btn-export-close">Close</button>
+      <button class="wizard-btn primary" id="btn-export-copy">📋 Copy</button>
+    </div>
+  </div>
+</div>
+
+<!-- KB TEST PANEL -->
+<div id="kbtest-modal" class="hidden">
+  <div class="export-modal-card" style="border-color:var(--accent-purple)">
+    <div class="export-modal-title">🧪 Test the knowledge base <span id="kbtest-version" style="font-weight:400;color:var(--text-muted);font-size:12px"></span></div>
+    <div class="export-modal-sub">Paste a log line to see whether it matches a recognised error signature.</div>
+    <textarea id="kbtest-input" spellcheck="false" placeholder="Paste a log line here…" style="min-height:90px"></textarea>
+    <div id="kbtest-result"></div>
+    <div class="export-actions">
+      <span id="kbtest-status" style="flex:1;font-size:11px;color:var(--text-muted)"></span>
+      <button class="wizard-btn secondary" id="btn-kbtest-close">Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- DIAGNOSTICS MODAL -->
+<div id="diag-modal" class="hidden">
+  <div class="export-modal-card" style="border-color:var(--accent-teal);width:min(760px,94vw)">
+    <div class="export-modal-title">🩺 Diagnostics <span style="font-weight:400;color:var(--text-muted);font-size:12px">— for troubleshooting reported issues</span></div>
+    <div class="export-modal-sub">This is <strong>metadata and app errors only</strong> — no log content, file names, or scrubbed text. It stays on your device; export it only if you choose to share it with the developer.</div>
+    <div id="diag-prev-alert" class="hidden"></div>
+    <div id="diag-tabs">
+      <button class="diag-tab active" data-dtab="current">This session</button>
+      <button class="diag-tab" data-dtab="previous">Previous session</button>
+    </div>
+    <div id="diag-body"></div>
+    <div class="export-actions">
+      <span id="diag-status" style="flex:1;font-size:11px;color:var(--text-muted)"></span>
+      <button class="wizard-btn secondary" id="btn-diag-clear">Clear stored</button>
+      <button class="wizard-btn secondary" id="btn-diag-copy">📋 Copy</button>
+      <button class="wizard-btn primary" id="btn-diag-download">⬇ Download</button>
+      <button class="wizard-btn secondary" id="btn-diag-close">Close</button>
+    </div>
+  </div>
+</div>
+
 <!-- KB ARTICLE POPOVER -->
 <div id="kb-popover" class="hidden">
   <button class="kbp-close" id="kbp-close">✕</button>
@@ -2341,6 +3107,139 @@ if (typeof window !== 'undefined') window.decodeEvtxRecordsFallback = decodeEvtx
 <div id="parse-progress"></div>
 
 <script>
+// ═══════════════════════════════════════════════════════════════
+//  DIAGNOSTICS — privacy-safe, in-browser troubleshooting log
+//  Captures app errors + metadata ONLY (never log content). Stays
+//  on the device; the user explicitly exports it to share. A compact
+//  tail is persisted to localStorage so it survives a crash/OOM.
+// ═══════════════════════════════════════════════════════════════
+const Diag = (function () {
+  const MAX = 600;             // in-memory ring buffer size
+  const PERSIST_MAX = 100;     // compact tail persisted to localStorage
+  const LS_KEY = 'diag-last-session';
+  const ACTIVE_KEY = 'diag-session-active';
+  const buf = [];
+  let prev = null;             // previous session's persisted record (if any)
+  let prevUnclean = false;
+  let peakHeap = 0;
+  let lastPersist = 0;
+
+  const now = () => Date.now();
+  const t0 = now();
+
+  function env() {
+    const nav = navigator || {};
+    let mem = null;
+    try {
+      if (performance && performance.memory) {
+        const m = performance.memory;
+        mem = {
+          usedMB: Math.round(m.usedJSHeapSize / 1048576),
+          totalMB: Math.round(m.totalJSHeapSize / 1048576),
+          limitMB: Math.round(m.jsHeapSizeLimit / 1048576),
+        };
+      }
+    } catch (_) {}
+    return {
+      appVersion: (typeof APP_VERSION !== 'undefined') ? APP_VERSION : '?',
+      ua: nav.userAgent || '',
+      platform: nav.platform || '',
+      lang: nav.language || '',
+      deviceMemoryGB: nav.deviceMemory || null,
+      cores: nav.hardwareConcurrency || null,
+      viewport: (typeof window !== 'undefined') ? `${window.innerWidth}x${window.innerHeight}` : '',
+      dpr: (typeof window !== 'undefined') ? window.devicePixelRatio : null,
+      mem,
+    };
+  }
+
+  function log(level, cat, msg, data) {
+    try {
+      const e = { t: now() - t0, level, cat, msg: String(msg).slice(0, 300) };
+      if (data !== undefined) {
+        try { e.data = JSON.parse(JSON.stringify(data)); } catch (_) { e.data = String(data).slice(0, 300); }
+      }
+      buf.push(e);
+      if (buf.length > MAX) buf.shift();
+      // Persist a compact tail (throttled) so it survives a crash.
+      const ts = now();
+      if (level === 'error' || ts - lastPersist > 4000) { lastPersist = ts; persist(); }
+    } catch (_) {}
+  }
+
+  function persist() {
+    try {
+      const rec = {
+        startedAt: new Date(t0).toISOString(),
+        savedAt: new Date().toISOString(),
+        env: env(),
+        peakHeapMB: peakHeap,
+        tail: buf.slice(-PERSIST_MAX),
+      };
+      localStorage.setItem(LS_KEY, JSON.stringify(rec));
+    } catch (_) { /* quota / disabled — ignore */ }
+  }
+
+  function sampleMemory() {
+    try {
+      if (performance && performance.memory) {
+        const usedMB = Math.round(performance.memory.usedJSHeapSize / 1048576);
+        const limitMB = Math.round(performance.memory.jsHeapSizeLimit / 1048576);
+        if (usedMB > peakHeap) peakHeap = usedMB;
+        const pct = limitMB ? Math.round(usedMB / limitMB * 100) : 0;
+        // Only log notable jumps / high-pressure points to avoid noise.
+        if (pct >= 75) log('warn', 'memory', `heap ${usedMB}MB / ${limitMB}MB (${pct}%)`, { usedMB, limitMB, pct });
+      }
+    } catch (_) {}
+  }
+
+  function init() {
+    // Recover the previous session's persisted record before we overwrite it.
+    try {
+      const raw = localStorage.getItem(LS_KEY);
+      if (raw) prev = JSON.parse(raw);
+      prevUnclean = localStorage.getItem(ACTIVE_KEY) === '1';
+    } catch (_) {}
+    // Mark this session active; cleared on a clean exit.
+    try { localStorage.setItem(ACTIVE_KEY, '1'); } catch (_) {}
+    const clean = () => { try { localStorage.removeItem(ACTIVE_KEY); persist(); } catch (_) {} };
+    window.addEventListener('pagehide', clean);
+    window.addEventListener('beforeunload', () => { try { persist(); } catch (_) {} });
+
+    // Capture uncaught errors and promise rejections (app code, not user data).
+    window.addEventListener('error', (e) => {
+      log('error', 'js', e.message || 'error', {
+        src: e.filename ? String(e.filename).split('/').pop() : '',
+        line: e.lineno, col: e.colno,
+        stack: e.error && e.error.stack ? String(e.error.stack).split('\n').slice(0, 4).join(' | ') : undefined,
+      });
+    });
+    window.addEventListener('unhandledrejection', (e) => {
+      const r = e.reason;
+      log('error', 'promise', (r && r.message) || String(r) || 'unhandledrejection', {
+        stack: r && r.stack ? String(r.stack).split('\n').slice(0, 4).join(' | ') : undefined,
+      });
+    });
+
+    // Periodic memory sampling (Chromium exposes performance.memory).
+    sampleMemory();
+    setInterval(sampleMemory, 15000);
+
+    log('info', 'session', 'session started', env());
+  }
+
+  return {
+    log,
+    init,
+    snapshot: () => ({ env: env(), peakHeapMB: peakHeap, entries: buf.slice() }),
+    previous: () => prev,
+    previousUnclean: () => prevUnclean,
+    clearPrevious: () => { try { localStorage.removeItem(LS_KEY); } catch (_) {} prev = null; prevUnclean = false; },
+    bytes: (n) => n >= 1048576 ? (n/1048576).toFixed(1)+' MB' : n >= 1024 ? (n/1024).toFixed(1)+' KB' : n+' B',
+  };
+})();
+try { Diag.init(); } catch (_) {}
+
 // ═══════════════════════════════════════════════════════════════
 //  DATA — Products, components, log levels
 // ═══════════════════════════════════════════════════════════════
@@ -2419,6 +3318,10 @@ const state = {
   gtrEnd: null,    // global time range end (epoch ms) or null
   sidebarView: 'components', // 'components' | 'tree'
   loadedEvtx: {}, // path -> evtx summary
+  loadedPcap: {}, // name -> { name, format, linkType, packets }
+  activePcap: null,
+  loadedHar: {}, // name -> { name, creator, entries }
+  activeHar: null,
 };
 
 // ═══════════════════════════════════════════════════════════════
@@ -2530,11 +3433,25 @@ const YEXT_URL = 'https://thycotic.lightning.force.com/lightning/n/yextanswers__
 const KB = {
   signatures: KB_INLINE.signatures,
   prepared: [],
+  source: 'inline',
+  version: KB_INLINE.version,
 };
 
 // Lower-case match strings once for fast comparison
 function kbPrepare() {
   KB.prepared = KB.signatures.map(s => ({ ...s, _matchL: s.match.toLowerCase() }));
+  // Build a single combined regex so one pass replaces 51 substring scans per
+  // line. Capture-group index → signature, so we recover which one matched.
+  // Anchorless alternation; longest phrases first so the most specific wins.
+  try {
+    const esc = str => str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const ordered = [...KB.prepared].sort((a, b) => b._matchL.length - a._matchL.length);
+    KB._regexOrder = ordered;
+    KB._combined = new RegExp(ordered.map(s => '(' + esc(s._matchL) + ')').join('|'));
+  } catch (e) {
+    KB._combined = null; // fall back to the linear scan below
+    KB._regexOrder = null;
+  }
 }
 kbPrepare();
 
@@ -2547,6 +3464,8 @@ kbPrepare();
     const data = await res.json();
     if (data && Array.isArray(data.signatures) && data.signatures.length) {
       KB.signatures = data.signatures;
+      KB.source = 'hosted';
+      if (data.version != null) KB.version = data.version;
       kbPrepare();
       // Re-render any visible results/viewer so badges appear with the fresh data
       if (typeof refreshKbAffectedViews === 'function') refreshKbAffectedViews();
@@ -2562,6 +3481,17 @@ kbPrepare();
 function kbMatch(rawText) {
   if (!rawText) return null;
   const hay = rawText.toLowerCase();
+  // Fast path: one combined-regex pass. The matched capture group index maps
+  // back to the signature in KB._regexOrder.
+  if (KB._combined && KB._regexOrder) {
+    const m = KB._combined.exec(hay);
+    if (!m) return null;
+    for (let i = 1; i < m.length; i++) {
+      if (m[i] !== undefined) return KB._regexOrder[i - 1];
+    }
+    return null;
+  }
+  // Fallback: linear scan
   for (const s of KB.prepared) {
     if (hay.includes(s._matchL)) return s;
   }
@@ -3890,6 +4820,14 @@ function buildMerged(files) {
   }
   merged.sort((a,b) => (a.ts && b.ts) ? a.ts - b.ts : 0);
   for (let i = 0; i < merged.length; i++) merged[i].mergedNo = i + 1;
+  // Diagnostics: metadata only (file count, bytes, line count) — never content.
+  try {
+    const loaded = files.filter(f => f.loaded && f.lines);
+    const bytes = loaded.reduce((a, f) => a + (f.size || 0), 0);
+    Diag.log('info', 'parse', 'merged component', {
+      files: loaded.length, totalFiles: files.length, bytes, lines: merged.length,
+    });
+  } catch (_) {}
   return merged;
 }
 
@@ -3959,6 +4897,10 @@ function renderSidebar() {
 
 function renderSidebarComponents(container) {
   const prod = PRODUCTS[state.product];
+  // No product selected (e.g. a capture file opened standalone from the welcome
+  // screen) — there are no log components to list, so render nothing. The EVTX/
+  // PCAP/HAR floating windows are independent of the sidebar.
+  if (!prod) return;
   const label = document.createElement('div');
   label.className = 'sidebar-section-label';
   label.textContent = prod.label;
@@ -4223,6 +5165,12 @@ function renderLevelGroups(entries, data) {
       const latest = g.occurrences[0];
       // Does any entry under this logger match a recognised signature?
       const hasKb = g.occurrences.some(l => kbMatchLine(l));
+      // Per-logger severity breakdown (most severe first)
+      const sevCounts = {};
+      for (const l of g.occurrences) { const lv = l.level || '?'; sevCounts[lv] = (sevCounts[lv]||0)+1; }
+      const sevOrder = ['CRITICAL','ERROR','WARNING','INFO','VERBOSE','DEBUG','?'];
+      const sevHtml = sevOrder.filter(lv => sevCounts[lv]).map(lv =>
+        `<span class="lg-sev level-${lv}">${lv === '?' ? '?' : lv[0]}${sevCounts[lv]}</span>`).join('');
       const wrap = document.createElement('div');
       wrap.className = 'logger-group';
       wrap.innerHTML = `
@@ -4231,6 +5179,7 @@ function renderLevelGroups(entries, data) {
           ${hasKb ? kbBadgeHtml() : ''}
           <span class="level-badge ${latest.level||'?'}">${latest.level||'?'}</span>
           <span class="lg-name">${escHtml(g.logger)}</span>
+          <span class="lg-sevwrap">${sevHtml}</span>
           <span class="lg-count">${g.occurrences.length}×</span>
         </div>
         <div class="logger-body" style="display:none"></div>
@@ -4368,7 +5317,7 @@ function otherComponentsWithSignature(sigId, currentCompId) {
   const out = [];
   for (const [compId, data] of Object.entries(state.loadedData)) {
     if (compId === currentCompId) continue;
-    const hit = data.merged.some(l => !l.isContinuation && kbMatchLine(l) && kbMatchLine(l).id === sigId);
+    const hit = data.merged.some(l => { if (l.isContinuation) return false; const k = kbMatchLine(l); return k && k.id === sigId; });
     if (hit) out.push({ compId, name: data.compDef.name });
   }
   return out;
@@ -4596,6 +5545,13 @@ const VS = {
   similarLogger: null,
   highlightSimilar: false,
   _raf: null,
+  // DOM-pruning cap (keeps the rendered window bounded on very large files).
+  // Off-screen rows are removed once the window exceeds MAX_ROWS; the browser's
+  // scroll anchoring keeps the viewport stable. Only active above
+  // PRUNE_THRESHOLD lines — small files are untouched and behave as before.
+  PRUNE_THRESHOLD: 5000,
+  MAX_ROWS: 1500,     // prune when rendered rows exceed this…
+  TARGET_ROWS: 1200,  // …back down to this (hysteresis avoids per-tick churn)
 };
 
 function vsMeasureLineHeight() {
@@ -4620,14 +5576,14 @@ function buildLineEl(l, i) {
   if (l.isContinuation) cls += ' continuation hidden-trace';
   if (l.lineNo === VS.focusLineNo) cls += ' focus-line';
   if (VS.highlightSimilar && VS.similarLogger && l.logger === VS.similarLogger && l.lineNo !== VS.focusLineNo) cls += ' similar-line';
-  if (VS.searchMatchIndices.includes(i)) {
+  if (VS._searchMatchSet && VS._searchMatchSet.has(i)) {
     cls += (i === VS.searchMatchIndices[VS.searchIndex]) ? ' search-current' : ' search-match';
   }
   div.className = cls;
   div.dataset.idx = i;
   div.dataset.lineNo = l.lineNo;
   let html = getSafeHtml(l);
-  if (VS._searchTermSafe && VS.searchMatchIndices.includes(i)) {
+  if (VS._searchTermSafe && VS._searchMatchSet && VS._searchMatchSet.has(i)) {
     html = html.replace(new RegExp(escRegex(VS._searchTermSafe), 'gi'),
       m => `<span class="search-highlight">${m}</span>`);
   }
@@ -4699,6 +5655,7 @@ function vsInit(lines, focusLineNo) {
   VS.lines        = lines;
   VS.focusLineNo  = focusLineNo;
   VS.searchMatchIndices = [];
+  VS._searchMatchSet = new Set();
   VS.searchIndex  = 0;
   VS._searchTermSafe = null;
   VS.lineHeight   = 0; // will measure after first render
@@ -4767,6 +5724,7 @@ function vsRender() {
 
   const EXTEND = 300;
   let changed = false;
+  let extendedTop = false, extendedBottom = false;
 
   if (nearTop && VS._renderedStart > 0) {
     const newStart = Math.max(0, VS._renderedStart - EXTEND);
@@ -4774,7 +5732,7 @@ function vsRender() {
     for (let i = newStart; i < VS._renderedStart; i++) frag.appendChild(buildLineEl(VS.lines[i], i));
     rows.insertBefore(frag, rows.firstChild);
     VS._renderedStart = newStart;
-    changed = true;
+    changed = true; extendedTop = true;
   }
 
   if (nearBottom && VS._renderedEnd < VS.lines.length - 1) {
@@ -4783,10 +5741,67 @@ function vsRender() {
     for (let i = VS._renderedEnd + 1; i <= newEnd; i++) frag.appendChild(buildLineEl(VS.lines[i], i));
     rows.appendChild(frag);
     VS._renderedEnd = newEnd;
-    changed = true;
+    changed = true; extendedBottom = true;
+  }
+
+  // Cap the rendered window on very large files: remove rows from the end
+  // FURTHEST from the viewport. The removed rows are off-screen, so the
+  // browser's scroll anchoring (the same mechanism the prepend above relies
+  // on) keeps the visible content and scroll position stable. scrollHeight
+  // continues to represent only the loaded window — exactly as before — so
+  // no blank/under-rendered regions are introduced.
+  if (changed && VS.lines.length > VS.PRUNE_THRESHOLD) {
+    try {
+      const rendered = VS._renderedEnd - VS._renderedStart + 1;
+      if (rendered > VS.MAX_ROWS) {
+        if (extendedBottom && !extendedTop) {
+          vsPruneTopTo(VS._renderedEnd - VS.TARGET_ROWS + 1);
+        } else if (extendedTop && !extendedBottom) {
+          vsPruneBottomTo(VS._renderedStart + VS.TARGET_ROWS - 1);
+        }
+      }
+    } catch (_) { /* pruning is best-effort; on failure the DOM just grows */ }
   }
 
   if (changed) injectStackToggles(rows);
+}
+
+// Remove leading rows up to (but not including) line index `targetStart`.
+// Rows are off-screen (we only prune the side away from the viewport), so
+// scroll anchoring keeps the viewport stable. Children are a mix of log
+// lines, injected stack-toggle buttons and hidden continuation lines, so we
+// prune to a LINE INDEX boundary rather than by child count.
+function vsPruneTopTo(targetStart) {
+  if (targetStart <= VS._renderedStart) return;
+  const rows = document.getElementById('log-content-rows');
+  if (!rows.firstChild) return;
+  let boundary = null;
+  for (let child = rows.firstChild; child; child = child.nextSibling) {
+    if (child.classList && child.classList.contains('log-line')) {
+      const idx = parseInt(child.dataset.idx, 10);
+      if (!isNaN(idx) && idx >= targetStart) { boundary = child; break; }
+    }
+  }
+  if (!boundary) return;
+  while (rows.firstChild && rows.firstChild !== boundary) rows.removeChild(rows.firstChild);
+  VS._renderedStart = targetStart;
+}
+
+// Remove trailing rows beyond line index `targetEnd` (off-screen below).
+function vsPruneBottomTo(targetEnd) {
+  if (targetEnd >= VS._renderedEnd) return;
+  const rows = document.getElementById('log-content-rows');
+  if (!rows.lastChild) return;
+  let boundary = null;
+  for (let child = rows.lastChild; child; child = child.previousSibling) {
+    if (child.classList && child.classList.contains('log-line')) {
+      const idx = parseInt(child.dataset.idx, 10);
+      if (!isNaN(idx) && idx <= targetEnd) { boundary = child; break; }
+    }
+  }
+  if (!boundary) return;
+  while (rows.lastChild && rows.lastChild !== boundary) rows.removeChild(rows.lastChild);
+  VS._renderedEnd = targetEnd;
 }
 
 function vsRenderVirtual() {
@@ -4845,6 +5860,7 @@ function renderViewerLines(allLines, focusLineNo, windowMinutes) {
 function applyViewerSearch(term) {
   VS._searchTermSafe    = null;
   VS.searchMatchIndices = [];
+  VS._searchMatchSet    = new Set();
   VS.searchIndex        = 0;
 
   if (!term) { updateSearchCount(); vsRedrawVisible(); return; }
@@ -4852,7 +5868,7 @@ function applyViewerSearch(term) {
   const termL = term.toLowerCase();
   VS._searchTermSafe = escHtml(term);
   VS.lines.forEach((l, i) => {
-    if (l.text.toLowerCase().includes(termL)) VS.searchMatchIndices.push(i);
+    if (l.text.toLowerCase().includes(termL)) { VS.searchMatchIndices.push(i); VS._searchMatchSet.add(i); }
   });
 
   updateSearchCount();
@@ -5539,6 +6555,8 @@ async function runGlobalSearch(term) {
   state.globalSearchTerm = term;
   const termL = term.toLowerCase();
   const includeOlder = document.getElementById('search-older-check').checked;
+  // Diagnostics: log that a search ran + its scope, but NOT the query text.
+  try { Diag.log('info', 'search', 'global search', { termLen: term.length, includeOlder, components: Object.keys(state.loadedData||{}).length }); } catch (_) {}
 
   globalSearchActive = true;
   document.getElementById('sidebar-components').classList.add('search-mode-active');
@@ -5877,6 +6895,7 @@ document.getElementById('evtx-input').addEventListener('change', (e) => {
         const summary = evtxSummary(file.name, records);
         summary.path = file.name;
         state.loadedEvtx[file.name] = summary;
+        try { Diag.log('info', 'evtx', 'parsed evtx', { bytes: file.size, records: records.length }); } catch (_) {}
         if (!firstKey) firstKey = file.name;
         flashUploadMsg && flashUploadMsg('', 0);
       } catch (err) {
@@ -5892,6 +6911,897 @@ document.getElementById('evtx-input').addEventListener('change', (e) => {
     reader.readAsArrayBuffer(file);
   });
 });
+
+// ═══════════════════════════════════════════════════════════════
+//  PCAP / PCAPNG — network capture analysis + synced log view
+// ═══════════════════════════════════════════════════════════════
+const PCAP = { fmtNumber: n => n.toLocaleString() };
+
+// Decompress .gz transparently using the browser's native gzip stream.
+async function pcapMaybeGunzip(arrayBuffer, name) {
+  const u8 = new Uint8Array(arrayBuffer);
+  const isGz = name.toLowerCase().endsWith('.gz') || (u8[0] === 0x1f && u8[1] === 0x8b);
+  if (!isGz) return arrayBuffer;
+  if (typeof DecompressionStream === 'undefined') {
+    throw new Error('gzip-unsupported');
+  }
+  const ds = new DecompressionStream('gzip');
+  const stream = new Blob([u8]).stream().pipeThrough(ds);
+  const out = await new Response(stream).arrayBuffer();
+  return out;
+}
+
+function pcapTimeRange(packets) {
+  let lo = null, hi = null;
+  for (const p of packets) {
+    if (p.ts == null) continue;
+    if (lo == null || p.ts < lo) lo = p.ts;
+    if (hi == null || p.ts > hi) hi = p.ts;
+  }
+  return { lo, hi };
+}
+
+document.getElementById('btn-add-pcap').addEventListener('click', () => {
+  document.getElementById('pcap-input').click();
+});
+document.getElementById('pcap-input').addEventListener('change', (e) => {
+  const files = Array.from(e.target.files);
+  e.target.value = '';
+  let firstKey = null, pending = files.length;
+  if (!pending) return;
+  files.forEach(file => {
+    const reader = new FileReader();
+    reader.onload = async ev => {
+      try {
+        const buf = await pcapMaybeGunzip(ev.target.result, file.name);
+        const parsed = window.parsePcap(buf);
+        const range = pcapTimeRange(parsed.packets);
+        state.loadedPcap[file.name] = {
+          name: file.name, format: parsed.format, linkType: parsed.linkType,
+          packets: parsed.packets, range
+        };
+        try { Diag.log('info', 'pcap', 'parsed pcap', { bytes: file.size, format: parsed.format, packets: parsed.packets.length }); } catch (_) {}
+        if (!firstKey) firstKey = file.name;
+      } catch (err) {
+        console.warn('pcap parse failed', file.name, err);
+        const msg = err && err.message === 'gzip-unsupported'
+          ? 'your browser cannot decompress .gz here — please gunzip it first.'
+          : 'it may not be a valid .pcap/.pcapng file.';
+        alert(`Could not parse ${file.name}: ${msg}`);
+      }
+      if (--pending === 0) {
+        renderSidebar && renderSidebar();
+        if (firstKey) openPcapWindow(firstKey);
+      }
+    };
+    reader.onerror = () => { if (--pending === 0 && firstKey) openPcapWindow(firstKey); };
+    reader.readAsArrayBuffer(file);
+  });
+});
+
+function openPcapWindow(key) {
+  const cap = state.loadedPcap[key];
+  if (!cap) return;
+  state.activePcap = key;
+  const overlay = document.getElementById('pcap-overlay');
+  overlay.classList.remove('hidden');
+
+  document.getElementById('pcap-overlay-title').textContent = cap.name;
+  const tcp = cap.packets.filter(p => p.proto === 'TCP').length;
+  const udp = cap.packets.filter(p => p.proto === 'UDP').length;
+  document.getElementById('pcap-overlay-sub').textContent =
+    `${cap.format} · ${cap.packets.length.toLocaleString()} packets`;
+
+  // File switcher if more than one capture loaded
+  const keys = Object.keys(state.loadedPcap);
+  const sw = document.getElementById('pcap-file-switcher');
+  if (keys.length > 1) {
+    sw.style.display = '';
+    sw.innerHTML = keys.map(k => `<option value="${escHtml(k)}"${k===key?' selected':''}>${escHtml(k)}</option>`).join('');
+  } else { sw.style.display = 'none'; }
+
+  // Summary bar
+  const range = cap.range;
+  const span = (range.lo != null && range.hi != null)
+    ? `${fmtPcapTime(range.lo)} → ${fmtPcapTime(range.hi)}` : '—';
+  document.getElementById('pcap-summary-bar').innerHTML =
+    `<span><strong>${cap.packets.length.toLocaleString()}</strong> packets</span>
+     <span><strong>${tcp.toLocaleString()}</strong> TCP</span>
+     <span><strong>${udp.toLocaleString()}</strong> UDP</span>
+     <span>Time: <strong>${span}</strong></span>`;
+
+  PCAP._filter = '';
+  document.getElementById('pcap-filter').value = '';
+  renderPcapList(cap);
+  populatePcapSyncComponents();
+  // Default to list tab
+  switchPcapTab('list');
+}
+
+function fmtPcapTime(ms) {
+  if (ms == null) return '—';
+  const d = new Date(ms);
+  const p = n => String(n).padStart(2, '0');
+  if (state.tzMode === 'utc') {
+    return `${p(d.getUTCHours())}:${p(d.getUTCMinutes())}:${p(d.getUTCSeconds())}.${String(d.getUTCMilliseconds()).padStart(3,'0')}`;
+  }
+  return `${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}.${String(d.getMilliseconds()).padStart(3,'0')}`;
+}
+
+// Build a textual filter predicate (matches ip, port, proto, flag, info)
+function pcapFilterFn(term) {
+  term = (term || '').trim().toLowerCase();
+  if (!term) return () => true;
+  const toks = term.split(/\s+/);
+  return (p) => {
+    const hay = `${p.srcIp||''} ${p.dstIp||''} ${p.srcPort||''} ${p.dstPort||''} ${p.proto||''} ${p.flags||''} ${p.info||''}`.toLowerCase();
+    return toks.every(t => hay.includes(t));
+  };
+}
+
+function renderPcapList(cap) {
+  const list = document.getElementById('pcap-packets-list');
+  list.innerHTML = '';
+  const pred = pcapFilterFn(PCAP._filter);
+  const rows = cap.packets.filter(pred);
+  if (!rows.length) {
+    list.innerHTML = '<div class="empty-state" style="padding:30px"><div>No packets match this filter</div></div>';
+    return;
+  }
+  let idx = 0;
+  const BATCH = 200;
+  const renderBatch = () => {
+    const frag = document.createDocumentFragment();
+    const end = Math.min(idx + BATCH, rows.length);
+    for (; idx < end; idx++) {
+      const p = rows[idx];
+      const row = document.createElement('div');
+      row.className = `pcap-row pcap-pkt proto-${p.proto}` + (p.flags && p.flags.includes('RST') ? ' flag-RST' : '');
+      row.innerHTML = `
+        <span class="pc-time">${fmtPcapTime(p.ts)}</span>
+        <span class="pc-proto">${escHtml(p.proto)}</span>
+        <span class="pc-src">${p.srcIp ? escHtml(p.srcIp + (p.srcPort!=null?':'+p.srcPort:'')) : '—'}</span>
+        <span class="pc-dst">${p.dstIp ? escHtml(p.dstIp + (p.dstPort!=null?':'+p.dstPort:'')) : '—'}</span>
+        <span class="pc-len">${p.length||''}</span>
+        <span class="pc-info">${escHtml(p.flags || p.info || '')}</span>
+      `;
+      // Clicking a packet jumps the synced view to that moment
+      row.addEventListener('click', () => {
+        document.querySelectorAll('.pcap-pkt').forEach(r => r.classList.remove('pcap-focus'));
+        row.classList.add('pcap-focus');
+        if (p.ts != null) { switchPcapTab('sync'); pcapSyncToTimestamp(p.ts); }
+      });
+      frag.appendChild(row);
+    }
+    list.appendChild(frag);
+    if (idx < rows.length) requestAnimationFrame(renderBatch);
+  };
+  renderBatch();
+}
+
+document.getElementById('pcap-filter').addEventListener('input', (e) => {
+  PCAP._filter = e.target.value;
+  const cap = state.loadedPcap[state.activePcap];
+  if (cap) renderPcapList(cap);
+});
+
+document.getElementById('pcap-file-switcher').addEventListener('change', (e) => {
+  openPcapWindow(e.target.value);
+});
+document.getElementById('btn-pcap-close').addEventListener('click', () => {
+  document.getElementById('pcap-overlay').classList.add('hidden');
+});
+
+// Tabs
+document.querySelectorAll('.pcap-tab').forEach(tab => {
+  tab.addEventListener('click', () => switchPcapTab(tab.dataset.tab));
+});
+function switchPcapTab(name) {
+  document.querySelectorAll('.pcap-tab').forEach(t => t.classList.toggle('active', t.dataset.tab === name));
+  document.getElementById('pcap-list-tab').classList.toggle('active', name === 'list');
+  document.getElementById('pcap-sync-tab').classList.toggle('active', name === 'sync');
+  if (name === 'sync') buildPcapSyncView();
+}
+
+// Populate the component dropdown for the side-by-side view
+function populatePcapSyncComponents() {
+  const sel = document.getElementById('pcap-sync-comp');
+  const comps = Object.entries(state.loadedData || {});
+  if (!comps.length) {
+    sel.innerHTML = '<option value="">(no logs loaded)</option>';
+    return;
+  }
+  sel.innerHTML = comps.map(([id, d]) =>
+    `<option value="${escHtml(id)}">${escHtml(d.compDef ? d.compDef.name : id)}</option>`).join('');
+  PCAP._syncComp = comps[0][0];
+}
+document.getElementById('pcap-sync-comp').addEventListener('change', (e) => {
+  PCAP._syncComp = e.target.value;
+  buildPcapSyncView();
+});
+
+// Build both panes; wire reciprocal timestamp-synced scrolling.
+function buildPcapSyncView() {
+  const cap = state.loadedPcap[state.activePcap];
+  if (!cap) return;
+  const pktPane = document.getElementById('pcap-sync-packets');
+  const logPane = document.getElementById('pcap-sync-logs');
+
+  // Packets pane
+  PCAP._syncPkts = cap.packets.filter(p => p.ts != null);
+  pktPane.innerHTML = PCAP._syncPkts.map((p, i) =>
+    `<div class="psr" data-i="${i}" data-ts="${p.ts}">
+       <span class="psr-ts">${fmtPcapTime(p.ts)}</span>${escHtml(`${p.proto} ${p.srcIp||''}${p.srcPort!=null?':'+p.srcPort:''} → ${p.dstIp||''}${p.dstPort!=null?':'+p.dstPort:''} ${p.flags||p.info||''}`)}
+     </div>`).join('');
+
+  // Logs pane (chosen component, timestamped non-continuation lines)
+  const compId = PCAP._syncComp || (Object.keys(state.loadedData||{})[0]);
+  const data = compId && state.loadedData[compId];
+  document.getElementById('pcap-sync-loghead').textContent = '📄 ' + (data && data.compDef ? data.compDef.name : 'Logs');
+  const lines = data ? data.merged.filter(l => l.ts != null && !l.isContinuation) : [];
+  PCAP._syncLogs = lines;
+  logPane.innerHTML = lines.length
+    ? lines.map((l, i) =>
+        `<div class="psr" data-i="${i}" data-ts="${l.ts}">
+           <span class="psr-ts">${fmtPcapTime(l.ts)}</span>${escHtml(stripTimestampAndLevelMain(l.text)).slice(0, 300)}
+         </div>`).join('')
+    : '<div class="psr" style="color:var(--text-muted)">No timestamped log lines for this component.</div>';
+
+  // Reciprocal sync: when one pane scrolls, align the other to the nearest ts.
+  let syncing = false;
+  const nearestByTs = (container, ts) => {
+    const rows = container.querySelectorAll('.psr[data-ts]');
+    let best = null, bestDiff = Infinity;
+    for (const r of rows) {
+      const t = parseFloat(r.dataset.ts);
+      const diff = Math.abs(t - ts);
+      if (diff < bestDiff) { bestDiff = diff; best = r; }
+    }
+    return best;
+  };
+  const topTs = (container) => {
+    const rows = container.querySelectorAll('.psr[data-ts]');
+    const top = container.scrollTop;
+    for (const r of rows) {
+      if (r.offsetTop + r.offsetHeight >= top) return parseFloat(r.dataset.ts);
+    }
+    return null;
+  };
+  const linkScroll = (from, to) => {
+    from.addEventListener('scroll', () => {
+      if (syncing) return;
+      const ts = topTs(from);
+      if (ts == null) return;
+      const target = nearestByTs(to, ts);
+      if (!target) return;
+      syncing = true;
+      to.scrollTop = target.offsetTop;
+      // mark nearest rows
+      to.querySelectorAll('.psr.psr-near').forEach(r => r.classList.remove('psr-near'));
+      target.classList.add('psr-near');
+      requestAnimationFrame(() => { syncing = false; });
+    }, { passive: true });
+  };
+  // Remove old listeners by cloning (avoids stacking on rebuild)
+  const freshPkt = pktPane.cloneNode(true); pktPane.parentNode.replaceChild(freshPkt, pktPane);
+  const freshLog = logPane.cloneNode(true); logPane.parentNode.replaceChild(freshLog, logPane);
+  linkScroll(freshPkt, freshLog);
+  linkScroll(freshLog, freshPkt);
+  PCAP._syncPktPane = freshPkt;
+  PCAP._syncLogPane = freshLog;
+}
+
+// Scroll the synced view to a given timestamp (called from packet-list click)
+function pcapSyncToTimestamp(ts) {
+  buildPcapSyncView();
+  requestAnimationFrame(() => {
+    const pktPane = document.getElementById('pcap-sync-packets');
+    const logPane = document.getElementById('pcap-sync-logs');
+    const nearest = (container) => {
+      let best = null, bestDiff = Infinity;
+      container.querySelectorAll('.psr[data-ts]').forEach(r => {
+        const diff = Math.abs(parseFloat(r.dataset.ts) - ts);
+        if (diff < bestDiff) { bestDiff = diff; best = r; }
+      });
+      return best;
+    };
+    [pktPane, logPane].forEach(pane => {
+      const t = nearest(pane);
+      if (t) { pane.scrollTop = Math.max(0, t.offsetTop - 40); t.classList.add('psr-near'); }
+    });
+  });
+}
+
+// Make the PCAP window draggable by its header
+(function makePcapDraggable() {
+  const overlay = document.getElementById('pcap-overlay');
+  const header = document.getElementById('pcap-overlay-header');
+  if (!overlay || !header) return;
+  let dragging = false, sx = 0, sy = 0, ox = 0, oy = 0;
+  header.addEventListener('mousedown', e => {
+    if (e.target.closest('button') || e.target.closest('select')) return;
+    dragging = true;
+    const r = overlay.getBoundingClientRect();
+    overlay.style.transform = 'none';
+    overlay.style.left = r.left + 'px';
+    overlay.style.top = r.top + 'px';
+    sx = e.clientX; sy = e.clientY; ox = r.left; oy = r.top;
+    document.body.style.userSelect = 'none';
+    e.preventDefault();
+  });
+  document.addEventListener('mousemove', e => {
+    if (!dragging) return;
+    overlay.style.left = Math.max(0, ox + e.clientX - sx) + 'px';
+    overlay.style.top = Math.max(0, oy + e.clientY - sy) + 'px';
+  });
+  document.addEventListener('mouseup', () => { dragging = false; document.body.style.userSelect = ''; });
+})();
+
+// ═══════════════════════════════════════════════════════════════
+//  HAR (HTTP Archive) — request analysis (no log sync, by design)
+// ═══════════════════════════════════════════════════════════════
+const HAR = {};
+
+document.getElementById('btn-add-har').addEventListener('click', () => {
+  document.getElementById('har-input').click();
+});
+// Standalone HAR entry on the welcome screen (no product/logs needed).
+(function () {
+  const wb = document.getElementById('btn-wizard-har');
+  if (wb) wb.addEventListener('click', () => document.getElementById('har-input').click());
+})();
+// Standalone EVTX / PCAP entries on the welcome screen (no product/logs needed).
+(function () {
+  const eb = document.getElementById('btn-wizard-evtx');
+  if (eb) eb.addEventListener('click', () => document.getElementById('evtx-input').click());
+  const pb = document.getElementById('btn-wizard-pcap');
+  if (pb) pb.addEventListener('click', () => document.getElementById('pcap-input').click());
+})();
+document.getElementById('har-input').addEventListener('change', (e) => {
+  const files = Array.from(e.target.files);
+  e.target.value = '';
+  let firstKey = null, pending = files.length;
+  if (!pending) return;
+  files.forEach(file => {
+    const reader = new FileReader();
+    reader.onload = ev => {
+      try {
+        const parsed = window.parseHar(ev.target.result);
+        let lo = null, hi = null;
+        for (const en of parsed.entries) {
+          if (en.ts == null) continue;
+          if (lo == null || en.ts < lo) lo = en.ts;
+          if (hi == null || en.ts > hi) hi = en.ts;
+        }
+        state.loadedHar[file.name] = { name: file.name, creator: parsed.creator, entries: parsed.entries, range: { lo, hi } };
+        try { Diag.log('info', 'har', 'parsed har', { bytes: file.size, requests: parsed.entries.length }); } catch (_) {}
+        if (!firstKey) firstKey = file.name;
+      } catch (err) {
+        console.warn('har parse failed', file.name, err);
+        alert(`Could not parse ${file.name}: it may not be a valid .har file. (${err && err.message ? err.message : ''})`);
+      }
+      if (--pending === 0) {
+        renderSidebar && renderSidebar();
+        if (firstKey) openHarWindow(firstKey);
+      }
+    };
+    reader.onerror = () => { if (--pending === 0 && firstKey) openHarWindow(firstKey); };
+    reader.readAsText(file);
+  });
+});
+
+function openHarWindow(key) {
+  const har = state.loadedHar[key];
+  if (!har) return;
+  state.activeHar = key;
+  document.getElementById('har-overlay').classList.remove('hidden');
+  document.getElementById('har-overlay-title').textContent = har.name;
+  document.getElementById('har-overlay-sub').textContent =
+    `${har.entries.length.toLocaleString()} requests` + (har.creator ? ` · ${har.creator}` : '');
+
+  // File switcher if more than one HAR loaded
+  const keys = Object.keys(state.loadedHar);
+  const sw = document.getElementById('har-file-switcher');
+  if (keys.length > 1) {
+    sw.style.display = '';
+    sw.innerHTML = keys.map(k => `<option value="${escHtml(k)}"${k===key?' selected':''}>${escHtml(k)}</option>`).join('');
+  } else { sw.style.display = 'none'; }
+
+  // Summary bar
+  const counts = { '2xx':0,'3xx':0,'4xx':0,'5xx':0,'1xx':0,'err':0 };
+  let slow = 0, totalTime = 0, timed = 0;
+  for (const en of har.entries) {
+    counts[en.statusClass] = (counts[en.statusClass]||0) + 1;
+    if (en.slow) slow++;
+    if (en.time != null) { totalTime += en.time; timed++; }
+  }
+  const range = har.range;
+  const span = (range.lo != null && range.hi != null) ? `${fmtPcapTime(range.lo)} → ${fmtPcapTime(range.hi)}` : '—';
+  document.getElementById('har-summary-bar').innerHTML =
+    `<span><strong>${har.entries.length.toLocaleString()}</strong> requests</span>
+     <span style="color:var(--accent-teal)"><strong>${counts['2xx']}</strong> 2xx</span>
+     <span style="color:var(--level-info)"><strong>${counts['3xx']}</strong> 3xx</span>
+     <span style="color:var(--level-warn)"><strong>${counts['4xx']}</strong> 4xx</span>
+     <span style="color:var(--level-error)"><strong>${counts['5xx']+counts['err']}</strong> 5xx/failed</span>
+     <span><strong>${slow}</strong> slow (≥1s)</span>
+     <span>avg <strong>${timed?Math.round(totalTime/timed):0}</strong>ms</span>
+     <span>Time: <strong>${span}</strong></span>`;
+
+  HAR._filter = '';
+  HAR._statusFilter = 'all';
+  document.getElementById('har-filter').value = '';
+  document.querySelectorAll('.har-sf').forEach(b => b.classList.toggle('active', b.dataset.sf === 'all'));
+  renderHarList(har);
+}
+
+function harFilterFn() {
+  const term = (HAR._filter || '').trim().toLowerCase();
+  const toks = term ? term.split(/\s+/) : [];
+  const sf = HAR._statusFilter || 'all';
+  return (en) => {
+    if (sf === 'err' && !en.isError) return false;
+    if (sf === 'slow' && !en.slow) return false;
+    if (!toks.length) return true;
+    const hay = `${en.method} ${en.status} ${en.statusClass} ${en.host} ${en.path} ${en.mime}`.toLowerCase();
+    return toks.every(t => hay.includes(t));
+  };
+}
+
+function renderHarList(har) {
+  const list = document.getElementById('har-list');
+  list.innerHTML = '';
+  const rows = har.entries.filter(harFilterFn());
+  if (!rows.length) {
+    list.innerHTML = '<div class="empty-state" style="padding:30px"><div>No requests match this filter</div></div>';
+    return;
+  }
+  let idx = 0;
+  const BATCH = 150;
+  const renderBatch = () => {
+    const frag = document.createDocumentFragment();
+    const end = Math.min(idx + BATCH, rows.length);
+    for (; idx < end; idx++) {
+      const en = rows[idx];
+      const row = document.createElement('div');
+      row.className = `har-row har-req sc-${en.statusClass}` + (en.slow ? ' is-slow' : '');
+      row.innerHTML = `
+        <span class="hr-time">${en.ts != null ? fmtPcapTime(en.ts) : '—'}</span>
+        <span class="hr-method">${escHtml(en.method)}</span>
+        <span class="hr-status">${en.status || '—'}</span>
+        <span class="hr-url"><span class="hr-host">${escHtml(en.host)}</span>${escHtml(en.path)}</span>
+        <span class="hr-dur">${en.time != null ? en.time + 'ms' : '—'}</span>
+        <div class="har-detail">${harDetailHtml(en)}</div>
+      `;
+      row.addEventListener('click', () => {
+        const open = row.classList.contains('har-open');
+        document.querySelectorAll('.har-req.har-open').forEach(r => r.classList.remove('har-open'));
+        if (!open) row.classList.add('har-open');
+      });
+      frag.appendChild(row);
+    }
+    list.appendChild(frag);
+    if (idx < rows.length) requestAnimationFrame(renderBatch);
+  };
+  renderBatch();
+}
+
+// Inline detail: a waterfall-style timing bar + safe metadata (no headers/cookies)
+function harDetailHtml(en) {
+  const t = en.timings || {};
+  const segs = [
+    ['blocked', t.blocked], ['dns', t.dns], ['connect', t.connect], ['ssl', t.ssl],
+    ['send', t.send], ['wait', t.wait], ['receive', t.receive]
+  ].filter(([k, v]) => v != null && v > 0);
+  const total = segs.reduce((a, [, v]) => a + v, 0) || 1;
+  const bar = segs.map(([k, v]) =>
+    `<div class="ht-seg ht-${k}" style="width:${(v/total*100).toFixed(1)}%" title="${k}: ${v}ms"></div>`).join('');
+  const legend = segs.map(([k, v]) =>
+    `<span><span class="htl-dot ht-${k}"></span>${k} ${v}ms</span>`).join('');
+  const sizeStr = en.respSize != null ? `${en.respSize.toLocaleString()} B` : '—';
+  return `
+    <div class="har-timings">${bar || '<div class="ht-seg ht-wait" style="width:100%"></div>'}</div>
+    <div class="har-timing-legend">${legend || '<span>no timing breakdown</span>'}</div>
+    <div class="har-detail-meta">${escHtml(en.method)} ${escHtml(en.url)}</div>
+    <div class="har-detail-meta">status: ${en.status} ${escHtml(en.statusText)} · type: ${escHtml(en.mime || '—')} · size: ${sizeStr}${en.serverIp ? ' · server: ' + escHtml(en.serverIp) : ''}</div>
+  `;
+}
+
+document.getElementById('har-filter').addEventListener('input', (e) => {
+  HAR._filter = e.target.value;
+  const har = state.loadedHar[state.activeHar];
+  if (har) renderHarList(har);
+});
+document.querySelectorAll('.har-sf').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.har-sf').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    HAR._statusFilter = btn.dataset.sf;
+    const har = state.loadedHar[state.activeHar];
+    if (har) renderHarList(har);
+  });
+});
+document.getElementById('har-file-switcher').addEventListener('change', (e) => openHarWindow(e.target.value));
+document.getElementById('btn-har-close').addEventListener('click', () =>
+  document.getElementById('har-overlay').classList.add('hidden'));
+
+// Draggable HAR window
+(function makeHarDraggable() {
+  const overlay = document.getElementById('har-overlay');
+  const header = document.getElementById('har-overlay-header');
+  if (!overlay || !header) return;
+  let dragging = false, sx = 0, sy = 0, ox = 0, oy = 0;
+  header.addEventListener('mousedown', e => {
+    if (e.target.closest('button') || e.target.closest('select')) return;
+    dragging = true;
+    const r = overlay.getBoundingClientRect();
+    overlay.style.transform = 'none';
+    overlay.style.left = r.left + 'px'; overlay.style.top = r.top + 'px';
+    sx = e.clientX; sy = e.clientY; ox = r.left; oy = r.top;
+    document.body.style.userSelect = 'none'; e.preventDefault();
+  });
+  document.addEventListener('mousemove', e => {
+    if (!dragging) return;
+    overlay.style.left = Math.max(0, ox + e.clientX - sx) + 'px';
+    overlay.style.top = Math.max(0, oy + e.clientY - sy) + 'px';
+  });
+  document.addEventListener('mouseup', () => { dragging = false; document.body.style.userSelect = ''; });
+})();
+state.tzMode = 'local'; // 'local' | 'utc'
+function fmtTimeTz(ts, withMs) {
+  if (ts == null) return '—';
+  const d = new Date(ts);
+  const p = (n, w) => String(n).padStart(w || 2, '0');
+  if (state.tzMode === 'utc') {
+    let s = `${d.getUTCFullYear()}-${p(d.getUTCMonth()+1)}-${p(d.getUTCDate())} ${p(d.getUTCHours())}:${p(d.getUTCMinutes())}:${p(d.getUTCSeconds())}`;
+    if (withMs) s += '.' + p(d.getUTCMilliseconds(), 3);
+    return s + ' UTC';
+  }
+  let s = `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`;
+  if (withMs) s += '.' + p(d.getMilliseconds(), 3);
+  return s;
+}
+document.getElementById('btn-tz-toggle').addEventListener('click', () => {
+  state.tzMode = state.tzMode === 'local' ? 'utc' : 'local';
+  document.getElementById('tz-mode').textContent = state.tzMode === 'utc' ? 'UTC' : 'Local';
+  // Refresh any open views that show timestamps
+  const tlo = document.getElementById('timeline-overlay');
+  if (tlo && !tlo.classList.contains('hidden')) buildTimeline();
+  const po = document.getElementById('pcap-overlay');
+  if (po && !po.classList.contains('hidden') && state.activePcap) openPcapWindow(state.activePcap);
+  const ho = document.getElementById('har-overlay');
+  if (ho && !ho.classList.contains('hidden') && state.activeHar) openHarWindow(state.activeHar);
+});
+
+// ═══════════════════════════════════════════════════════════════
+//  CROSS-COMPONENT TIMELINE
+// ═══════════════════════════════════════════════════════════════
+const TL_COLORS = ['#14B8A6','#A78BFA','#F59E0B','#60A5FA','#F472B6','#34D399','#FB923C','#C084FC','#22D3EE','#FBBF24'];
+function componentColorMap() {
+  const map = {};
+  Object.keys(state.loadedData || {}).forEach((id, i) => { map[id] = TL_COLORS[i % TL_COLORS.length]; });
+  return map;
+}
+
+document.getElementById('btn-timeline').addEventListener('click', () => {
+  if (!Object.keys(state.loadedData || {}).length) { showAppToast && showAppToast('Load some logs first'); return; }
+  document.getElementById('timeline-overlay').classList.remove('hidden');
+  buildTimeline();
+});
+document.getElementById('btn-timeline-close').addEventListener('click', () => {
+  document.getElementById('timeline-overlay').classList.add('hidden');
+});
+document.getElementById('timeline-errors-only').addEventListener('change', buildTimeline);
+
+function buildTimeline() {
+  const colors = componentColorMap();
+  const errorsOnly = document.getElementById('timeline-errors-only').checked;
+  // Merge all components' timestamped, non-continuation lines (respect global range)
+  let rows = [];
+  for (const [compId, data] of Object.entries(state.loadedData || {})) {
+    const name = data.compDef ? data.compDef.name : compId;
+    for (const l of data.merged) {
+      if (l.isContinuation || l.ts == null || !l.level) continue;
+      if (errorsOnly && l.level !== 'ERROR' && l.level !== 'CRITICAL') continue;
+      if (!inGlobalRange(l.ts)) continue;
+      rows.push({ ts: l.ts, compId, compName: name, line: l, data });
+    }
+  }
+  rows.sort((a, b) => a.ts - b.ts);
+
+  // Legend
+  const legend = document.getElementById('timeline-legend');
+  legend.innerHTML = Object.entries(state.loadedData || {}).map(([id, d]) =>
+    `<span class="tl-leg"><span class="tl-dot" style="background:${colors[id]}"></span>${escHtml(d.compDef ? d.compDef.name : id)}</span>`).join('');
+
+  // Sub label
+  const rangeNote = (state.gtrStart != null || state.gtrEnd != null) ? ' · within active time range' : '';
+  document.getElementById('timeline-sub').textContent = `${rows.length.toLocaleString()} entries${rangeNote}`;
+
+  const list = document.getElementById('timeline-list');
+  list.innerHTML = '';
+  if (!rows.length) {
+    list.innerHTML = '<div class="empty-state" style="padding:40px"><div>No entries to show</div></div>';
+    return;
+  }
+  let idx = 0;
+  const BATCH = 150;
+  const renderBatch = () => {
+    const frag = document.createDocumentFragment();
+    const end = Math.min(idx + BATCH, rows.length);
+    for (; idx < end; idx++) {
+      const r = rows[idx];
+      const row = document.createElement('div');
+      row.className = 'tl-row';
+      row.style.borderLeftColor = colors[r.compId];
+      row.innerHTML = `
+        <span class="tl-ts">${fmtTimeTz(r.ts, true)}</span>
+        <span class="tl-comp" style="color:${colors[r.compId]}">${escHtml(r.compName)}</span>
+        <span class="tl-lvl level-${r.line.level}"><span class="level-badge ${r.line.level}">${r.line.level}</span></span>
+        <span class="tl-msg">${escHtml(stripTimestampAndLevelMain(r.line.text)).slice(0,400)}</span>
+      `;
+      row.addEventListener('click', () => {
+        document.getElementById('timeline-overlay').classList.add('hidden');
+        if (state.activeCompId !== r.compId) activateComponent(r.compId);
+        openInViewer(r.line, r.data);
+      });
+      frag.appendChild(row);
+    }
+    list.appendChild(frag);
+    if (idx < rows.length) requestAnimationFrame(renderBatch);
+  };
+  renderBatch();
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  EXPORT FINDINGS — PII-scrubbed support summary
+// ═══════════════════════════════════════════════════════════════
+document.getElementById('btn-export-findings').addEventListener('click', () => {
+  if (!Object.keys(state.loadedData || {}).length) { showAppToast && showAppToast('Load some logs first'); return; }
+  document.getElementById('export-modal').classList.remove('hidden');
+  buildExportFindings();
+});
+['exp-recognised','exp-levels','exp-range','exp-evtx'].forEach(id =>
+  document.getElementById(id).addEventListener('change', buildExportFindings));
+document.getElementById('btn-export-close').addEventListener('click', () =>
+  document.getElementById('export-modal').classList.add('hidden'));
+document.getElementById('btn-export-copy').addEventListener('click', () => {
+  const txt = document.getElementById('export-output').value;
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(txt).then(() => {
+      document.getElementById('export-status').textContent = '✓ Copied to clipboard';
+      setTimeout(() => { document.getElementById('export-status').textContent = ''; }, 2500);
+    }).catch(() => { document.getElementById('export-status').textContent = '⚠ Copy failed — select & copy manually'; });
+  }
+});
+
+function buildExportFindings() {
+  const lines = [];
+  const scrub = (t) => scrubPII(stripTimestampAndLevelMain(t)).scrubbed.trim();
+  lines.push('=== Log Analyser — findings summary ===');
+  lines.push('Generated: ' + fmtTimeTz(Date.now(), false));
+  lines.push('Components loaded: ' + Object.values(state.loadedData||{}).map(d => d.compDef ? d.compDef.name : '?').join(', '));
+  lines.push('');
+
+  if (document.getElementById('exp-range').checked) {
+    if (state.gtrStart != null || state.gtrEnd != null) {
+      lines.push('-- Active time range --');
+      lines.push('  From: ' + (state.gtrStart != null ? fmtTimeTz(state.gtrStart, true) : '(open)'));
+      lines.push('  To:   ' + (state.gtrEnd != null ? fmtTimeTz(state.gtrEnd, true) : '(open)'));
+    } else {
+      lines.push('-- Time range: full capture (no filter applied) --');
+    }
+    lines.push('');
+  }
+
+  if (document.getElementById('exp-levels').checked) {
+    lines.push('-- Error / Critical counts per component --');
+    for (const [id, d] of Object.entries(state.loadedData||{})) {
+      let err = 0, crit = 0;
+      for (const l of d.merged) {
+        if (l.isContinuation || l.ts == null) continue;
+        if (!inGlobalRange(l.ts)) continue;
+        if (l.level === 'ERROR') err++;
+        else if (l.level === 'CRITICAL') crit++;
+      }
+      lines.push(`  ${d.compDef ? d.compDef.name : id}: ${err} error, ${crit} critical`);
+    }
+    lines.push('');
+  }
+
+  if (document.getElementById('exp-recognised').checked) {
+    lines.push('-- Recognised errors (distinct) --');
+    const seen = new Map(); // sigId -> {sig, count, sample}
+    for (const [id, d] of Object.entries(state.loadedData||{})) {
+      for (const l of d.merged) {
+        if (l.isContinuation || !l.level || l.ts == null) continue;
+        if (!inGlobalRange(l.ts)) continue;
+        const sig = kbMatchLine(l);
+        if (!sig) continue;
+        if (!seen.has(sig.id)) seen.set(sig.id, { sig, count: 0, sample: l, comps: new Set() });
+        const e = seen.get(sig.id); e.count++; e.comps.add(d.compDef ? d.compDef.name : id);
+      }
+    }
+    if (!seen.size) lines.push('  (none)');
+    for (const { sig, count, sample, comps } of seen.values()) {
+      lines.push(`  • ${sig.title}`);
+      lines.push(`    occurrences: ${count} · components: ${[...comps].join(', ')}`);
+      if (sig.url) lines.push(`    doc: ${sig.url}`);
+      lines.push(`    sample: ${scrub(sample.text).slice(0, 200)}`);
+    }
+    lines.push('');
+  }
+
+  if (document.getElementById('exp-evtx').checked) {
+    const evtxKeys = Object.keys(state.loadedEvtx || {});
+    if (evtxKeys.length) {
+      lines.push('-- EVTX summary --');
+      for (const k of evtxKeys) {
+        const ev = state.loadedEvtx[k];
+        lines.push(`  ${k}: ${ev.decoded ? ev.decoded.toLocaleString() : (ev.records ? ev.records.length : 0)} events` +
+          (ev.earliest ? ` · ${fmtTimeTz(ev.earliest, false)} → ${fmtTimeTz(ev.latest, false)}` : ''));
+      }
+      lines.push('');
+    }
+  }
+
+  lines.push('(All log text above was PII-scrubbed in-browser before export.)');
+  document.getElementById('export-output').value = lines.join('\n');
+  document.getElementById('export-status').textContent = '';
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  KB TEST PANEL
+// ═══════════════════════════════════════════════════════════════
+document.getElementById('btn-kb-test').addEventListener('click', () => {
+  document.getElementById('kbtest-modal').classList.remove('hidden');
+  const src = KB.source === 'hosted' ? 'hosted error-signatures.json' : 'built-in (inline) dictionary';
+  document.getElementById('kbtest-version').textContent =
+    `— v${KB.version != null ? KB.version : '?'} · ${KB.signatures.length} signatures · ${src}`;
+  const inp = document.getElementById('kbtest-input');
+  inp.focus();
+  runKbTest();
+});
+document.getElementById('btn-kbtest-close').addEventListener('click', () =>
+  document.getElementById('kbtest-modal').classList.add('hidden'));
+document.getElementById('kbtest-input').addEventListener('input', runKbTest);
+
+function runKbTest() {
+  const text = document.getElementById('kbtest-input').value;
+  const out = document.getElementById('kbtest-result');
+  if (!text.trim()) { out.innerHTML = '<div class="kbt-miss">Waiting for input…</div>'; return; }
+  const sig = kbMatch(text);
+  if (!sig) {
+    out.innerHTML = '<div class="kbt-miss">✗ No recognised-error signature matches this line.</div>';
+    return;
+  }
+  const link = sig.url
+    ? `<a href="${escHtml(sig.url)}" target="_blank" rel="noopener">Open documentation ↗</a>`
+    : (sig.source === 'confluence' ? 'Source: internal Confluence' : 'Recognised error');
+  out.innerHTML = `
+    <div class="kbt-hit">
+      <div class="kbt-title">✓ ${escHtml(sig.title)}</div>
+      <div class="kbt-meta">id: ${escHtml(sig.id)} · matched phrase: "${escHtml(sig.match)}"${sig.products ? ' · ' + escHtml(sig.products.join(', ')) : ''}</div>
+      <div class="kbt-meta" style="margin-top:6px">${link}</div>
+    </div>`;
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  DIAGNOSTICS PANEL
+// ═══════════════════════════════════════════════════════════════
+let _diagTab = 'current';
+document.getElementById('btn-diagnostics').addEventListener('click', () => {
+  document.getElementById('diag-modal').classList.remove('hidden');
+  // Surface a previous unclean shutdown (possible crash / OOM) up front.
+  const alertEl = document.getElementById('diag-prev-alert');
+  if (Diag.previousUnclean() && Diag.previous()) {
+    alertEl.classList.remove('hidden');
+    const pv = Diag.previous();
+    const peak = pv.peakHeapMB ? ` Heap peaked at ~${pv.peakHeapMB} MB.` : '';
+    alertEl.textContent = `⚠ The previous session may not have closed cleanly (possible crash or out-of-memory).${peak} See the "Previous session" tab.`;
+  } else {
+    alertEl.classList.add('hidden');
+  }
+  // Default to previous tab if this looks like a post-crash reopen.
+  _diagTab = (Diag.previousUnclean() && Diag.previous()) ? 'previous' : 'current';
+  document.querySelectorAll('.diag-tab').forEach(t => t.classList.toggle('active', t.dataset.dtab === _diagTab));
+  renderDiag();
+});
+document.querySelectorAll('.diag-tab').forEach(tab => {
+  tab.addEventListener('click', () => {
+    _diagTab = tab.dataset.dtab;
+    document.querySelectorAll('.diag-tab').forEach(t => t.classList.toggle('active', t === tab));
+    renderDiag();
+  });
+});
+document.getElementById('btn-diag-close').addEventListener('click', () =>
+  document.getElementById('diag-modal').classList.add('hidden'));
+document.getElementById('btn-diag-clear').addEventListener('click', () => {
+  Diag.clearPrevious();
+  document.getElementById('diag-prev-alert').classList.add('hidden');
+  document.getElementById('diag-status').textContent = 'Stored previous-session diagnostics cleared.';
+  if (_diagTab === 'previous') renderDiag();
+});
+document.getElementById('btn-diag-copy').addEventListener('click', () => {
+  const txt = diagText(_diagTab);
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(txt).then(() => {
+      document.getElementById('diag-status').textContent = '✓ Copied to clipboard';
+      setTimeout(() => { document.getElementById('diag-status').textContent = ''; }, 2500);
+    }).catch(() => { document.getElementById('diag-status').textContent = '⚠ Copy failed — select & copy from the box'; });
+  }
+});
+document.getElementById('btn-diag-download').addEventListener('click', () => {
+  const txt = diagText(_diagTab);
+  const blob = new Blob([txt], { type: 'text/plain' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `log-analyser-diagnostics-${_diagTab}-${new Date().toISOString().slice(0,19).replace(/[:T]/g,'-')}.txt`;
+  document.body.appendChild(a); a.click();
+  setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1000);
+});
+
+function diagRecord(which) {
+  if (which === 'previous') {
+    const p = Diag.previous();
+    if (!p) return null;
+    return { env: p.env, peakHeapMB: p.peakHeapMB, entries: p.tail || [], startedAt: p.startedAt, savedAt: p.savedAt };
+  }
+  return Diag.snapshot();
+}
+
+function renderDiag() {
+  const body = document.getElementById('diag-body');
+  const rec = diagRecord(_diagTab);
+  if (!rec) {
+    body.innerHTML = '<div class="dg-empty">No previous session was recorded.</div>';
+    return;
+  }
+  const e = rec.env || {};
+  const mem = e.mem ? `${e.mem.usedMB}/${e.mem.limitMB} MB used (limit)` : 'n/a (non-Chromium)';
+  const envHtml =
+    `app ${escHtml(e.appVersion||'?')} · ${escHtml(e.platform||'')} · ${e.cores||'?'} cores · ` +
+    `device RAM ${e.deviceMemoryGB||'?'} GB · viewport ${escHtml(e.viewport||'')}\n` +
+    `heap now: ${escHtml(mem)}${rec.peakHeapMB?` · peak this record: ~${rec.peakHeapMB} MB`:''}\n` +
+    `UA: ${escHtml(e.ua||'')}` +
+    (rec.startedAt ? `\nsession: ${escHtml(rec.startedAt)} → ${escHtml(rec.savedAt||'')}` : '');
+  const rows = (rec.entries||[]).map(en => {
+    const secs = (en.t/1000).toFixed(1) + 's';
+    const data = en.data ? ' ' + escHtml(JSON.stringify(en.data)) : '';
+    return `<div class="dg-row lvl-${en.level}"><span class="dg-t">${secs}</span><span class="dg-cat">${escHtml(en.cat)}</span><span class="dg-msg">${escHtml(en.msg)}${data}</span></div>`;
+  }).join('');
+  body.innerHTML = `<div class="dg-env">${envHtml}</div>` + (rows || '<div class="dg-empty">No events recorded yet.</div>');
+}
+
+// Build the plain-text export, run through the PII scrubber as a safety net.
+function diagText(which) {
+  const rec = diagRecord(which);
+  if (!rec) return 'No previous session recorded.';
+  const e = rec.env || {};
+  const lines = [];
+  lines.push('=== Log Analyser diagnostics ===');
+  lines.push(`tab: ${which}`);
+  if (rec.startedAt) lines.push(`session: ${rec.startedAt} → ${rec.savedAt || ''}`);
+  lines.push(`app version: ${e.appVersion || '?'}`);
+  lines.push(`platform: ${e.platform || ''} · cores: ${e.cores || '?'} · device RAM: ${e.deviceMemoryGB || '?'} GB`);
+  lines.push(`viewport: ${e.viewport || ''} · dpr: ${e.dpr || ''} · lang: ${e.lang || ''}`);
+  if (e.mem) lines.push(`heap: ${e.mem.usedMB} MB used / ${e.mem.totalMB} MB total / ${e.mem.limitMB} MB limit`);
+  if (rec.peakHeapMB) lines.push(`peak heap (this record): ~${rec.peakHeapMB} MB`);
+  lines.push(`UA: ${e.ua || ''}`);
+  lines.push('');
+  lines.push('--- events (time since session start) ---');
+  if (!rec.entries || !rec.entries.length) lines.push('(none)');
+  for (const en of (rec.entries||[])) {
+    const secs = (en.t/1000).toFixed(1) + 's';
+    const data = en.data ? ' ' + JSON.stringify(en.data) : '';
+    lines.push(`[${secs}] ${en.level.toUpperCase()} ${en.cat}: ${en.msg}${data}`);
+  }
+  lines.push('');
+  lines.push('(Metadata + app errors only — no log content. PII-scrubbed on export.)');
+  let out = lines.join('\n');
+  try { out = scrubPII(out).scrubbed; } catch (_) {}
+  return out;
+}
+
 
 // ═══════════════════════════════════════════════════════════════
 //  GLOBAL TIME RANGE
@@ -6172,7 +8082,7 @@ if ('serviceWorker' in navigator) {
 // ═══════════════════════════════════════════════════════════════
 //  GUIDED TOUR
 // ═══════════════════════════════════════════════════════════════
-const TOUR_KEY = 'tour-completed-v1';
+const TOUR_KEY = 'tour-completed-v2';
 
 const TOUR_STEPS = [
   {
@@ -6185,7 +8095,7 @@ const TOUR_STEPS = [
   },
   {
     id: 'product',
-    title: '1 — Select a product',
+    title: 'Select a product',
     body: 'Start by choosing the product whose logs you want to analyse — Secret Server, Delinea Platform, or Connection Manager. This determines which components and log files the tool expects.',
     target: '.product-grid',
     position: 'below',
@@ -6193,7 +8103,7 @@ const TOUR_STEPS = [
   },
   {
     id: 'upload',
-    title: '2 — Drop files, a .zip, or a whole folder',
+    title: 'Drop files, a .zip, or a whole folder',
     body: 'Drop individual log files, an entire <strong>.zip</strong> (including the nested per-node / per-DE zips customers send), or a whole <strong>folder</strong>. Everything is unpacked <em>in your browser</em> — nothing is uploaded. Files are auto-matched to their component by filename, including rolled logs like <code>SS.log.1</code>.',
     target: '#upload-zone',
     position: 'below',
@@ -6201,7 +8111,7 @@ const TOUR_STEPS = [
   },
   {
     id: 'info-btn',
-    title: '3 — Find your log files',
+    title: 'Find your log files',
     body: 'Not sure where a log file lives on the server? Hover the <strong>ⓘ</strong> button next to any component to see its typical path.',
     target: '#component-grid',
     position: 'below',
@@ -6209,7 +8119,7 @@ const TOUR_STEPS = [
   },
   {
     id: 'sidebar',
-    title: '4 — Sidebar & universal search',
+    title: 'Sidebar & universal search',
     body: 'Each loaded component appears here — click one to focus it. The search bar searches across <em>all</em> loaded files <strong>as you type</strong>, streaming matches in live. Tick <strong>Include older rolled logs</strong> to also scan the older <code>.log.1</code>, <code>.log.2</code> files on demand. When a zip or folder is loaded, a <strong>Components ⇄ File tree</strong> toggle lets you browse by the original folder structure too.',
     target: '#sidebar',
     position: 'right',
@@ -6217,39 +8127,47 @@ const TOUR_STEPS = [
   },
   {
     id: 'filters',
-    title: '5 — Filter by log level',
-    body: 'Filter entries by ERROR, CRITICAL, WARNING, INFO, VERBOSE and DEBUG. Results are grouped so each <em>distinct</em> error appears once with a count (e.g. <code>12×</code>) — no scrolling past hundreds of identical lines. Stack-trace and continuation lines are handled automatically.',
+    title: 'Filter by log level',
+    body: 'Filter entries by ERROR, CRITICAL, WARNING, INFO, VERBOSE and DEBUG. Results are grouped <strong>by logger</strong> — each logger shows a total count and a severity breakdown; click one to expand it, where identical messages are collapsed together with a count (e.g. <code>12×</code>). Stack-trace and continuation lines are handled automatically. <strong>Right-click any entry</strong> for quick actions like a scrubbed Yext search.',
     target: '#top-bar',
     position: 'below',
     setup: () => tourEnsureAnalyser(),
   },
   {
     id: 'timerange',
-    title: '6 — Global time range',
+    title: 'Global time range',
     body: 'Narrow <em>every</em> log to a specific window using the start/end pickers, then <strong>Apply</strong>. Great for zeroing in on the moment an incident occurred across all components at once. <strong>✕ Reset</strong> clears it.',
     target: '#global-time-range',
     position: 'below',
     setup: () => tourEnsureAnalyser(),
   },
   {
+    id: 'timeline',
+    title: 'Timeline, export & time zone',
+    body: 'Three cross-cutting tools live here. <strong>🕒 Cross-component timeline</strong> merges every component into one colour-coded chronological stream for the current window. <strong>📋 Export findings</strong> builds a PII-scrubbed support summary (recognised errors, counts, time range) ready to paste into a ticket. <strong>🌍 Local / UTC</strong> toggles how all timestamps are displayed — handy when comparing logs against captures.',
+    target: '#btn-timeline',
+    position: 'below-left',
+    setup: () => tourEnsureAnalyser(),
+  },
+  {
     id: 'recognised',
-    title: '7 — Recognised errors',
-    body: 'The tool ships with a knowledge base of known Delinea errors. Lines that match show an amber <strong>!</strong> badge linking to the documentation. Click <strong>⚠ Recognised errors</strong> to list each distinct known error once — then step through every occurrence with ▲▼, or jump to other components that hit the same error.',
+    title: 'Recognised errors',
+    body: 'The tool ships with a knowledge base of known Delinea errors. Lines that match show an amber <strong>!</strong> badge linking to the documentation. Click <strong>⚠ Recognised errors</strong> to list each distinct known error once — then step through every occurrence with ▲▼, or jump to other components that hit the same error. The footer\'s <strong>🧪 Test KB</strong> button lets you paste any line to check whether it matches a signature.',
     target: '#btn-recognised-errors',
     position: 'below',
     setup: () => tourEnsureAnalyser(),
   },
   {
     id: 'results',
-    title: '8 — Results & occurrence navigation',
-    body: 'Each distinct error shows once here, latest-first, with its level, count and source file. Click one to jump to the most recent occurrence in the viewer — a ▲▼ bar then lets you step through every other occurrence of that same error without losing your place.',
+    title: 'Results & occurrence navigation',
+    body: 'Entries are grouped by logger here, newest activity first. Expand a logger to see its distinct errors, each with a count; click one to jump to the most recent occurrence in the viewer — a ▲▼ bar then lets you step through every other occurrence of that same error without losing your place.',
     target: '#results-panel',
     position: 'right',
     setup: () => tourEnsureAnalyser(),
   },
   {
     id: 'viewer',
-    title: '9 — Log viewer',
+    title: 'Log viewer',
     body: 'The full log opens here with the selected line highlighted. Use the <strong>±</strong> buttons to narrow to ±15m / 30m / 1h / 4h around it. Stack traces collapse by default — expand them when you need the detail.',
     target: '#log-viewer',
     position: 'left',
@@ -6257,7 +8175,7 @@ const TOUR_STEPS = [
   },
   {
     id: 'similar',
-    title: '10 — Similar entries',
+    title: 'Similar entries',
     body: 'Click <strong>Similar</strong> to open a full-screen view of every line sharing the same logger. Edit the term to broaden or narrow it, navigate with ▲▼, and use the scrollbar markers to see where every match sits.',
     target: '#btn-highlight-similar',
     position: 'below',
@@ -6265,23 +8183,39 @@ const TOUR_STEPS = [
   },
   {
     id: 'scrub',
-    title: '11 — Scrub PII before sharing',
-    body: 'Select any text in the viewer, then click <strong>Scrub PII & Copy</strong>. A preview shows every replacement — IPs, usernames, domain\\user pairs, SIDs, GUIDs and more — before anything reaches your clipboard.',
+    title: 'Scrub PII before sharing',
+    body: 'Select any text in the viewer, then click <strong>Scrub PII & Copy</strong>. A preview shows every replacement — IPs, usernames, domain\\user pairs, SIDs, GUIDs and more — before anything reaches your clipboard. You can also <strong>right-click any log line</strong> to copy a scrubbed copy of it or search it in Yext — the text is always scrubbed first.',
     target: '#scrub-bar',
     position: 'above',
     setup: () => tourEnsureAnalyser(),
   },
   {
     id: 'evtx',
-    title: '12 — Windows Event Logs (.evtx)',
-    body: 'Click <strong>⬆ Upload & analyse EVTX</strong> to add a Windows Event Log at any time. It\'s fully decoded in your browser — real event messages, provider, event ID and level — and opens in a draggable floating window with a summary and searchable event list. Click any event and <strong>Sync all logs to this time</strong> lines your other logs up around it, so you can see what happened across the whole system at that moment.',
+    title: 'Windows Event Logs (.evtx)',
+    body: 'Click <strong>⬆ Upload & analyse EVTX</strong> to add a Windows Event Log at any time. It\'s decoded in your browser — provider, event ID, level, channel and structured data, with human-readable headlines for documented event IDs — and opens in a draggable floating window with a summary and event list. Click an event and <strong>Sync logs to this event</strong> lines your other logs up around that moment. You can also analyse an EVTX on its own straight from the welcome screen — no product needed.',
     target: '#btn-add-evtx',
     position: 'below',
     setup: () => tourEnsureAnalyser(),
   },
   {
+    id: 'pcap',
+    title: 'Network captures (.pcap / .pcapng)',
+    body: 'Click <strong>🌐 Upload & analyse PCAP</strong> to open a packet capture in a floating window — each packet\'s time, protocol, source/destination, length and TCP flags (SYN, RST…). Filter by IP, port, protocol or flag, and switch to the <strong>side-by-side</strong> view to scroll packets and a component\'s logs together, lined up by timestamp — ideal for "the app logged a timeout; did we actually see a RST on the wire?" A capture can also be opened on its own from the welcome screen, with no product selected.',
+    target: '#btn-add-pcap',
+    position: 'below',
+    setup: () => tourEnsureAnalyser(),
+  },
+  {
+    id: 'har',
+    title: 'Browser HARs (.har)',
+    body: 'Click <strong>🔗 Upload & analyse HAR</strong> to inspect a browser HTTP archive — every request\'s method, status (colour-coded), URL, duration and a timing waterfall. Quick-filter to <strong>errors (4xx/5xx)</strong> or <strong>slow (≥1s)</strong> requests. For safety, request and response <em>headers are never displayed</em>, since HARs routinely contain auth tokens and cookies. HAR is most often used on its own, so there\'s a shortcut for it right on the welcome screen too.',
+    target: '#btn-add-har',
+    position: 'below',
+    setup: () => tourEnsureAnalyser(),
+  },
+  {
     id: 'addmore',
-    title: '13 — Add more as you go',
+    title: 'Add more as you go',
     body: 'Use <strong>+ Upload additional files</strong> to keep what you\'ve loaded and add more on top — handy when a customer sends extra logs mid-investigation.',
     target: '#btn-add-more',
     position: 'below',
@@ -6289,7 +8223,7 @@ const TOUR_STEPS = [
   },
   {
     id: 'resize',
-    title: '14 — Resizable panels',
+    title: 'Resizable panels',
     body: 'The sidebar, results and viewer can all be resized — hover the thin divider between any two panels until the cursor changes, then drag. Your layout is remembered next time.',
     target: '#content-area',
     position: 'above',
@@ -6297,7 +8231,7 @@ const TOUR_STEPS = [
   },
   {
     id: 'refresh',
-    title: '15 — Staying up to date',
+    title: 'Staying up to date',
     body: 'The tool updates itself automatically, but if you ever suspect you\'re seeing an old version, <strong>↻ Hard refresh</strong> clears the cache and pulls the latest. <strong>🌙 / ☀️</strong> toggles light and dark mode, and both your theme and panel sizes are remembered.',
     target: '#btn-hard-refresh',
     position: 'below-left',

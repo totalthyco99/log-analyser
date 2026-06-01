@@ -32,7 +32,7 @@ Loaded components are listed in the sidebar. When a zip or folder is loaded, a t
 ![Components and file tree views](screenshots/03-sidebar.png)
 
 ### Filtering by log level
-Use the filter bar to narrow results by **ERROR**, **CRITICAL**, **WARNING**, **INFO**, **VERBOSE**, or **DEBUG**. Matching entries are grouped by **logger** in the middle panel, each row showing the logger name and the total number of matching entries. Click a logger to expand it and reveal its entries — identical messages are collapsed together with an occurrence count — then click any entry to jump to it in the log viewer on the right and step through every occurrence with ▲▼. Right-click any entry for quick actions (see *Recognised errors* and *PII scrubbing*).
+Use the filter bar to narrow results by **ERROR**, **CRITICAL**, **WARNING**, **INFO**, **VERBOSE**, or **DEBUG**. Results appear in the middle panel with the source file, line number, and a stripped message preview for each entry. Click any entry to jump to it in the log viewer on the right.
 
 ![Log level filtering](screenshots/04-filtering.png)
 
@@ -57,7 +57,7 @@ Click **Similar** to open a full-screen view of every line sharing the same logg
 ![Similar entries](screenshots/08-similar.png)
 
 ### Windows Event Logs (.evtx)
-Click **Upload & analyse EVTX** to add a Windows Event Log at any time. A complete in-browser parser decodes the events — provider, event ID, level, channel, and structured event data — and opens them in a draggable, resizable floating window with a summary (time range, level breakdown, top event IDs) and a browsable event list. Clicking an event opens a movable detail panel showing its fields in plain language, with human-readable headlines for documented Windows and .NET event IDs. **Sync logs to this event** lines your other logs up around a chosen event so you can see what happened across the whole system at that moment.
+Click **Upload & analyse EVTX** to add a Windows Event Log at any time. A complete in-browser parser decodes the events — provider, event ID, level, and the real message text — and opens them in a draggable, resizable floating window with a summary (time range, level breakdown, top event IDs) and a browsable event list. **Sync all logs to this time** lines your other logs up around a chosen event so you can see what happened across the whole system at that moment.
 
 ![EVTX floating window](screenshots/09-evtx.png)
 
@@ -84,9 +84,9 @@ Highlight any text in the log viewer, then click **Scrub PII & Copy** in the bot
 
 ### Filtering and results
 - Filter entries by **ERROR**, **CRITICAL**, **WARNING**, **INFO**, **VERBOSE**, or **DEBUG** across all loaded files
-- Matching entries are **grouped by logger**, newest activity first, with a total count per logger
+- Matching entries are **grouped by logger**, newest activity first, with a total count and a severity breakdown per logger
 - Expand a logger to see its entries with identical messages **collapsed and counted**; click one to open it in the viewer and step through every occurrence with ▲▼
-- **Right-click any entry** to copy a scrubbed copy of the line or search it in Yext (see *Recognised errors*)
+- **Right-click any entry** to copy a scrubbed copy of the line or search it in Yext (see *Recognised errors* and *PII scrubbing*)
 
 ### Global time range
 - Restrict **every** loaded log to a specific start/end window with a single control
@@ -96,7 +96,8 @@ Highlight any text in the log viewer, then click **Scrub PII & Copy** in the bot
 - The tool ships with a built-in dictionary of known Delinea errors sourced from public documentation and internal knowledge
 - Lines matching a known error show an amber **!** badge linking straight to the relevant article
 - The **Recognised errors** view lists each distinct known error once, showing how many times it occurred; step through every occurrence with ▲▼, or jump to other components that hit the same error
-- **Search in Yext** — from a recognised error's badge, or by right-clicking any log line, the tool copies a **PII-scrubbed** copy of the text to your clipboard and opens Yext ready to paste, with a confirmation that the copied text was scrubbed first
+- **Search in Yext** — from a recognised error's badge, or by right-clicking any log line, the tool copies a **PII-scrubbed** copy of the text to your clipboard and opens Yext ready to paste
+- **🧪 Test KB** (footer) — paste any line to check whether it matches a signature, and see which dictionary version is loaded (inline or hosted)
 
 ### Log viewer
 - Opens the complete log file with the selected entry highlighted and centred
@@ -117,6 +118,24 @@ Highlight any text in the log viewer, then click **Scrub PII & Copy** in the bot
 - **Sync logs to this event** lines your other logs up around a chosen event, and a correlation option pulls entries from ±10/15/20 minutes around it — so you can see what happened across the whole system at that moment
 - EVTX parsing runs **entirely in-browser**: a complete Binary XML + template decoder reads provider, event ID, level, channel, and structured event data. Parsing uses a Web Worker where the browser allows it and falls back to the main thread otherwise, so it works on static hosting too
 - Documented Windows and .NET event IDs are given **human-readable headline messages** from a built-in template table, with the underlying event data shown beneath
+
+### Network captures (.pcap / .pcapng)
+- Upload a packet capture with **Upload & analyse PCAP** — classic pcap, pcapng, and gzipped `.pcap.gz` are all read in the browser
+- Opens in a draggable floating window listing each packet's time, protocol, source/destination, length and TCP flags (SYN, RST, FIN…), with DNS detection
+- **Filter** by IP, port, protocol or flag
+- **Side-by-side with logs** — scroll the packets and a chosen component's logs together, automatically lined up by timestamp; ideal for confirming whether a logged timeout matches a RST, retransmit, or missing handshake on the wire
+- Best-effort dissection of Ethernet / IPv4 / IPv6 / TCP / UDP; other link types still list with timing and size
+
+### Browser HARs (.har)
+- Upload a browser HTTP archive with **Upload & analyse HAR**
+- Lists every request's method, status (colour-coded 2xx/3xx/4xx/5xx), URL, duration and a per-request **timing waterfall** (blocked, DNS, connect, SSL, send, wait, receive)
+- **Quick-filter** to errors (4xx/5xx) or slow (≥1s) requests, plus a free-text filter across method, status, host, path and MIME type
+- For safety, request and response **headers are never displayed** — HAR files routinely contain auth tokens and cookies
+
+### Cross-component analysis
+- **🕒 Cross-component timeline** — merge every loaded component into a single colour-coded chronological stream for the current time range, with an *errors only* toggle; click any entry to jump straight to it in its component's viewer
+- **📋 Export findings** — generate a PII-scrubbed support summary (distinct recognised errors with counts, per-component error/critical tallies, active time range, optional EVTX summary) ready to paste into a ticket
+- **🌍 Local / UTC toggle** — switch how all timestamps are displayed across the app, so logs, EVTX and captures line up without time-zone drift
 
 ### PII scrubbing
 - Highlight any text in the log viewer with your mouse
