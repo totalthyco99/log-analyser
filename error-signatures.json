@@ -1,0 +1,468 @@
+{
+  "_comment": "Maps known Delinea error signatures to documentation. Matching is 100% in-browser; log text never leaves the device. 'match' is a case-insensitive substring tested against the PII-scrubbed log line. Entries with 'url' link to public articles (support.delinea.com or docs.delinea.com). Entries with 'source':'confluence' show the title only (no link). Sorted by match length (longest first) so the most specific signature wins. Sourced from the Salesforce Knowledge export + Delinea public docs + internal Confluence.",
+  "version": 4,
+  "signatures": [
+    {
+      "id": "rdp-saved-credentials",
+      "match": "The authentication policy of the remote server does not allow the use of saved credentials",
+      "title": "RDP Sessions failing with, \"The authentication policy of the remote server does not allow the use of saved credentials\"",
+      "url": "https://support.delinea.com/s/article/500Ue000007r6GCIAY1726614312938",
+      "products": [
+        "Secret Server"
+      ]
+    },
+    {
+      "id": "not-connected-valid-instance",
+      "match": "You are not connected to a valid instance and clustering is not enabled",
+      "title": "INTERNAL: Secret Server error: You are not connected to a valid instance and clustering is not enabled. Please contact your administrator.",
+      "url": "https://support.delinea.com/s/article/1745916033984",
+      "products": [
+        "Secret Server"
+      ]
+    },
+    {
+      "id": "ssl-trust-relationship",
+      "match": "Could not establish trust relationship for the SSL/TLS secure channel",
+      "title": "VMware ESXi heartbeat fails with error \"Could not establish trust relationship for the SSL/TLS secure channel\"",
+      "url": "https://support.delinea.com/s/article/500Ue000007gQi6IAE1731493627752",
+      "products": [
+        "Secret Server"
+      ]
+    },
+    {
+      "id": "federation-config-error",
+      "match": "Federation configuration error, check with your system administrator",
+      "title": "Federation configuration error, check with your system administrator error when attempting to login to platform",
+      "url": "https://support.delinea.com/s/article/1773291269056",
+      "products": [
+        "Secret Server"
+      ]
+    },
+    {
+      "id": "min-worker-thread",
+      "match": "Min worker thread number is lower than current thread count",
+      "title": "What to do when you see \"Min worker thread number is lower than current thread count\" warning in your log files",
+      "url": "https://support.delinea.com/s/article/1761194775153",
+      "products": [
+        "Secret Server"
+      ]
+    },
+    {
+      "id": "port22-socket-usage",
+      "match": "Only one usage of each socket address is normally permitted",
+      "title": "Freeing Up Port 22 from DE Error: Only one usage of each socket address is normally permitted",
+      "url": "https://support.delinea.com/s/article/1764148647482",
+      "products": [
+        "Secret Server"
+      ]
+    },
+    {
+      "id": "rpc-expiration-schedule",
+      "match": "Did not change Secret because of expiration time schedule",
+      "title": "KB-010284: \"Did not change Secret because of expiration time schedule. Will retry when next allowed\" message in Remote Password Changing (RPC) log",
+      "url": "https://support.delinea.com/s/article/1739785931464",
+      "products": [
+        "Secret Server"
+      ]
+    },
+    {
+      "id": "rpc-comexception",
+      "match": "System.Runtime.InteropServices.COMException (0x80004005)",
+      "title": "RPC Failure with System.Runtime.InteropServices.COMException (0x80004005): Unspecified error",
+      "url": "https://support.delinea.com/s/article/1765298549017",
+      "products": [
+        "Secret Server"
+      ]
+    },
+    {
+      "id": "netuser-access-denied",
+      "match": "NetUserGetInfoError Code: 5 Message: Access is denied",
+      "title": "Windows heartbeat error \"NetUserGetInfoError Code: 5 Message: Access is denied\"",
+      "url": "https://support.delinea.com/s/article/1752695837286",
+      "products": [
+        "Secret Server"
+      ]
+    },
+    {
+      "id": "rdp-negotiation-invalid-struct-header",
+      "match": "RDP negotiation response has an invalid struct header",
+      "title": "RDP Proxy Troubleshooting \u2014 check Network Level Authentication (NLA) setting on the target endpoint",
+      "source": "confluence",
+      "products": [
+        "Secret Server"
+      ]
+    },
+    {
+      "id": "entra-parsing-value",
+      "match": "Unexpected character encountered while parsing value",
+      "title": "Entra Changer fails out with a \"Unexpected character encountered while parsing value:\" error",
+      "url": "https://support.delinea.com/s/article/1736813043025",
+      "products": [
+        "Secret Server"
+      ]
+    },
+    {
+      "id": "lang-resource-notfound",
+      "match": "Language Resource Not Found (admin.external-secrets)",
+      "title": "After 11.8 upgrade, \"Language Resource Not Found (admin.external-secrets)\" might be seen under the Secrets tab",
+      "url": "https://support.delinea.com/s/article/1745959105655",
+      "products": [
+        "Secret Server"
+      ]
+    },
+    {
+      "id": "rdp-cryptographic-exception",
+      "match": "System.Security.Cryptography.CryptographicException",
+      "title": "Error encountered in server socket System.Security.Cryptography.CryptographicException when launching RDP Proxy",
+      "url": "https://support.delinea.com/s/article/1739348365881",
+      "products": [
+        "Secret Server"
+      ]
+    },
+    {
+      "id": "de-offline-node-down",
+      "match": "attempting to connect to a server node that is down",
+      "title": "Troubleshooting Secret Server Distributed Engines Offline State",
+      "source": "confluence",
+      "products": [
+        "Secret Server",
+        "Distributed Engine"
+      ]
+    },
+    {
+      "id": "ldaps-cert-name-mismatch",
+      "match": "Remote certificate name does not match remote host",
+      "title": "Active Directory Sync: Enabling Use LDAPS results in TLS Error Detected (domain): Remote certificate name does not match remote host",
+      "url": "https://support.delinea.com/s/article/1734524154633",
+      "products": [
+        "Secret Server"
+      ]
+    },
+    {
+      "id": "http-404-request-failed",
+      "match": "The request failed with HTTP status 404: Not Found",
+      "title": "\"The request failed with HTTP status 404: Not Found\" error message",
+      "url": "https://support.delinea.com/s/article/1745983640604",
+      "products": [
+        "Secret Server"
+      ]
+    },
+    {
+      "id": "sspi-handshake",
+      "match": "Unexpected SSPI handshake return code -2146892983",
+      "title": "RDP Proxy connections fail with error Unexpected SSPI handshake return code -2146892983",
+      "url": "https://support.delinea.com/s/article/500Ue000006AZSUIA41722424332597",
+      "products": [
+        "Secret Server"
+      ]
+    },
+    {
+      "id": "session-expired",
+      "match": "Your session has expired, please log in again",
+      "title": "Logged out of Secret Server with error \"Your session has expired, please log in again\"",
+      "url": "https://support.delinea.com/s/article/1729204278896",
+      "products": [
+        "Secret Server"
+      ]
+    },
+    {
+      "id": "throttler-outbound",
+      "match": "Unable to increment outbound action throttler",
+      "title": "What does \"Unable to increment outbound action throttler.. Will retry in 3 minutes.\" mean for RPC?",
+      "url": "https://support.delinea.com/s/article/1746791092848",
+      "products": [
+        "Secret Server"
+      ]
+    },
+    {
+      "id": "winhttp-cert-rev-failed",
+      "match": "WINHTTP_CALLBACK_STATUS_FLAG_CERT_REV_FAILED",
+      "title": "How to resolve WINHTTP_CALLBACK_STATUS_FLAG_CERT_REV_FAILED in RDS launchers in Secret Server Session Connector",
+      "url": "https://support.delinea.com/s/article/1747063346809",
+      "products": [
+        "Secret Server"
+      ]
+    },
+    {
+      "id": "uuid-directory-invalid",
+      "match": "The Uuid of the directory service is invalid",
+      "title": "KB-010308: \"The Uuid of the directory service is invalid\" error message during SAML authentication",
+      "url": "https://support.delinea.com/s/article/KB-010308-The-Uuid-of-the-directory-service-is-invalid-error-message-during-SAML-authentication",
+      "products": [
+        "Delinea Platform"
+      ]
+    },
+    {
+      "id": "file-ext-not-approved",
+      "match": "File extension is not an approved extension",
+      "title": "\"File extension is not an approved extension\" error when uploading a file to a secret",
+      "url": "https://support.delinea.com/s/article/1734621049482",
+      "products": [
+        "Secret Server"
+      ]
+    },
+    {
+      "id": "backup-file-in-use",
+      "match": "because it is being used by another process",
+      "title": "Common Backup Errors",
+      "url": "https://docs.delinea.com/online-help/secret-server/backup-and-disaster-recovery/backup/common-backup-errors/index.htm",
+      "products": [
+        "Secret Server"
+      ]
+    },
+    {
+      "id": "engine-license-no-container",
+      "match": "No license container found in the AD forest",
+      "title": "FAQ - Troubleshooting Engine Pool, Command Relay, and Policies",
+      "source": "confluence",
+      "products": [
+        "Delinea Platform"
+      ]
+    },
+    {
+      "id": "cm-url-not-approved",
+      "match": "Secret Server URL Not Approved for Launch",
+      "title": "KB-010561: Error: Secret Server URL Not Approved for Launch",
+      "url": "https://support.delinea.com/s/article/KB-010561-Error-Secret-Server-URL-Not-Approved-for-Launch",
+      "products": [
+        "Connection Manager"
+      ]
+    },
+    {
+      "id": "siteconnector-null-v1",
+      "match": "Value cannot be null. Parameter name: v1",
+      "title": "Secret Server Site Connector validation fails when pointing to Load Balancer / VIP with, \"Value cannot be null. Parameter name: v1\"",
+      "url": "https://support.delinea.com/s/article/1747661943093",
+      "products": [
+        "Secret Server"
+      ]
+    },
+    {
+      "id": "attribute-mappings-missing",
+      "match": "Attribute Mappings missing or incomplete",
+      "title": "KB-010343: \"Attribute Mappings missing or incomplete\" error message during SAML/OIDC authentication",
+      "url": "https://support.delinea.com/s/article/KB-010343-Attribute-Mappings-missing-or-incomplete-error-message-during-SAML-OIDC-authentication",
+      "products": [
+        "Delinea Platform"
+      ]
+    },
+    {
+      "id": "ras-chmod-installer",
+      "match": "chmod: cannot access '/tmp/installer'",
+      "title": "KB-010278: RAS - Error: chmod: cannot access '/tmp/installer', when running RAS engine install script on Ubuntu",
+      "url": "https://support.delinea.com/s/article/KB-010278-RAS-Error-chmod-cannot-access-tmp-installer-when-running-RAS-engine-install-script-on-Ubuntu",
+      "products": [
+        "Delinea Platform"
+      ]
+    },
+    {
+      "id": "engine-domain-creds-missing",
+      "match": "Missing configuration on domain creds",
+      "title": "Delinea Engine Workloads Troubleshooting",
+      "source": "confluence",
+      "products": [
+        "Delinea Platform"
+      ]
+    },
+    {
+      "id": "launcher-http-404",
+      "match": "launcher failed with HTTP status 404",
+      "title": "Secret Server launcher failed with HTTP status 404",
+      "url": "https://support.delinea.com/s/article/1737663642009",
+      "products": [
+        "Secret Server"
+      ]
+    },
+    {
+      "id": "heartbeat-connection-96258",
+      "match": "Connection lost due to error 96258",
+      "title": "HEARTBEATFAILURE: Unable to connect (Connection lost due to error 96258)",
+      "source": "confluence",
+      "products": [
+        "Secret Server",
+        "Distributed Engine"
+      ]
+    },
+    {
+      "id": "fulltext-not-installed",
+      "match": "Full-Text Search is not installed",
+      "title": "Secret Search error: Failed to execute and return datatable - ss.log shows Full-Text Search is not installed",
+      "url": "https://support.delinea.com/s/article/1770285458260",
+      "products": [
+        "Secret Server"
+      ]
+    },
+    {
+      "id": "connection-abort",
+      "match": "Software caused connection abort",
+      "title": "Network Error: Software caused connection abort",
+      "url": "https://support.delinea.com/s/article/1758845209281",
+      "products": [
+        "Secret Server"
+      ]
+    },
+    {
+      "id": "incorrect-mac-packet",
+      "match": "Incorrect MAC received on packet",
+      "title": "Error: \"Incorrect MAC received on packet\" or \"Session no longer active\" after 60 minutes of use or transfering 1G of data",
+      "url": "https://support.delinea.com/s/article/Error-Incorrect-MAC-received-on-packet-or-Session-no-longer-active-after-60-minutes-of-use-or-transfering-1G-of-data",
+      "products": [
+        "Secret Server"
+      ]
+    },
+    {
+      "id": "proxy-could-not-load-assembly",
+      "match": "Could not load file or assembly",
+      "title": "RDP Proxy Troubleshooting \u2014 install latest .NET Framework on the Proxy machine (DE or Web Node)",
+      "source": "confluence",
+      "products": [
+        "Secret Server",
+        "Distributed Engine"
+      ]
+    },
+    {
+      "id": "upgrade-fk-constraint",
+      "match": "FK__tbFileAtt__Confi__5BF880E2",
+      "title": "Secret Server upgrade to 11.9.x fails: The INSERT statement conflicted with the FOREIGN KEY constraint \"FK__tbFileAtt__Confi__5BF880E2\"",
+      "url": "https://support.delinea.com/s/article/1755075377738",
+      "products": [
+        "Secret Server"
+      ]
+    },
+    {
+      "id": "rpc-associated-inactive",
+      "match": "Associated Secret is inactive",
+      "title": "Secret Server Remote Password Change errors out with error \"Associated Secret is inactive\"",
+      "url": "https://support.delinea.com/s/article/1756077263946",
+      "products": [
+        "Secret Server"
+      ]
+    },
+    {
+      "id": "rpc-cant-access-domain",
+      "match": "ERROR_CANT_ACCESS_DOMAIN_INFO",
+      "title": "Common RPC Errors",
+      "url": "https://docs.delinea.com/online-help/secret-server/rpc-heartbeat/rpc/rpc-errors/common-rpc-errors/index.htm",
+      "products": [
+        "Secret Server"
+      ]
+    },
+    {
+      "id": "putty-host-key-invalid",
+      "match": "Server's host key is invalid",
+      "title": "PuTTY Launcher with SSH Proxy fails with Assertion Failed or Server's host key is invalid",
+      "url": "https://support.delinea.com/s/article/1734697075821",
+      "products": [
+        "Secret Server"
+      ]
+    },
+    {
+      "id": "sql-transaction-log-full",
+      "match": "transaction log for database",
+      "title": "Managing Full SQL Server Transaction Logs",
+      "url": "https://docs.delinea.com/online-help/secret-server/events-and-alerts/full-sql-server-transaction-logs/index.htm",
+      "products": [
+        "Secret Server"
+      ]
+    },
+    {
+      "id": "platform-upgrade-unable-to-locate",
+      "match": "Unable to locate in platform",
+      "title": "Troubleshooting the Platform Upgrade Center \u2014 ensure the Connector is valid on Platform",
+      "source": "confluence",
+      "products": [
+        "Delinea Platform"
+      ]
+    },
+    {
+      "id": "rpc-password-policy",
+      "match": "NERR_PasswordPolicySettings",
+      "title": "RPC Error Codes",
+      "url": "https://docs.delinea.com/online-help/secret-server/remote-password-changing/custom-password-changers/rpc-error-codes/index.htm",
+      "products": [
+        "Secret Server"
+      ]
+    },
+    {
+      "id": "ssh-no-equal-algorithms",
+      "match": "no equal algorithms found",
+      "title": "Attempting to RPC/HB SSH Secrets and get errors such as \"Jscape.Ssh.SshException: no equal algorithms found\"",
+      "url": "https://support.delinea.com/s/article/1746620983506",
+      "products": [
+        "Secret Server"
+      ]
+    },
+    {
+      "id": "pkix-path-building",
+      "match": "PKIX Path Building Failed",
+      "title": "ServiceNow Mid Server Credential Resolver - PKIX Path Building Failed",
+      "url": "https://support.delinea.com/s/article/1762521722409",
+      "products": [
+        "Secret Server"
+      ]
+    },
+    {
+      "id": "install-error-code",
+      "match": "error code: -2147024784",
+      "title": "Installation failed with error code: -2147024784",
+      "url": "https://support.delinea.com/s/article/1736222465957",
+      "products": [
+        "Secret Server"
+      ]
+    },
+    {
+      "id": "activation-required",
+      "match": "Activation is Required",
+      "title": "Resolving \"Error Activation is Required\" in Secret Server",
+      "url": "https://support.delinea.com/s/article/Resolving-Error-Activation-is-Required-in-Secret-Server",
+      "products": [
+        "Secret Server"
+      ]
+    },
+    {
+      "id": "stack-overflow-exception",
+      "match": "StackOverflowException",
+      "title": "Techniques and Experiences Troubleshooting Secret Server Cloud Performance Issues",
+      "source": "confluence",
+      "products": [
+        "Secret Server"
+      ]
+    },
+    {
+      "id": "rabbitmq-publickeytoken",
+      "match": "FanoutListenerService",
+      "title": "How to Correct the RabbitMQ PublicKeyToken Error in the Web Config File",
+      "url": "https://support.delinea.com/s/article/1761903029458",
+      "products": [
+        "Secret Server"
+      ]
+    },
+    {
+      "id": "tls-error-detected",
+      "match": "TLS Error Detected",
+      "title": "Active Directory Sync: Enabling Use LDAPS results in TLS Error Detected (domain): Remote certificate name does not match remote host",
+      "url": "https://support.delinea.com/s/article/1734524154633",
+      "products": [
+        "Secret Server"
+      ]
+    },
+    {
+      "id": "entra-invalid-client-secret",
+      "match": "AADSTS7000215",
+      "title": "Entra ID Exception AADSTS7000215: Invalid client secret provided",
+      "url": "https://support.delinea.com/s/article/1750666632150",
+      "products": [
+        "Secret Server"
+      ]
+    },
+    {
+      "id": "heartbeat-error-1330",
+      "match": "error 1330",
+      "title": "Secret Server Heartbeat encounters error 1330",
+      "url": "https://support.delinea.com/s/article/Secret-Server-Heartbeat-encounters-error-1330",
+      "products": [
+        "Secret Server"
+      ]
+    }
+  ]
+}

@@ -573,6 +573,37 @@
   }
   #btn-add-more:hover { border-color: var(--accent-teal); color: var(--text-primary); }
 
+  /* GLOBAL TIME RANGE */
+  #global-time-range {
+    display: flex; align-items: center; gap: 5px;
+    margin-right: 8px;
+    padding: 3px 8px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    background: var(--bg-elevated);
+  }
+  #global-time-range.active { border-color: var(--accent-teal); background: var(--highlight-similar); }
+  #global-time-range .gtr-label { font-size: 11px; color: var(--text-secondary); font-weight: 600; white-space: nowrap; }
+  #global-time-range .gtr-to { color: var(--text-muted); font-size: 11px; }
+  #global-time-range input[type="datetime-local"] {
+    background: var(--bg-base);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    color: var(--text-primary);
+    font-size: 11px; font-family: var(--font-mono);
+    padding: 2px 5px;
+    color-scheme: dark;
+  }
+  :root[data-theme="light"] #global-time-range input[type="datetime-local"] { color-scheme: light; }
+  #gtr-apply, #gtr-reset {
+    padding: 3px 8px; border-radius: var(--radius-sm);
+    border: 1px solid var(--border); background: var(--bg-base);
+    color: var(--text-secondary); font-size: 11px; font-weight: 600;
+    cursor: pointer; transition: all 0.12s;
+  }
+  #gtr-apply:hover { border-color: var(--accent-teal); color: var(--accent-teal); }
+  #gtr-reset:hover { border-color: var(--level-error); color: var(--level-error); }
+
   /* CONTENT AREA */
   #content-area { flex: 1; display: flex; overflow: hidden; }
 
@@ -728,6 +759,86 @@
   }
   #btn-highlight-similar:hover { border-color: var(--accent-teal); color: var(--accent-teal); }
   #btn-highlight-similar.active { background: var(--highlight-similar); border-color: var(--accent-teal); color: var(--accent-teal); }
+  #btn-recognised-errors {
+    padding: 4px 10px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    background: var(--bg-elevated);
+    color: var(--text-secondary);
+    font-size: 11px; font-weight: 600;
+    transition: all 0.12s; white-space: nowrap;
+    display: inline-flex; align-items: center; gap: 5px;
+  }
+  #btn-recognised-errors:hover { border-color: #F59E0B; color: #F59E0B; }
+  #btn-recognised-errors.active { background: rgba(245,158,11,0.15); border-color: #F59E0B; color: #F59E0B; }
+  #btn-recognised-errors .kb-count {
+    font-family: var(--font-mono); font-size: 10px;
+    background: #F59E0B; color: #1a1a1a;
+    border-radius: 8px; padding: 0 5px; font-weight: 700;
+  }
+  /* KB warning badge — high-contrast amber, sits at start of a log line / result */
+  .kb-badge {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 18px; height: 18px;
+    border-radius: 4px;
+    background: #F59E0B;
+    color: #1a1a1a;
+    font-size: 11px; font-weight: 700;
+    cursor: pointer;
+    flex-shrink: 0;
+    border: none;
+    transition: transform 0.1s, box-shadow 0.12s;
+    text-decoration: none;
+    line-height: 1;
+  }
+  .kb-badge:hover { transform: scale(1.15); box-shadow: 0 0 0 2px rgba(245,158,11,0.4); }
+  .log-line .kb-badge { margin-right: 4px; vertical-align: middle; }
+  .result-item .ri-meta .kb-badge { width: 16px; height: 16px; font-size: 10px; }
+  /* KB popover */
+  #kb-popover {
+    position: fixed;
+    z-index: 700;
+    background: var(--bg-surface);
+    border: 1px solid #F59E0B;
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-lg);
+    padding: 14px;
+    width: 320px;
+    font-family: var(--font-ui);
+  }
+  #kb-popover.hidden { display: none; }
+  #kb-popover .kbp-label {
+    font-size: 10px; font-weight: 700; letter-spacing: 0.8px;
+    text-transform: uppercase; color: #F59E0B; margin-bottom: 6px;
+    display: flex; align-items: center; gap: 6px;
+  }
+  #kb-popover .kbp-title {
+    font-size: 13px; font-weight: 700; color: var(--text-primary);
+    margin-bottom: 4px; line-height: 1.4;
+  }
+  #kb-popover .kbp-source {
+    font-size: 11px; color: var(--text-secondary); margin-bottom: 12px;
+    font-family: var(--font-mono);
+  }
+  #kb-popover .kbp-actions { display: flex; flex-direction: column; gap: 6px; }
+  #kb-popover .kbp-btn {
+    padding: 7px 12px; border-radius: var(--radius-md);
+    font-size: 12px; font-weight: 600; cursor: pointer;
+    border: 1px solid var(--border); background: var(--bg-elevated);
+    color: var(--text-primary); text-align: left;
+    display: flex; align-items: center; gap: 8px;
+    transition: all 0.12s; text-decoration: none;
+  }
+  #kb-popover .kbp-btn:hover { border-color: #F59E0B; background: var(--bg-hover); }
+  #kb-popover .kbp-btn.primary { background: #F59E0B; color: #1a1a1a; border-color: #F59E0B; font-weight: 700; }
+  #kb-popover .kbp-btn.primary:hover { opacity: 0.9; }
+  #kb-popover .kbp-close {
+    position: absolute; top: 8px; right: 8px;
+    width: 20px; height: 20px; border: none; background: none;
+    color: var(--text-muted); cursor: pointer; font-size: 13px;
+    border-radius: 4px;
+  }
+  #kb-popover .kbp-close:hover { color: var(--level-error); }
 
   /* LOG CONTENT */
   #log-content {
@@ -1108,7 +1219,7 @@
     cursor: pointer; transition: all 0.15s;
   }
   #btn-tour-replay:hover { background: var(--bg-hover); color: var(--text-primary); border-color: var(--accent-teal); }
-  #btn-feedback, #btn-github {
+  #btn-feedback, #btn-github, #btn-hard-refresh {
     height: 32px;
     border-radius: var(--radius-md);
     border: 1px solid var(--border);
@@ -1122,6 +1233,7 @@
   }
   #btn-feedback:hover { background: var(--bg-hover); color: var(--text-primary); border-color: var(--accent-teal); }
   #btn-github:hover   { background: var(--bg-hover); color: var(--text-primary); border-color: var(--accent-purple); }
+  #btn-hard-refresh:hover { background: var(--bg-hover); color: var(--text-primary); border-color: #F59E0B; }
   #pwa-banner {
     position: fixed;
     bottom: 24px;
@@ -1212,6 +1324,7 @@
     <div class="spacer"></div>
     <button id="btn-github" title="View on GitHub" onclick="window.open('https://github.com/totalthyco99/log-analyser','_blank')">⭐ GitHub</button>
     <button id="btn-feedback" title="Submit feedback" onclick="window.open('https://forms.microsoft.com/r/tpeMyjq0V4','_blank')">💬 Feedback</button>
+    <button id="btn-hard-refresh" title="Clears the cached app and reloads the very latest version from the server. Use this if you suspect you're seeing an outdated version of the tool." onclick="hardRefresh()">↻ Hard refresh</button>
     <button id="btn-tour-replay" title="Replay guided tour">❓</button>
     <button id="btn-theme" title="Toggle light/dark mode">🌙</button>
   </header>
@@ -1308,7 +1421,15 @@
           <div class="topbar-divider"></div>
           <span class="topbar-count" id="result-count">— entries</span>
           <div class="topbar-spacer"></div>
-          <button id="btn-add-more">+ Add More Files</button>
+          <div id="global-time-range" title="Restrict all results and the viewer to entries within this time range">
+            <span class="gtr-label">⏱ Range:</span>
+            <input type="datetime-local" id="gtr-start" step="1">
+            <span class="gtr-to">→</span>
+            <input type="datetime-local" id="gtr-end" step="1">
+            <button id="gtr-apply" title="Apply time range">Apply</button>
+            <button id="gtr-reset" title="Clear the time range">✕</button>
+          </div>
+          <button id="btn-add-more" title="Keep the files already loaded and add more on top">+ Upload additional files</button>
         </div>
 
         <div id="content-area">
@@ -1352,6 +1473,7 @@
               </div>
               <div class="topbar-divider"></div>
               <button id="btn-highlight-similar" title="Highlight entries with same logger">Similar</button>
+              <button id="btn-recognised-errors" title="Show entries with a recognised documented error">⚠ Recognised errors</button>
             </div>
 
             <div id="log-content">
@@ -1389,6 +1511,15 @@
     <button id="btn-pwa-dismiss">Not now</button>
     <button id="btn-pwa-never">Don't show again</button>
   </div>
+</div>
+
+<!-- KB ARTICLE POPOVER -->
+<div id="kb-popover" class="hidden">
+  <button class="kbp-close" id="kbp-close">✕</button>
+  <div class="kbp-label">⚠ Recognised error</div>
+  <div class="kbp-title" id="kbp-title"></div>
+  <div class="kbp-source" id="kbp-source"></div>
+  <div class="kbp-actions" id="kbp-actions"></div>
 </div>
 
 <!-- SIMILAR OVERLAY -->
@@ -1520,6 +1651,9 @@ const state = {
   selectedText: '',
   globalSearchTerm: '',
   searchExcluded: new Set(),
+  recognisedOnly: false,
+  gtrStart: null,  // global time range start (epoch ms) or null
+  gtrEnd: null,    // global time range end (epoch ms) or null
 };
 
 // ═══════════════════════════════════════════════════════════════
@@ -1555,6 +1689,120 @@ function scrubPII(text) {
     result = result.replace(rule.re, rule.replacement);
   }
   return { scrubbed: result, changes };
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  KNOWLEDGE BASE — recognised error → documentation matching
+//  Matching happens entirely in-browser. The log line is scrubbed
+//  of PII before being tested, and again before any external search.
+// ═══════════════════════════════════════════════════════════════
+
+// Inline fallback copy of the signature dictionary, so the tool works
+// as a downloaded single file (no fetch). When hosted, error-signatures.json
+// is fetched and overrides this — so the file can be updated without
+// editing index.html.
+const KB_INLINE = {
+  version: 4,
+  signatures: [
+    { id:"rdp-saved-credentials", match:"The authentication policy of the remote server does not allow the use of saved credentials", title:"RDP Sessions failing with, \"The authentication policy of the remote server does not allow the use of saved credentials\"", url:"https://support.delinea.com/s/article/500Ue000007r6GCIAY1726614312938", products:["Secret Server"] },
+    { id:"not-connected-valid-instance", match:"You are not connected to a valid instance and clustering is not enabled", title:"INTERNAL: Secret Server error: You are not connected to a valid instance and clustering is not enabled. Please contact your administrator.", url:"https://support.delinea.com/s/article/1745916033984", products:["Secret Server"] },
+    { id:"ssl-trust-relationship", match:"Could not establish trust relationship for the SSL/TLS secure channel", title:"VMware ESXi heartbeat fails with error \"Could not establish trust relationship for the SSL/TLS secure channel\"", url:"https://support.delinea.com/s/article/500Ue000007gQi6IAE1731493627752", products:["Secret Server"] },
+    { id:"federation-config-error", match:"Federation configuration error, check with your system administrator", title:"Federation configuration error, check with your system administrator error when attempting to login to platform", url:"https://support.delinea.com/s/article/1773291269056", products:["Secret Server"] },
+    { id:"min-worker-thread", match:"Min worker thread number is lower than current thread count", title:"What to do when you see \"Min worker thread number is lower than current thread count\" warning in your log files", url:"https://support.delinea.com/s/article/1761194775153", products:["Secret Server"] },
+    { id:"port22-socket-usage", match:"Only one usage of each socket address is normally permitted", title:"Freeing Up Port 22 from DE Error: Only one usage of each socket address is normally permitted", url:"https://support.delinea.com/s/article/1764148647482", products:["Secret Server"] },
+    { id:"rpc-expiration-schedule", match:"Did not change Secret because of expiration time schedule", title:"KB-010284: \"Did not change Secret because of expiration time schedule. Will retry when next allowed\" message in Remote Password Changing (RPC) log", url:"https://support.delinea.com/s/article/1739785931464", products:["Secret Server"] },
+    { id:"rpc-comexception", match:"System.Runtime.InteropServices.COMException (0x80004005)", title:"RPC Failure with System.Runtime.InteropServices.COMException (0x80004005): Unspecified error", url:"https://support.delinea.com/s/article/1765298549017", products:["Secret Server"] },
+    { id:"netuser-access-denied", match:"NetUserGetInfoError Code: 5 Message: Access is denied", title:"Windows heartbeat error \"NetUserGetInfoError Code: 5 Message: Access is denied\"", url:"https://support.delinea.com/s/article/1752695837286", products:["Secret Server"] },
+    { id:"rdp-negotiation-invalid-struct-header", match:"RDP negotiation response has an invalid struct header", title:"RDP Proxy Troubleshooting \u2014 check Network Level Authentication (NLA) setting on the target endpoint", source:"confluence", products:["Secret Server"] },
+    { id:"entra-parsing-value", match:"Unexpected character encountered while parsing value", title:"Entra Changer fails out with a \"Unexpected character encountered while parsing value:\" error", url:"https://support.delinea.com/s/article/1736813043025", products:["Secret Server"] },
+    { id:"lang-resource-notfound", match:"Language Resource Not Found (admin.external-secrets)", title:"After 11.8 upgrade, \"Language Resource Not Found (admin.external-secrets)\" might be seen under the Secrets tab", url:"https://support.delinea.com/s/article/1745959105655", products:["Secret Server"] },
+    { id:"rdp-cryptographic-exception", match:"System.Security.Cryptography.CryptographicException", title:"Error encountered in server socket System.Security.Cryptography.CryptographicException when launching RDP Proxy", url:"https://support.delinea.com/s/article/1739348365881", products:["Secret Server"] },
+    { id:"de-offline-node-down", match:"attempting to connect to a server node that is down", title:"Troubleshooting Secret Server Distributed Engines Offline State", source:"confluence", products:["Secret Server", "Distributed Engine"] },
+    { id:"ldaps-cert-name-mismatch", match:"Remote certificate name does not match remote host", title:"Active Directory Sync: Enabling Use LDAPS results in TLS Error Detected (domain): Remote certificate name does not match remote host", url:"https://support.delinea.com/s/article/1734524154633", products:["Secret Server"] },
+    { id:"http-404-request-failed", match:"The request failed with HTTP status 404: Not Found", title:"\"The request failed with HTTP status 404: Not Found\" error message", url:"https://support.delinea.com/s/article/1745983640604", products:["Secret Server"] },
+    { id:"sspi-handshake", match:"Unexpected SSPI handshake return code -2146892983", title:"RDP Proxy connections fail with error Unexpected SSPI handshake return code -2146892983", url:"https://support.delinea.com/s/article/500Ue000006AZSUIA41722424332597", products:["Secret Server"] },
+    { id:"session-expired", match:"Your session has expired, please log in again", title:"Logged out of Secret Server with error \"Your session has expired, please log in again\"", url:"https://support.delinea.com/s/article/1729204278896", products:["Secret Server"] },
+    { id:"throttler-outbound", match:"Unable to increment outbound action throttler", title:"What does \"Unable to increment outbound action throttler.. Will retry in 3 minutes.\" mean for RPC?", url:"https://support.delinea.com/s/article/1746791092848", products:["Secret Server"] },
+    { id:"winhttp-cert-rev-failed", match:"WINHTTP_CALLBACK_STATUS_FLAG_CERT_REV_FAILED", title:"How to resolve WINHTTP_CALLBACK_STATUS_FLAG_CERT_REV_FAILED in RDS launchers in Secret Server Session Connector", url:"https://support.delinea.com/s/article/1747063346809", products:["Secret Server"] },
+    { id:"uuid-directory-invalid", match:"The Uuid of the directory service is invalid", title:"KB-010308: \"The Uuid of the directory service is invalid\" error message during SAML authentication", url:"https://support.delinea.com/s/article/KB-010308-The-Uuid-of-the-directory-service-is-invalid-error-message-during-SAML-authentication", products:["Delinea Platform"] },
+    { id:"file-ext-not-approved", match:"File extension is not an approved extension", title:"\"File extension is not an approved extension\" error when uploading a file to a secret", url:"https://support.delinea.com/s/article/1734621049482", products:["Secret Server"] },
+    { id:"backup-file-in-use", match:"because it is being used by another process", title:"Common Backup Errors", url:"https://docs.delinea.com/online-help/secret-server/backup-and-disaster-recovery/backup/common-backup-errors/index.htm", products:["Secret Server"] },
+    { id:"engine-license-no-container", match:"No license container found in the AD forest", title:"FAQ - Troubleshooting Engine Pool, Command Relay, and Policies", source:"confluence", products:["Delinea Platform"] },
+    { id:"cm-url-not-approved", match:"Secret Server URL Not Approved for Launch", title:"KB-010561: Error: Secret Server URL Not Approved for Launch", url:"https://support.delinea.com/s/article/KB-010561-Error-Secret-Server-URL-Not-Approved-for-Launch", products:["Connection Manager"] },
+    { id:"siteconnector-null-v1", match:"Value cannot be null. Parameter name: v1", title:"Secret Server Site Connector validation fails when pointing to Load Balancer / VIP with, \"Value cannot be null. Parameter name: v1\"", url:"https://support.delinea.com/s/article/1747661943093", products:["Secret Server"] },
+    { id:"attribute-mappings-missing", match:"Attribute Mappings missing or incomplete", title:"KB-010343: \"Attribute Mappings missing or incomplete\" error message during SAML/OIDC authentication", url:"https://support.delinea.com/s/article/KB-010343-Attribute-Mappings-missing-or-incomplete-error-message-during-SAML-OIDC-authentication", products:["Delinea Platform"] },
+    { id:"ras-chmod-installer", match:"chmod: cannot access '/tmp/installer'", title:"KB-010278: RAS - Error: chmod: cannot access '/tmp/installer', when running RAS engine install script on Ubuntu", url:"https://support.delinea.com/s/article/KB-010278-RAS-Error-chmod-cannot-access-tmp-installer-when-running-RAS-engine-install-script-on-Ubuntu", products:["Delinea Platform"] },
+    { id:"engine-domain-creds-missing", match:"Missing configuration on domain creds", title:"Delinea Engine Workloads Troubleshooting", source:"confluence", products:["Delinea Platform"] },
+    { id:"launcher-http-404", match:"launcher failed with HTTP status 404", title:"Secret Server launcher failed with HTTP status 404", url:"https://support.delinea.com/s/article/1737663642009", products:["Secret Server"] },
+    { id:"heartbeat-connection-96258", match:"Connection lost due to error 96258", title:"HEARTBEATFAILURE: Unable to connect (Connection lost due to error 96258)", source:"confluence", products:["Secret Server", "Distributed Engine"] },
+    { id:"fulltext-not-installed", match:"Full-Text Search is not installed", title:"Secret Search error: Failed to execute and return datatable - ss.log shows Full-Text Search is not installed", url:"https://support.delinea.com/s/article/1770285458260", products:["Secret Server"] },
+    { id:"connection-abort", match:"Software caused connection abort", title:"Network Error: Software caused connection abort", url:"https://support.delinea.com/s/article/1758845209281", products:["Secret Server"] },
+    { id:"incorrect-mac-packet", match:"Incorrect MAC received on packet", title:"Error: \"Incorrect MAC received on packet\" or \"Session no longer active\" after 60 minutes of use or transfering 1G of data", url:"https://support.delinea.com/s/article/Error-Incorrect-MAC-received-on-packet-or-Session-no-longer-active-after-60-minutes-of-use-or-transfering-1G-of-data", products:["Secret Server"] },
+    { id:"proxy-could-not-load-assembly", match:"Could not load file or assembly", title:"RDP Proxy Troubleshooting \u2014 install latest .NET Framework on the Proxy machine (DE or Web Node)", source:"confluence", products:["Secret Server", "Distributed Engine"] },
+    { id:"upgrade-fk-constraint", match:"FK__tbFileAtt__Confi__5BF880E2", title:"Secret Server upgrade to 11.9.x fails: The INSERT statement conflicted with the FOREIGN KEY constraint \"FK__tbFileAtt__Confi__5BF880E2\"", url:"https://support.delinea.com/s/article/1755075377738", products:["Secret Server"] },
+    { id:"rpc-associated-inactive", match:"Associated Secret is inactive", title:"Secret Server Remote Password Change errors out with error \"Associated Secret is inactive\"", url:"https://support.delinea.com/s/article/1756077263946", products:["Secret Server"] },
+    { id:"rpc-cant-access-domain", match:"ERROR_CANT_ACCESS_DOMAIN_INFO", title:"Common RPC Errors", url:"https://docs.delinea.com/online-help/secret-server/rpc-heartbeat/rpc/rpc-errors/common-rpc-errors/index.htm", products:["Secret Server"] },
+    { id:"putty-host-key-invalid", match:"Server's host key is invalid", title:"PuTTY Launcher with SSH Proxy fails with Assertion Failed or Server's host key is invalid", url:"https://support.delinea.com/s/article/1734697075821", products:["Secret Server"] },
+    { id:"sql-transaction-log-full", match:"transaction log for database", title:"Managing Full SQL Server Transaction Logs", url:"https://docs.delinea.com/online-help/secret-server/events-and-alerts/full-sql-server-transaction-logs/index.htm", products:["Secret Server"] },
+    { id:"platform-upgrade-unable-to-locate", match:"Unable to locate in platform", title:"Troubleshooting the Platform Upgrade Center \u2014 ensure the Connector is valid on Platform", source:"confluence", products:["Delinea Platform"] },
+    { id:"rpc-password-policy", match:"NERR_PasswordPolicySettings", title:"RPC Error Codes", url:"https://docs.delinea.com/online-help/secret-server/remote-password-changing/custom-password-changers/rpc-error-codes/index.htm", products:["Secret Server"] },
+    { id:"ssh-no-equal-algorithms", match:"no equal algorithms found", title:"Attempting to RPC/HB SSH Secrets and get errors such as \"Jscape.Ssh.SshException: no equal algorithms found\"", url:"https://support.delinea.com/s/article/1746620983506", products:["Secret Server"] },
+    { id:"pkix-path-building", match:"PKIX Path Building Failed", title:"ServiceNow Mid Server Credential Resolver - PKIX Path Building Failed", url:"https://support.delinea.com/s/article/1762521722409", products:["Secret Server"] },
+    { id:"install-error-code", match:"error code: -2147024784", title:"Installation failed with error code: -2147024784", url:"https://support.delinea.com/s/article/1736222465957", products:["Secret Server"] },
+    { id:"activation-required", match:"Activation is Required", title:"Resolving \"Error Activation is Required\" in Secret Server", url:"https://support.delinea.com/s/article/Resolving-Error-Activation-is-Required-in-Secret-Server", products:["Secret Server"] },
+    { id:"stack-overflow-exception", match:"StackOverflowException", title:"Techniques and Experiences Troubleshooting Secret Server Cloud Performance Issues", source:"confluence", products:["Secret Server"] },
+    { id:"rabbitmq-publickeytoken", match:"FanoutListenerService", title:"How to Correct the RabbitMQ PublicKeyToken Error in the Web Config File", url:"https://support.delinea.com/s/article/1761903029458", products:["Secret Server"] },
+    { id:"tls-error-detected", match:"TLS Error Detected", title:"Active Directory Sync: Enabling Use LDAPS results in TLS Error Detected (domain): Remote certificate name does not match remote host", url:"https://support.delinea.com/s/article/1734524154633", products:["Secret Server"] },
+    { id:"entra-invalid-client-secret", match:"AADSTS7000215", title:"Entra ID Exception AADSTS7000215: Invalid client secret provided", url:"https://support.delinea.com/s/article/1750666632150", products:["Secret Server"] },
+    { id:"heartbeat-error-1330", match:"error 1330", title:"Secret Server Heartbeat encounters error 1330", url:"https://support.delinea.com/s/article/Secret-Server-Heartbeat-encounters-error-1330", products:["Secret Server"] },
+  ]
+};
+
+// Yext (Salesforce Lightning) search — can't be pre-filled via URL, so we
+// open it and copy the scrubbed query to the clipboard for pasting.
+const YEXT_URL = 'https://thycotic.lightning.force.com/lightning/n/yextanswers__YextAISearch';
+
+const KB = {
+  signatures: KB_INLINE.signatures,
+  prepared: [],
+};
+
+// Lower-case match strings once for fast comparison
+function kbPrepare() {
+  KB.prepared = KB.signatures.map(s => ({ ...s, _matchL: s.match.toLowerCase() }));
+}
+kbPrepare();
+
+// Try to load an external dictionary so hosted updates take effect without
+// editing index.html. Falls back silently to the inline copy (e.g. file://).
+(async function kbLoadExternal() {
+  try {
+    const res = await fetch('error-signatures.json', { cache: 'no-store' });
+    if (!res.ok) return;
+    const data = await res.json();
+    if (data && Array.isArray(data.signatures) && data.signatures.length) {
+      KB.signatures = data.signatures;
+      kbPrepare();
+      // Re-render any visible results/viewer so badges appear with the fresh data
+      if (typeof refreshKbAffectedViews === 'function') refreshKbAffectedViews();
+    }
+  } catch (e) { /* offline / file:// — inline copy stands */ }
+})();
+
+// Match a log line against the dictionary. Returns the matching signature or null.
+// The line is scrubbed of PII before matching (privacy-first).
+function kbMatch(rawText) {
+  if (!rawText) return null;
+  const scrubbed = scrubPII(rawText).scrubbed.toLowerCase();
+  for (const s of KB.prepared) {
+    if (scrubbed.includes(s._matchL)) return s;
+  }
+  return null;
+}
+
+// Build the small amber badge button HTML for a matched signature.
+function kbBadgeHtml() {
+  return '<button class="kb-badge" title="Recognised error — click for documentation" aria-label="Recognised error">!</button>';
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -1822,10 +2070,19 @@ function makeWorker() {
 // ═══════════════════════════════════════════════════════════════
 function analyseFiles() {
   const prod = PRODUCTS[state.product];
-  state.loadedData = {};
+  // NOTE: additive — we no longer wipe loadedData here, so "Add More Files"
+  // merges new components/files into the existing set. New files for an
+  // existing component are appended and re-merged.
 
   const compIds = [...state.selectedComponents].filter(id => (pendingFiles[id]||[]).length > 0);
-  if (!compIds.length) return;
+  if (!compIds.length) {
+    // Nothing new selected — just go to analyser if we already have data
+    if (Object.keys(state.loadedData).length) {
+      document.getElementById('wizard').style.display = 'none';
+      document.getElementById('analyser').style.display = 'flex';
+    }
+    return;
+  }
 
   // Show progress
   const bar = document.getElementById('parse-progress');
@@ -1841,8 +2098,12 @@ function analyseFiles() {
     document.getElementById('analyser').style.display = 'flex';
     initResizers();
     renderSidebar();
-    const first = Object.keys(state.loadedData)[0];
+    const first = state.activeCompId && state.loadedData[state.activeCompId]
+      ? state.activeCompId
+      : Object.keys(state.loadedData)[0];
     if (first) activateComponent(first);
+    // Clear pending so a subsequent "Add More" starts clean
+    Object.keys(pendingFiles).forEach(k => delete pendingFiles[k]);
   };
 
   compIds.forEach(compId => {
@@ -1854,16 +2115,25 @@ function analyseFiles() {
       worker.terminate();
       const { parsed } = e.data;
 
-      // Build merged from shallow clones so sorting doesn't reorder file.lines
+      // Merge with any existing files for this component (additive)
+      const existing = state.loadedData[compId];
+      let allParsed = parsed;
+      if (existing && existing.files) {
+        // Avoid duplicate files by name
+        const haveNames = new Set(existing.files.map(f => f.name));
+        const newOnes = parsed.filter(f => !haveNames.has(f.name));
+        allParsed = existing.files.concat(newOnes);
+      }
+
       let merged = [];
-      parsed.forEach(f => f.lines.forEach(l => merged.push({ ...l })));
+      allParsed.forEach(f => f.lines.forEach(l => merged.push({ ...l })));
       merged.sort((a,b) => {
         if (a.ts && b.ts) return a.ts - b.ts;
         return 0;
       });
       merged.forEach((l,i) => l.mergedNo = i+1);
 
-      state.loadedData[compId] = { compDef: comp, files: parsed, merged };
+      state.loadedData[compId] = { compDef: comp, files: allParsed, merged };
 
       completed++;
       bar.style.transform = `scaleX(${0.05 + 0.95 * (completed/total)})`;
@@ -1915,6 +2185,11 @@ function activateComponent(compId) {
   document.querySelectorAll('.component-item').forEach(el => {
     el.classList.toggle('active', el.dataset.compId === compId);
   });
+  // Reset recognised-errors filter when switching component
+  state.recognisedOnly = false;
+  const recBtn = document.getElementById('btn-recognised-errors');
+  if (recBtn) recBtn.classList.remove('active');
+  if (typeof updateRecognisedCount === 'function') updateRecognisedCount();
   // Don't overwrite search results when in search mode
   if (!globalSearchActive) applyFilter();
 }
@@ -1944,9 +2219,28 @@ function applyFilter() {
     entries = entries.filter(l => !l.isContinuation && l.level !== null);
   }
 
+  // Global time range
+  if (state.gtrStart != null || state.gtrEnd != null) {
+    entries = entries.filter(l => inGlobalRange(l.ts));
+  }
+
+  // Recognised-errors-only mode: keep only entries matching a KB signature
+  if (state.recognisedOnly) {
+    entries = entries.filter(l => kbMatch(l.text));
+  }
+
   document.getElementById('result-count').textContent = `${entries.length.toLocaleString()} entries`;
   document.getElementById('results-header-count').textContent = entries.length.toLocaleString();
   renderResults(entries, data);
+}
+
+// True if a timestamp (epoch ms) falls within the active global range.
+// Entries without a timestamp are kept (can't be excluded reliably).
+function inGlobalRange(ts) {
+  if (ts == null) return true;
+  if (state.gtrStart != null && ts < state.gtrStart) return false;
+  if (state.gtrEnd != null && ts > state.gtrEnd) return false;
+  return true;
 }
 
 // Results panel virtual state
@@ -1997,14 +2291,24 @@ function renderResultsBatch() {
     const item = document.createElement('div');
     item.className = 'result-item';
     const level = entry.level || '?';
+    const kb = kbMatch(entry.text);
+    const kbBadge = kb ? kbBadgeHtml() : '';
     item.innerHTML = `
       <div class="ri-meta">
+        ${kbBadge}
         <span class="level-badge ${level}">${level}</span>
         <span class="ri-line">L${entry.lineNo}</span>
         <span class="ri-file">${entry._file}</span>
       </div>
       <div class="ri-msg">${entry.strippedHtml || escHtml(entry.text)}</div>
     `;
+    if (kb) {
+      const badgeEl = item.querySelector('.kb-badge');
+      badgeEl.addEventListener('click', (e) => {
+        e.stopPropagation();
+        showKbPopover(kb, entry.text, badgeEl);
+      });
+    }
     item.addEventListener('click', () => {
       document.querySelectorAll('.result-item').forEach(i => i.classList.remove('focused'));
       item.classList.add('focused');
@@ -2110,7 +2414,18 @@ function buildLineEl(l, i) {
     html = html.replace(new RegExp(escRegex(VS._searchTermSafe), 'gi'),
       m => `<span class="search-highlight">${m}</span>`);
   }
-  div.innerHTML = `<span class="ln">${l.lineNo}</span><span class="lc">${html}</span>`;
+  // Recognised-error badge for non-continuation lines that match the KB
+  let kb = null;
+  if (!l.isContinuation) kb = kbMatch(l.text);
+  const kbBadge = kb ? kbBadgeHtml() : '';
+  div.innerHTML = `<span class="ln">${l.lineNo}</span><span class="lc">${kbBadge}${html}</span>`;
+  if (kb) {
+    const badgeEl = div.querySelector('.kb-badge');
+    badgeEl.addEventListener('click', (e) => {
+      e.stopPropagation();
+      showKbPopover(kb, l.text, badgeEl);
+    });
+  }
   return div;
 }
 
@@ -2690,6 +3005,105 @@ document.getElementById('btn-highlight-similar').addEventListener('click', () =>
   openSimilarOverlay(state.focusedLogger || '');
 });
 
+// ═══════════════════════════════════════════════════════════════
+//  KB POPOVER + RECOGNISED ERRORS FILTER
+// ═══════════════════════════════════════════════════════════════
+const kbPopover = document.getElementById('kb-popover');
+
+function showKbPopover(sig, rawLine, anchorEl) {
+  document.getElementById('kbp-title').textContent = sig.title;
+  const srcEl = document.getElementById('kbp-source');
+  const actions = document.getElementById('kbp-actions');
+  actions.innerHTML = '';
+
+  if (sig.source === 'confluence') {
+    srcEl.textContent = '📘 Internal article — found on Confluence';
+  } else if (sig.url) {
+    srcEl.textContent = '📗 Delinea public documentation';
+    const a = document.createElement('a');
+    a.className = 'kbp-btn primary';
+    a.href = sig.url;
+    a.target = '_blank';
+    a.rel = 'noopener';
+    a.innerHTML = '📖 Open documentation article';
+    actions.appendChild(a);
+  } else {
+    srcEl.textContent = 'Recognised error';
+  }
+
+  // Yext search button — opens Yext and copies the scrubbed query to clipboard
+  const yextBtn = document.createElement('button');
+  yextBtn.className = 'kbp-btn';
+  yextBtn.innerHTML = '🔎 Search in Yext (copies query)';
+  yextBtn.addEventListener('click', () => {
+    const scrubbed = scrubPII(rawLine).scrubbed.trim();
+    // Use the matched signature text as the query — concise and already safe
+    const query = sig.match;
+    navigator.clipboard.writeText(query).then(() => {
+      yextBtn.innerHTML = '✓ Query copied — paste into Yext';
+      setTimeout(() => { yextBtn.innerHTML = '🔎 Search in Yext (copies query)'; }, 2500);
+    }).catch(() => {});
+    window.open(YEXT_URL, '_blank', 'noopener');
+  });
+  actions.appendChild(yextBtn);
+
+  // Position popover near the badge, clamped to viewport
+  kbPopover.classList.remove('hidden');
+  const r = anchorEl.getBoundingClientRect();
+  const pw = kbPopover.offsetWidth, ph = kbPopover.offsetHeight;
+  let top = r.bottom + 8, left = r.left;
+  if (left + pw > window.innerWidth - 12) left = window.innerWidth - pw - 12;
+  if (top + ph > window.innerHeight - 12) top = r.top - ph - 8;
+  if (top < 12) top = 12;
+  kbPopover.style.top = top + 'px';
+  kbPopover.style.left = Math.max(12, left) + 'px';
+}
+
+function hideKbPopover() { kbPopover.classList.add('hidden'); }
+document.getElementById('kbp-close').addEventListener('click', hideKbPopover);
+document.addEventListener('click', (e) => {
+  if (kbPopover.classList.contains('hidden')) return;
+  if (!kbPopover.contains(e.target) && !e.target.classList.contains('kb-badge')) hideKbPopover();
+});
+document.addEventListener('keydown', (e) => { if (e.key === 'Escape') hideKbPopover(); });
+
+// Recognised errors toggle — filters results to KB-matched entries only
+document.getElementById('btn-recognised-errors').addEventListener('click', () => {
+  state.recognisedOnly = !state.recognisedOnly;
+  document.getElementById('btn-recognised-errors').classList.toggle('active', state.recognisedOnly);
+  // Clear any active global search so the filter view is shown
+  if (typeof globalSearchActive !== 'undefined' && globalSearchActive) {
+    document.getElementById('btn-clear-search')?.click();
+  }
+  applyFilter();
+});
+
+// Update the count badge on the Recognised errors button for the active component
+function updateRecognisedCount() {
+  const btn = document.getElementById('btn-recognised-errors');
+  if (!state.activeCompId || !state.loadedData[state.activeCompId]) {
+    btn.innerHTML = '⚠ Recognised errors';
+    return;
+  }
+  const data = state.loadedData[state.activeCompId];
+  let n = 0;
+  for (const l of data.merged) {
+    if (!l.isContinuation && l.level && kbMatch(l.text)) n++;
+  }
+  btn.innerHTML = n > 0
+    ? `⚠ Recognised errors <span class="kb-count">${n}</span>`
+    : '⚠ Recognised errors';
+}
+
+// Called when the external dictionary loads after initial render
+function refreshKbAffectedViews() {
+  kbPrepare();
+  if (state.activeCompId) {
+    updateRecognisedCount();
+    if (!simOverlay || simOverlay.classList.contains('hidden')) applyFilter();
+  }
+}
+
 // VIEWER SEARCH
 document.getElementById('viewer-search').addEventListener('input', e => {
   applyViewerSearch(e.target.value.trim());
@@ -2802,6 +3216,7 @@ function runGlobalSearch(term) {
     if (state.searchExcluded.has(compId)) return;
     for (const line of data.merged) {
       if (line.isContinuation) continue;
+      if (!inGlobalRange(line.ts)) continue;
       if (line.text.toLowerCase().includes(termL)) {
         results.push({ compId, data, line });
       }
@@ -2930,10 +3345,22 @@ document.getElementById('btn-home').addEventListener('click', () => {
   state.selectedText = '';
   state.globalSearchTerm = '';
   state.searchExcluded.clear();
+  state.recognisedOnly = false;
+  state.gtrStart = null;
+  state.gtrEnd = null;
   Object.keys(pendingFiles).forEach(k => delete pendingFiles[k]);
   // Close similar overlay if open
   document.getElementById('similar-overlay').classList.add('hidden');
   document.getElementById('btn-highlight-similar').classList.remove('active');
+  document.getElementById('btn-recognised-errors').classList.remove('active');
+  document.getElementById('kb-popover').classList.add('hidden');
+  // Reset global time range UI
+  const gtr = document.getElementById('global-time-range');
+  if (gtr) {
+    gtr.classList.remove('active');
+    document.getElementById('gtr-start').value = '';
+    document.getElementById('gtr-end').value = '';
+  }
 
   // Reset UI
   document.querySelectorAll('.product-btn').forEach(b => b.classList.remove('selected'));
@@ -2963,6 +3390,35 @@ document.getElementById('btn-home').addEventListener('click', () => {
 document.getElementById('btn-add-more').addEventListener('click', () => {
   document.getElementById('analyser').style.display = 'none';
   document.getElementById('wizard').style.display = 'flex';
+});
+
+// ═══════════════════════════════════════════════════════════════
+//  GLOBAL TIME RANGE
+// ═══════════════════════════════════════════════════════════════
+function parseLocalDatetime(v) {
+  if (!v) return null;
+  const t = new Date(v).getTime();
+  return isNaN(t) ? null : t;
+}
+
+document.getElementById('gtr-apply').addEventListener('click', () => {
+  state.gtrStart = parseLocalDatetime(document.getElementById('gtr-start').value);
+  state.gtrEnd   = parseLocalDatetime(document.getElementById('gtr-end').value);
+  const active = state.gtrStart != null || state.gtrEnd != null;
+  document.getElementById('global-time-range').classList.toggle('active', active);
+  // Re-run whichever view is active
+  if (globalSearchActive) runGlobalSearch(state.globalSearchTerm);
+  else applyFilter();
+});
+
+document.getElementById('gtr-reset').addEventListener('click', () => {
+  state.gtrStart = null;
+  state.gtrEnd = null;
+  document.getElementById('gtr-start').value = '';
+  document.getElementById('gtr-end').value = '';
+  document.getElementById('global-time-range').classList.remove('active');
+  if (globalSearchActive) runGlobalSearch(state.globalSearchTerm);
+  else applyFilter();
 });
 
 // ═══════════════════════════════════════════════════════════════
@@ -3051,8 +3507,54 @@ function initResizers() {
 }
 
 // ═══════════════════════════════════════════════════════════════
-//  PWA — register service worker + install prompt
+//  PWA — service worker + auto cache-busting on version change
 // ═══════════════════════════════════════════════════════════════
+// Bump APP_VERSION whenever you deploy a new build. On load, if the
+// stored version differs, we clear caches + update the service worker
+// so users never get a stale copy.
+const APP_VERSION = '2026.06.01';
+
+(function autoCacheBust() {
+  try {
+    const stored = localStorage.getItem('app-version');
+    if (stored && stored !== APP_VERSION) {
+      // New version detected — purge caches and SW, then reload once
+      if (!sessionStorage.getItem('version-reloaded')) {
+        sessionStorage.setItem('version-reloaded', '1');
+        clearAppCaches().then(() => {
+          localStorage.setItem('app-version', APP_VERSION);
+          location.reload();
+        });
+        return;
+      }
+    }
+    localStorage.setItem('app-version', APP_VERSION);
+  } catch (e) { /* ignore */ }
+})();
+
+async function clearAppCaches() {
+  try {
+    if ('caches' in window) {
+      const keys = await caches.keys();
+      await Promise.all(keys.map(k => caches.delete(k)));
+    }
+    if ('serviceWorker' in navigator) {
+      const regs = await navigator.serviceWorker.getRegistrations();
+      await Promise.all(regs.map(r => r.unregister()));
+    }
+  } catch (e) { /* ignore */ }
+}
+
+// Manual hard refresh — clears everything and reloads from network
+async function hardRefresh() {
+  const btn = document.getElementById('btn-hard-refresh');
+  if (btn) { btn.disabled = true; btn.style.opacity = '0.5'; }
+  await clearAppCaches();
+  // Force a cache-bypassing reload
+  sessionStorage.removeItem('version-reloaded');
+  location.reload();
+}
+
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
     navigator.serviceWorker.register('sw.js').catch(() => {});
