@@ -2089,6 +2089,40 @@ function filetimeToEpochMs(lo, hi) {
   return Math.round(ticks / 10000 - 11644473600000);
 }
 
+// Pull genuine readable UTF-16LE string runs out of a binary region.
+// EVTX records are Binary XML — strings are stored as UTF-16LE runs between
+// binary tokens. We walk the bytes two at a time; a "printable" UTF-16 unit
+// (high byte 0, low byte a printable ASCII char, or a few common ranges)
+// extends the current run, anything else ends it. Runs ≥ minLen are kept.
+function extractEvtxStrings(buffer, start, len, minLen) {
+  minLen = minLen || 4;
+  const bytes = new Uint8Array(buffer, start, len);
+  const out = [];
+  let cur = [];
+  const flush = () => {
+    if (cur.length >= minLen) {
+      const s = cur.join('').replace(/\s+/g, ' ').trim();
+      if (s.length >= minLen && /[A-Za-z0-9]/.test(s)) out.push(s);
+    }
+    cur = [];
+  };
+  for (let i = 0; i + 1 < bytes.length; i += 2) {
+    const lo = bytes[i], hi = bytes[i + 1];
+    // UTF-16LE: printable BMP char if high byte is 0 and low byte is printable,
+    // or a Latin-1 supplement / common range. Reject control + binary noise.
+    if (hi === 0 && lo >= 0x20 && lo <= 0x7e) {
+      cur.push(String.fromCharCode(lo));
+    } else if (hi === 0 && (lo === 0x09)) {
+      cur.push(' ');
+    } else {
+      flush();
+    }
+  }
+  flush();
+  // De-dupe consecutive identical fragments and very short noise
+  return out.filter((s, idx) => s !== out[idx - 1]);
+}
+
 function parseEvtx(arrayBuffer) {
   const dv = new DataView(arrayBuffer);
   const result = { records: [], totalChunks: 0, decodedRecords: 0, failedRecords: 0, valid: false };
@@ -2102,7 +2136,6 @@ function parseEvtx(arrayBuffer) {
   // Chunks start at 0x1000 (4096), each 0x10000 (65536) bytes
   const CHUNK_SIZE = 0x10000;
   let offset = 0x1000;
-  const dec = new TextDecoder('utf-16le');
 
   while (offset + CHUNK_SIZE <= dv.byteLength) {
     // Chunk header "ElfChnk\0"
@@ -2132,22 +2165,31 @@ function parseEvtx(arrayBuffer) {
         const ftHi = dv.getUint32(p + 20, true);
         const ts = filetimeToEpochMs(ftLo, ftHi);
 
-        // Best-effort: decode the record body as UTF-16 and scrape readable text + Event ID.
+        // Extract only genuine readable UTF-16LE string runs from the record.
+        // Decoding the whole binary body as text produces mojibake because the
+        // Binary XML tokens/numbers get mis-read as characters. Instead we pull
+        // out runs of printable characters (≥4 long) and join them, which
+        // surfaces real text (provider, account, message fragments) and drops
+        // the binary noise.
         const bodyStart = p + 24;
         const bodyLen = Math.min(size - 24, chunkEnd - bodyStart);
         let snippet = '', eventId = null, provider = null, level = null;
         if (bodyLen > 0) {
-          const raw = dec.decode(new Uint8Array(arrayBuffer, bodyStart, bodyLen));
-          // Strip control chars, collapse whitespace
-          const clean = raw.replace(/[\u0000-\u001F\u007F-\u009F]+/g, ' ').replace(/\s+/g, ' ').trim();
-          snippet = clean.slice(0, 300);
-          // Event ID often appears as a small standalone number near "EventID"
-          const eid = clean.match(/EventID["'>\s]*?(\d{1,5})/i) || raw.match(/E\u0000v\u0000e\u0000n\u0000t\u0000I\u0000D/i);
-          if (eid && eid[1]) eventId = parseInt(eid[1]);
-          const prov = clean.match(/Provider[^A-Za-z]{0,5}Name['">\s=]*([A-Za-z0-9_.\- ]{3,60})/i);
-          if (prov) provider = prov[1].trim();
-          const lvl = clean.match(/\b(Critical|Error|Warning|Information|Verbose)\b/i);
-          if (lvl) level = lvl[1];
+          const strings = extractEvtxStrings(arrayBuffer, bodyStart, bodyLen);
+          const joined = strings.join('  ·  ');
+          snippet = joined.slice(0, 400);
+          // Event ID: look for "EventID" followed by a number in the extracted strings
+          for (let si = 0; si < strings.length; si++) {
+            if (/EventID/i.test(strings[si])) {
+              const m = (strings[si] + ' ' + (strings[si+1]||'')).match(/(\d{1,5})/);
+              if (m) { eventId = parseInt(m[1]); break; }
+            }
+          }
+          // Provider name is usually one of the first substantial strings
+          const prov = strings.find(s => /^[A-Za-z][\w.\- ]{3,60}$/.test(s) && /Microsoft|Provider|Service|Windows|Security|System|\-/.test(s));
+          if (prov) provider = prov.trim();
+          const lvlStr = strings.find(s => /\b(Critical|Error|Warning|Information|Verbose)\b/i.test(s));
+          if (lvlStr) { const lm = lvlStr.match(/\b(Critical|Error|Warning|Information|Verbose)\b/i); if (lm) level = lm[1]; }
         }
 
         if (ts > 0 && ts < 4102444800000) { // sane: before year 2100
