@@ -32,7 +32,7 @@ Loaded components are listed in the sidebar. When a zip or folder is loaded, a t
 ![Components and file tree views](screenshots/03-sidebar.png)
 
 ### Filtering by log level
-Use the filter bar to narrow results by **ERROR**, **CRITICAL**, **WARNING**, **INFO**, **VERBOSE**, or **DEBUG**. Results appear in the middle panel with the source file, line number, and a stripped message preview for each entry. Click any entry to jump to it in the log viewer on the right.
+Use the filter bar to narrow results by **ERROR**, **CRITICAL**, **WARNING**, **INFO**, **VERBOSE**, or **DEBUG**. Matching entries are grouped by **logger** in the middle panel, each row showing the logger name and the total number of matching entries. Click a logger to expand it and reveal its entries — identical messages are collapsed together with an occurrence count — then click any entry to jump to it in the log viewer on the right and step through every occurrence with ▲▼. Right-click any entry for quick actions (see *Recognised errors* and *PII scrubbing*).
 
 ![Log level filtering](screenshots/04-filtering.png)
 
@@ -57,7 +57,7 @@ Click **Similar** to open a full-screen view of every line sharing the same logg
 ![Similar entries](screenshots/08-similar.png)
 
 ### Windows Event Logs (.evtx)
-Click **Upload & analyse EVTX** to add a Windows Event Log at any time. A complete in-browser parser decodes the events — provider, event ID, level, and the real message text — and opens them in a draggable, resizable floating window with a summary (time range, level breakdown, top event IDs) and a browsable event list. **Sync all logs to this time** lines your other logs up around a chosen event so you can see what happened across the whole system at that moment.
+Click **Upload & analyse EVTX** to add a Windows Event Log at any time. A complete in-browser parser decodes the events — provider, event ID, level, channel, and structured event data — and opens them in a draggable, resizable floating window with a summary (time range, level breakdown, top event IDs) and a browsable event list. Clicking an event opens a movable detail panel showing its fields in plain language, with human-readable headlines for documented Windows and .NET event IDs. **Sync logs to this event** lines your other logs up around a chosen event so you can see what happened across the whole system at that moment.
 
 ![EVTX floating window](screenshots/09-evtx.png)
 
@@ -84,8 +84,9 @@ Highlight any text in the log viewer, then click **Scrub PII & Copy** in the bot
 
 ### Filtering and results
 - Filter entries by **ERROR**, **CRITICAL**, **WARNING**, **INFO**, **VERBOSE**, or **DEBUG** across all loaded files
-- Results are sorted most-recent-first with source file and line numbers
-- Click any result to jump directly to that line in the full log viewer
+- Matching entries are **grouped by logger**, newest activity first, with a total count per logger
+- Expand a logger to see its entries with identical messages **collapsed and counted**; click one to open it in the viewer and step through every occurrence with ▲▼
+- **Right-click any entry** to copy a scrubbed copy of the line or search it in Yext (see *Recognised errors*)
 
 ### Global time range
 - Restrict **every** loaded log to a specific start/end window with a single control
@@ -95,6 +96,7 @@ Highlight any text in the log viewer, then click **Scrub PII & Copy** in the bot
 - The tool ships with a built-in dictionary of known Delinea errors sourced from public documentation and internal knowledge
 - Lines matching a known error show an amber **!** badge linking straight to the relevant article
 - The **Recognised errors** view lists each distinct known error once, showing how many times it occurred; step through every occurrence with ▲▼, or jump to other components that hit the same error
+- **Search in Yext** — from a recognised error's badge, or by right-clicking any log line, the tool copies a **PII-scrubbed** copy of the text to your clipboard and opens Yext ready to paste, with a confirmation that the copied text was scrubbed first
 
 ### Log viewer
 - Opens the complete log file with the selected entry highlighted and centred
@@ -111,13 +113,16 @@ Highlight any text in the log viewer, then click **Scrub PII & Copy** in the bot
 ### Windows Event Logs (.evtx)
 - Upload a Windows Event Log at any time with **Upload & analyse EVTX**
 - Opens in a draggable, resizable floating window with a summary (time range, level breakdown, top event IDs) and a browsable event list
-- **Sync all logs to this time** lines your other logs up around a chosen event, and a correlation option pulls entries from ±10/15/20 minutes around it — so you can see what happened across the whole system at that moment
-- EVTX parsing is **full-fidelity**: a complete Binary XML + template parser (running in a Web Worker, entirely in-browser) decodes real event messages, provider, event ID, level, channel, and structured event data — not just timestamps
+- Clicking an event opens a **movable, closable detail panel** showing its fields in plain language
+- **Sync logs to this event** lines your other logs up around a chosen event, and a correlation option pulls entries from ±10/15/20 minutes around it — so you can see what happened across the whole system at that moment
+- EVTX parsing runs **entirely in-browser**: a complete Binary XML + template decoder reads provider, event ID, level, channel, and structured event data. Parsing uses a Web Worker where the browser allows it and falls back to the main thread otherwise, so it works on static hosting too
+- Documented Windows and .NET event IDs are given **human-readable headline messages** from a built-in template table, with the underlying event data shown beneath
 
 ### PII scrubbing
 - Highlight any text in the log viewer with your mouse
 - The **Scrub PII & Copy** button shows a preview of every replacement before anything is copied
 - Patterns scrubbed: IPv4 and IPv6 addresses, email addresses, `DOMAIN\username` pairs, UPNs, Windows SIDs, UNC paths, GUIDs, and key=value username fields
+- **Right-click any log line** to copy a scrubbed copy of it, or to search it in Yext — the text is always scrubbed before it reaches the clipboard
 - A copyable text box is provided as a fallback if the browser blocks clipboard access
 
 ### Appearance & convenience
