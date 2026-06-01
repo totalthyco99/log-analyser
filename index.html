@@ -2148,21 +2148,90 @@ function makeEvtxWorker() {
   return new Worker(URL.createObjectURL(blob));
 }
 
+// Run EVTXLib directly on the main thread (fallback when blob workers are blocked by CSP).
+async function parseEvtxMainThread(arrayBuffer) {
+  // Ensure EVTXLib is initialised — it is inlined into the page as a <script type="text/plain">
+  // and evaluated once via window.__EVTX_PARSER_SRC__.  If it hasn't been eval'd yet, do it now.
+  if (!window.EVTXLib || !window.EVTXLib.parseEvtxBuffer) {
+    const src = window.__EVTX_PARSER_SRC__ || '';
+    if (!src) throw new Error('parser-unavailable');
+    // eslint-disable-next-line no-new-func
+    try { (new Function('self', src))(window); } catch (_) {}
+  }
+  if (!window.EVTXLib || !window.EVTXLib.parseEvtxBuffer) throw new Error('parser-unavailable');
+
+  const buffer = arrayBuffer instanceof Uint8Array ? arrayBuffer : new Uint8Array(arrayBuffer);
+  const events = await window.EVTXLib.parseEvtxBuffer(buffer, { limit: 200000 });
+  const fm = window.EVTXLib.finalMessage;
+  return events.map(ev => {
+    let msg = '';
+    try { msg = fm(ev) || ''; } catch (_) {}
+    if (!msg && ev.data && ev.data.items && ev.data.items.length) {
+      msg = ev.data.items.map(it => (it.name ? it.name + '=' : '') + it.value).join(', ');
+    }
+    return {
+      ts: ev.timestamp ? Date.parse(ev.timestamp) : null,
+      eventId: (ev.eventId != null ? ev.eventId : null),
+      provider: ev.provider && ev.provider.name ? ev.provider.name : null,
+      level: ev.levelName || null,
+      channel: ev.channel || null,
+      computer: ev.computer || null,
+      snippet: msg,
+    };
+  });
+}
+
 // Parse an EVTX ArrayBuffer in a worker → resolves to the compact record array.
+// Falls back to main-thread parsing if blob: workers are blocked (e.g. GitHub Pages CSP).
 function parseEvtxAsync(arrayBuffer) {
   return new Promise((resolve, reject) => {
     let worker;
     try { worker = makeEvtxWorker(); }
-    catch (e) { reject(e); return; }
-    worker.onmessage = e => {
-      worker.terminate();
-      if (e.data.error) reject(new Error(e.data.error));
-      else resolve(e.data.records || []);
+    catch (e) {
+      // Worker creation failed (CSP or other) — run on main thread instead
+      parseEvtxMainThread(arrayBuffer).then(resolve).catch(reject);
+      return;
+    }
+    let settled = false;
+    const fallback = (err) => {
+      if (settled) return;
+      settled = true;
+      try { worker.terminate(); } catch (_) {}
+      // Worker failed (likely CSP blocked blob: URL at postMessage or construction time)
+      // — clone the buffer if it was transferred (detached), else use as-is
+      const buf = arrayBuffer.byteLength === 0 ? null : arrayBuffer;
+      if (!buf) { reject(err); return; }
+      parseEvtxMainThread(buf).then(resolve).catch(reject);
     };
-    worker.onerror = err => { worker.terminate(); reject(err); };
-    // Transfer the buffer to the worker (zero-copy) where possible
-    try { worker.postMessage({ buffer: arrayBuffer, limit: 200000 }, [arrayBuffer]); }
-    catch (_) { worker.postMessage({ buffer: arrayBuffer, limit: 200000 }); }
+    worker.onmessage = e => {
+      if (settled) return;
+      settled = true;
+      worker.terminate();
+      if (e.data.error) {
+        if (e.data.error === 'parser-unavailable') {
+          // Try main thread with original buffer (may be detached — handle gracefully)
+          parseEvtxMainThread(arrayBuffer).then(resolve).catch(reject);
+        } else {
+          reject(new Error(e.data.error));
+        }
+      } else {
+        resolve(e.data.records || []);
+      }
+    };
+    worker.onerror = err => fallback(err);
+    // Transfer the buffer to the worker (zero-copy) where possible.
+    // Keep a copy so we can fall back if the worker fails after transfer.
+    let bufferForWorker = arrayBuffer;
+    try {
+      // Try to clone before transfer so fallback still works if worker fails
+      const clone = arrayBuffer.slice ? arrayBuffer.slice(0) : arrayBuffer;
+      worker.postMessage({ buffer: bufferForWorker, limit: 200000 }, [bufferForWorker]);
+      // If transfer succeeded arrayBuffer is now detached; store clone for fallback
+      arrayBuffer = clone;
+    } catch (_) {
+      try { worker.postMessage({ buffer: arrayBuffer, limit: 200000 }); }
+      catch (err2) { fallback(err2); }
+    }
   });
 }
 
@@ -5036,7 +5105,7 @@ function initResizers() {
 // Bump APP_VERSION whenever you deploy a new build. On load, if the
 // stored version differs, we clear caches + update the service worker
 // so users never get a stale copy.
-const APP_VERSION = '2026.06.01d';
+const APP_VERSION = '2026.06.01e';
 
 (function autoCacheBust() {
   try {
@@ -5185,7 +5254,7 @@ const TOUR_STEPS = [
   {
     id: 'sidebar',
     title: '4 — Sidebar & universal search',
-    body: 'Each loaded component appears here. Click one to focus it. The search bar searches across <em>all</em> loaded files at once — press Enter to run, Escape to clear. When a zip or folder is loaded, a <strong>Components ⇄ File tree</strong> toggle appears so you can browse by the original folder structure too.',
+    body: 'Each loaded component appears here — click one to focus it. The search bar searches across <em>all</em> loaded files <strong>as you type</strong>, streaming matches in live. Tick <strong>Include older rolled logs</strong> to also scan the older <code>.log.1</code>, <code>.log.2</code> files on demand. When a zip or folder is loaded, a <strong>Components ⇄ File tree</strong> toggle lets you browse by the original folder structure too.',
     target: '#sidebar',
     position: 'right',
     setup: () => tourEnsureAnalyser(),
