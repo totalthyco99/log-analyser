@@ -5139,6 +5139,19 @@ function showTourStep() {
   // Run any setup needed for this step
   if (step.setup) step.setup();
 
+  // Scroll the target into view (centred) so steps below the fold are visible.
+  // Deferred a tick so any layout change from step.setup() has settled. The
+  // live rAF loop keeps the spotlight + card anchored as the scroll animates.
+  if (step.target) {
+    requestAnimationFrame(() => {
+      const tgt = document.querySelector(step.target);
+      if (tgt) {
+        try { tgt.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'nearest' }); }
+        catch (e) { tgt.scrollIntoView(); }
+      }
+    });
+  }
+
   // Build card
   const card = document.createElement('div');
   card.id = 'tour-card';
