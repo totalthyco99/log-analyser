@@ -197,6 +197,248 @@ window.EVTX_MESSAGE_TEMPLATES = {
 };
 
 </script>
+<script>
+// Minimal, correct EVTX BinaryXML decoder — focused on producing readable
+// Event XML for records the bundled parser fails on. Handles template
+// definitions, the substitution array, and resident/referenced templates.
+function decodeEvtxRecords(buf, limit) {
+  const dv = new DataView(buf.buffer, buf.byteOffset, buf.byteLength);
+  const td = new TextDecoder('utf-16le');
+  const u8=(o)=>buf[o], u16=(o)=>dv.getUint16(o,true), u32=(o)=>dv.getUint32(o,true);
+  const i32=(o)=>dv.getInt32(o,true), u64=(o)=>dv.getBigUint64(o,true), i64=(o)=>dv.getBigInt64(o,true);
+  const f32=(o)=>dv.getFloat32(o,true), f64=(o)=>dv.getFloat64(o,true);
+  const FILETIME_EPOCH = 11644473600000n;
+  function filetime(o){ const t=u64(o); return new Date(Number(t/10000n - FILETIME_EPOCH)); }
+  function guid(o){
+    const d1=u32(o),d2=u16(o+4),d3=u16(o+6);
+    const b=[]; for(let i=0;i<8;i++)b.push(u8(o+8+i).toString(16).padStart(2,'0'));
+    return `{${d1.toString(16).padStart(8,'0')}-${d2.toString(16).padStart(4,'0')}-${d3.toString(16).padStart(4,'0')}-${b.slice(0,2).join('')}-${b.slice(2).join('')}}`.toUpperCase();
+  }
+  function sid(o){
+    const rev=u8(o), cnt=u8(o+1);
+    let auth=0; for(let i=2;i<8;i++)auth=auth*256+u8(o+i);
+    let s=`S-${rev}-${auth}`;
+    for(let i=0;i<cnt;i++)s+='-'+u32(o+8+i*4);
+    return s;
+  }
+
+  const records = [];
+  const chunkHeaderSize = 4096;
+  for (let chunkOff = chunkHeaderSize; chunkOff + 65536 <= buf.length; chunkOff += 65536) {
+    if (u32(chunkOff) !== 0x43666c45) break; // 'ElfC' little — actually 'ElfChnk'
+    const chunkStart = chunkOff;
+    let p = chunkOff + 512;
+    const chunkEnd = chunkOff + 65536;
+    while (p < chunkEnd) {
+      if (u32(p) !== 0x00002a2a) break;
+      const size = u32(p+4);
+      if (size < 24 || p+size > chunkEnd) break;
+      const recordId = u64(p+8);
+      const ts = filetime(p+16);
+      try {
+        const xml = renderRecord(p+24, p+size-4, chunkStart);
+        records.push({ recordId: Number(recordId), timestamp: ts.toISOString(), xml });
+      } catch (e) {
+        records.push({ recordId: Number(recordId), timestamp: ts.toISOString(), xml: '', error: String(e) });
+      }
+      p += size;
+      if (limit && records.length >= limit) return records;
+    }
+  }
+  return records;
+
+  // ---- core renderer ----
+  function renderRecord(start, end, chunkStart) {
+    let pos = start;
+    // Expect FragmentHeader 0x0f
+    if ((u8(pos)&0x0f) === 0x0f) pos += 4;
+    return parseElementStream(pos, end, chunkStart, null).xml;
+  }
+
+  // Parse a template definition's element body, applying substitutions.
+  function parseTemplateBody(defStart, defEnd, chunkStart, subs) {
+    let pos = defStart;
+    if ((u8(pos)&0x0f) === 0x0f) pos += 4; // fragment header inside template
+    let xml = '';
+    while (pos < defEnd) {
+      const r = parseNode(pos, defEnd, chunkStart, subs);
+      xml += r.xml;
+      pos = r.next;
+      if (r.stop) break;
+    }
+    return xml;
+  }
+
+  function parseElementStream(start, end, chunkStart, subs) {
+    let pos = start, xml = '';
+    while (pos < end) {
+      const tok = u8(pos) & 0x0f;
+      if (tok === 0x0c) { // TemplateInstance
+        const r = parseTemplateInstance(pos, end, chunkStart);
+        xml += r.xml; pos = r.next;
+      } else {
+        const r = parseNode(pos, end, chunkStart, subs);
+        xml += r.xml; pos = r.next;
+        if (r.stop) break;
+      }
+    }
+    return { xml, next: pos };
+  }
+
+  function parseTemplateInstance(pos, end, chunkStart) {
+    // 0x0c, unknown(1), templateId(4), templateDefOffset(4)
+    const defOffsetRel = u32(pos+6);
+    let p = pos + 10;
+    const defAbs = chunkStart + defOffsetRel;
+    // If the template definition is resident (appears here), it has a 24-byte header
+    // then data_length(4) then BXML. The def region: next(4) id(4) guid(16) dataLen(4)
+    let defDataLen, defBodyStart;
+    // Resident if defOffsetRel points at/after current node (definition inline)
+    const residentHeaderAbs = defAbs;
+    defDataLen = u32(residentHeaderAbs + 20);
+    defBodyStart = residentHeaderAbs + 24;
+    // If resident definition is right here, the substitution array follows the
+    // definition body; if referenced, substitutions follow immediately after the 10-byte instance.
+    let subsStart;
+    const isResident = (defOffsetRel > (pos - chunkStart));
+    if (isResident) subsStart = defBodyStart + defDataLen;
+    else subsStart = p;
+    // Read substitution descriptor array
+    const subCount = u32(subsStart);
+    let q = subsStart + 4;
+    const descs = [];
+    for (let i=0;i<subCount;i++){ descs.push({ size:u16(q), type:u8(q+2) }); q += 4; }
+    const subs = [];
+    for (let i=0;i<subCount;i++){
+      const d = descs[i];
+      subs.push(parseValue(q, d.size, d.type, chunkStart));
+      q += d.size;
+    }
+    const body = parseTemplateBody(defBodyStart, defBodyStart + defDataLen, chunkStart, subs);
+    return { xml: body, next: q };
+  }
+
+  function parseValue(o, size, type, chunkStart){
+    const baseType = type & 0x7f;
+    const isArray = (type & 0x80) !== 0;
+    switch(baseType){
+      case 0x00: return '';
+      case 0x01: { // wstring
+        if (isArray) return td.decode(buf.subarray(o,o+size)).replace(/\u0000+$/,'').split('\u0000');
+        return td.decode(buf.subarray(o,o+size)).replace(/\u0000+$/,'');
+      }
+      case 0x02: return new TextDecoder('utf-8').decode(buf.subarray(o,o+size)).replace(/\u0000+$/,''); // ansi string
+      case 0x03: return dv.getInt8(o);
+      case 0x04: return u8(o);
+      case 0x05: return dv.getInt16(o,true);
+      case 0x06: return u16(o);
+      case 0x07: return i32(o);
+      case 0x08: return u32(o);
+      case 0x09: return i64(o).toString();
+      case 0x0a: return u64(o).toString();
+      case 0x0b: return f32(o);
+      case 0x0c: return f64(o);
+      case 0x0d: return u8(o)!==0;
+      case 0x0e: return '(binary)';
+      case 0x0f: return guid(o);
+      case 0x10: return u32(o); // sizeT
+      case 0x11: return filetime(o).toISOString();
+      case 0x13: return sid(o);
+      case 0x14: return '0x'+u32(o).toString(16); // hex32
+      case 0x15: return '0x'+u64(o).toString(16); // hex64
+      case 0x21: { try { return {__xml: parseElementStream(o, o+size, chunkStart, null).xml}; } catch(e){ return {__xml:''}; } }
+      default: return '';
+    }
+  }
+
+  // Parse a single BXML node (element/value/attr/sub). Returns {xml,next,stop}.
+  function parseNode(pos, end, chunkStart, subs) {
+    const b = u8(pos), tok = b & 0x0f, flags = b >> 4;
+    switch(tok){
+      case 0x00: return { xml:'', next:pos+1, stop:true }; // EOF
+      case 0x0f: return { xml:'', next:pos+4, stop:false }; // fragment header
+      case 0x01: case 0x41: return parseElement(pos, end, chunkStart, subs);
+      case 0x04: return { xml:'', next:pos+1, stop:false }; // close element
+      case 0x02: return { xml:'', next:pos+1, stop:false }; // close start
+      case 0x03: return { xml:'', next:pos+1, stop:false }; // close empty
+      case 0x05: case 0x45: { // value text
+        const vtype = u8(pos+1);
+        if (vtype === 0x01){ const n=u16(pos+2); const s=td.decode(buf.subarray(pos+4,pos+4+n*2)); return { xml: esc(s), next: pos+4+n*2, stop:false }; }
+        return { xml:'', next: pos+2, stop:false };
+      }
+      case 0x0d: { const id=u16(pos+1); const v = subs && subs[id]!==undefined ? subs[id] : ''; if(v&&v.__xml!==undefined)return{xml:v.__xml,next:pos+4,stop:false}; return { xml: Array.isArray(v)?v.map(x=>esc(x)).join('</Data><Data>'):esc(String(v)), next: pos+4, stop:false }; }
+      case 0x0e: { const id=u16(pos+1); const v = subs && subs[id]!==undefined ? subs[id] : ''; if(v&&v.__xml!==undefined)return{xml:v.__xml,next:pos+4,stop:false}; if(v===''||v==null)return{xml:'',next:pos+4,stop:false}; return { xml: Array.isArray(v)?v.map(x=>esc(x)).join('</Data><Data>'):esc(String(v)), next: pos+4, stop:false }; }
+      case 0x0c: return parseTemplateInstance(pos, end, chunkStart);
+      default: return { xml:'', next: pos+1, stop:false };
+    }
+  }
+
+  function readName(nameOffAbs){
+    // Name struct: next(4) hash(2) numChars(2) chars(numChars*2) null(2)
+    const n = u16(nameOffAbs+6);
+    return td.decode(buf.subarray(nameOffAbs+8, nameOffAbs+8+n*2));
+  }
+
+  function parseElement(pos, end, chunkStart, subs){
+    const b=u8(pos), flags=b>>4;
+    let p = pos+1;
+    p += 2; // dependency id (unknown16)
+    const dataSize = u32(p); p += 4;
+    const nameOffRel = u32(p); p += 4;
+    const nameAbs = chunkStart + nameOffRel;
+    // If name is inline (nameOffRel points here), skip the name struct we just passed
+    if (nameOffRel >= (pos - chunkStart)) {
+      const n = u16(nameAbs+6);
+      // name was inline starting at current p-? Actually inline name sits at nameAbs==p
+      if (nameAbs === p) { p += 8 + n*2 + 2; }
+    }
+    const name = readName(nameAbs);
+    let attrs = '';
+    if (flags & 0x04) { // has attributes
+      const attrListSize = u32(p); p += 4;
+      const attrEnd = p + attrListSize;
+      while (p < attrEnd) {
+        const r = parseAttribute(p, chunkStart, subs);
+        attrs += r.xml; p = r.next;
+      }
+    }
+    // Expect close-start (0x02) or close-empty (0x03)
+    const closeTok = u8(p) & 0x0f;
+    if (closeTok === 0x03) { // empty element
+      p += 1;
+      return { xml: `<${name}${attrs}/>`, next: p, stop:false };
+    }
+    p += 1; // close start 0x02
+    // content until close element 0x04
+    let content = '';
+    while (p < end) {
+      const t = u8(p) & 0x0f;
+      if (t === 0x04) { p += 1; break; }
+      const r = parseNode(p, end, chunkStart, subs);
+      content += r.xml; p = r.next;
+      if (r.stop) break;
+    }
+    return { xml: `<${name}${attrs}>${content}</${name}>`, next: p, stop:false };
+  }
+
+  function parseAttribute(pos, chunkStart, subs){
+    let p = pos+1;
+    const nameOffRel = u32(p); p += 4;
+    const nameAbs = chunkStart + nameOffRel;
+    if (nameAbs === p) { const n=u16(nameAbs+6); p += 8 + n*2 + 2; }
+    const name = readName(nameAbs);
+    const r = parseNode(p, p+10000, chunkStart, subs);
+    return { xml: ` ${name}="${r.xml}"`, next: r.next };
+  }
+
+  function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+}
+
+// Expose globally for the app
+if (typeof window !== 'undefined') window.decodeEvtxRecordsFallback = decodeEvtxRecords;
+
+
+</script>
 <link rel="icon" type="image/x-icon" href="favicon.ico">
 <link rel="icon" type="image/png" sizes="32x32" href="icon-32.png">
 <link rel="icon" type="image/png" sizes="16x16" href="icon-16.png">
@@ -1038,6 +1280,25 @@ window.EVTX_MESSAGE_TEMPLATES = {
   #occurrence-bar button:hover { border-color: #F59E0B; color: #F59E0B; }
   #occ-close { margin-left: 6px; }
   #occ-close:hover { border-color: var(--level-error) !important; color: var(--level-error) !important; }
+  /* Logger-grouped rows (level view) */
+  .logger-group { border-bottom: 1px solid var(--border); }
+  .logger-head {
+    display: flex; align-items: center; gap: 8px; padding: 9px 12px;
+    cursor: pointer; transition: background 0.12s; user-select: none;
+  }
+  .logger-head:hover { background: var(--bg-hover); }
+  .logger-group.open .logger-head { background: var(--bg-elevated); }
+  .logger-head .lg-caret { font-size: 9px; color: var(--text-muted); width: 10px; flex-shrink: 0; }
+  .logger-head .lg-name {
+    font-family: var(--font-mono); font-size: 12px; color: var(--text-primary);
+    flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .logger-head .lg-count {
+    font-family: var(--font-mono); font-size: 10px; font-weight: 700;
+    background: var(--accent-purple); color: #fff; border-radius: 8px; padding: 0 7px; flex-shrink: 0;
+  }
+  .logger-body { background: rgba(0,0,0,0.15); }
+  .logger-body .logger-entry { padding-left: 26px; border-bottom: 1px solid rgba(255,255,255,0.04); }
   /* Recognised-error grouped rows */
   .recognised-group .rg-count {
     font-family: var(--font-mono); font-size: 10px; font-weight: 700;
@@ -1073,6 +1334,33 @@ window.EVTX_MESSAGE_TEMPLATES = {
     cursor: pointer; transition: all 0.12s;
   }
   #rg-others-pop .rgo-btn:hover { border-color: var(--accent-teal); background: var(--bg-hover); }
+  /* Right-click context menu (Yext search on log lines) */
+  #log-context-menu {
+    position: fixed; z-index: 10050; min-width: 220px;
+    background: var(--bg-surface); border: 1px solid var(--border);
+    border-radius: var(--radius-md); box-shadow: var(--shadow-lg);
+    padding: 5px; font-family: var(--font-ui);
+  }
+  #log-context-menu.hidden { display: none; }
+  #log-context-menu .lcm-item {
+    display: flex; align-items: center; gap: 8px; width: 100%; text-align: left;
+    padding: 8px 10px; border-radius: var(--radius-sm); border: none;
+    background: transparent; color: var(--text-primary); font-size: 12px; cursor: pointer;
+    transition: background 0.12s;
+  }
+  #log-context-menu .lcm-item:hover { background: var(--bg-hover); }
+  #log-context-menu .lcm-hint { font-size: 10px; color: var(--text-muted); padding: 4px 10px 2px; }
+  /* Transient toast notification */
+  #app-toast {
+    position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(20px);
+    z-index: 10060; max-width: 480px;
+    background: var(--bg-surface); border: 1px solid var(--accent-teal);
+    color: var(--text-primary); font-size: 12px; font-family: var(--font-ui);
+    padding: 10px 16px; border-radius: var(--radius-md); box-shadow: var(--shadow-lg);
+    opacity: 0; transition: opacity 0.2s, transform 0.2s; pointer-events: none;
+  }
+  #app-toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+  #app-toast.hidden { display: none; }
   /* KB warning badge — high-contrast amber, sits at start of a log line / result */
   .kb-badge {
     display: inline-flex; align-items: center; justify-content: center;
@@ -2043,6 +2331,12 @@ window.EVTX_MESSAGE_TEMPLATES = {
   </div>
 </div>
 
+<!-- Right-click context menu for log lines -->
+<div id="log-context-menu" class="hidden"></div>
+
+<!-- Lightweight toast for transient notifications -->
+<div id="app-toast" class="hidden"></div>
+
 <!-- Parse progress bar -->
 <div id="parse-progress"></div>
 
@@ -2476,38 +2770,87 @@ async function parseEvtxMainThread(arrayBuffer) {
   });
 }
 
+// Merge in the standalone fallback decoder for any records the bundled parser
+// left empty (eventId 0 / no provider / no data). The bundled @ts-evtx build
+// mis-resolves some template offsets; our decoder reads those records correctly.
+function evtxApplyFallback(records, bufCopy) {
+  if (!window.decodeEvtxRecordsFallback || !bufCopy || bufCopy.byteLength === 0) return records;
+  // Does anything need rescuing?
+  const needs = records.some(r => (!r.rawXml || r.rawXml.length < 20) && (r.eventId == null || r.eventId === 0));
+  if (!needs) return records;
+  let fb;
+  try {
+    const u8 = bufCopy instanceof Uint8Array ? bufCopy : new Uint8Array(bufCopy);
+    fb = window.decodeEvtxRecordsFallback(u8, 200000);
+  } catch (_) { return records; }
+  if (!fb || !fb.length) return records;
+  // Index fallback XML by timestamp+order. Match primarily on timestamp.
+  const byTs = {};
+  fb.forEach(f => { const k = f.timestamp ? Date.parse(f.timestamp) : null; if (k != null) (byTs[k] = byTs[k] || []).push(f); });
+  const cursor = {};
+  return records.map(r => {
+    if ((r.rawXml && r.rawXml.length >= 20) || (r.eventId != null && r.eventId !== 0)) return r;
+    let xml = '';
+    if (r.ts != null && byTs[r.ts] && byTs[r.ts].length) {
+      const i = cursor[r.ts] || 0; cursor[r.ts] = i + 1;
+      xml = (byTs[r.ts][i] || byTs[r.ts][0]).xml || '';
+    }
+    if (!xml) return r;
+    // Re-derive fields from the rescued XML
+    const eidM = xml.match(/<EventID[^>]*>(\d+)<\/EventID>/i);
+    const provM = xml.match(/<Provider Name="([^"]*)"/i);
+    const lvlM = xml.match(/<Level>(\d+)<\/Level>/i);
+    const chM = xml.match(/<Channel>([^<]*)<\/Channel>/i);
+    const compM = xml.match(/<Computer>([^<]*)<\/Computer>/i);
+    const lvlMap = {0:'LogAlways',1:'Critical',2:'Error',3:'Warning',4:'Information',5:'Verbose'};
+    const fakeEv = { eventId: eidM ? parseInt(eidM[1],10) : 0, provider: provM ? {name:provM[1]} : null, data:null };
+    return {
+      ts: r.ts,
+      eventId: eidM ? parseInt(eidM[1],10) : r.eventId,
+      provider: provM ? provM[1] : r.provider,
+      level: lvlM ? (lvlMap[parseInt(lvlM[1],10)] || r.level) : r.level,
+      channel: chM ? chM[1] : r.channel,
+      computer: compM ? compM[1] : r.computer,
+      snippet: _evtxExtractSnippet(fakeEv, xml, () => null),
+      rawXml: xml,
+    };
+  });
+}
+
 function parseEvtxAsync(arrayBuffer) {
   return new Promise((resolve, reject) => {
+    // Keep an independent copy for the fallback decoder (survives worker transfer)
+    let bufCopy = null;
+    try { bufCopy = arrayBuffer.slice ? arrayBuffer.slice(0) : null; } catch (_) {}
+    const finish = (records) => resolve(evtxApplyFallback(records, bufCopy));
+
     let worker;
     try { worker = makeEvtxWorker(); }
     catch (e) {
       // Blob worker blocked (CSP) — run on main thread
-      parseEvtxMainThread(arrayBuffer).then(resolve).catch(reject);
+      parseEvtxMainThread(arrayBuffer).then(finish).catch(reject);
       return;
     }
     let settled = false;
     const fallback = () => {
       if (settled) return; settled = true;
       try { worker.terminate(); } catch (_) {}
-      if (arrayBuffer && arrayBuffer.byteLength > 0)
-        parseEvtxMainThread(arrayBuffer).then(resolve).catch(reject);
+      if (bufCopy && bufCopy.byteLength > 0)
+        parseEvtxMainThread(bufCopy.slice(0)).then(finish).catch(reject);
       else reject(new Error('parser-unavailable'));
     };
     worker.onmessage = e => {
       if (settled) return; settled = true;
       worker.terminate();
       if (e.data.error) {
-        if (e.data.error === 'parser-unavailable')
-          parseEvtxMainThread(arrayBuffer).then(resolve).catch(reject);
+        if (e.data.error === 'parser-unavailable' && bufCopy)
+          parseEvtxMainThread(bufCopy.slice(0)).then(finish).catch(reject);
         else reject(new Error(e.data.error));
-      } else resolve(e.data.records || []);
+      } else finish(e.data.records || []);
     };
     worker.onerror = () => fallback();
-    // Clone before transfer so fallback still has data if worker fails
-    const clone = arrayBuffer.slice ? arrayBuffer.slice(0) : arrayBuffer;
     try {
       worker.postMessage({ buffer: arrayBuffer, limit: 200000 }, [arrayBuffer]);
-      arrayBuffer = clone;
     } catch (_) {
       try { worker.postMessage({ buffer: arrayBuffer, limit: 200000 }); }
       catch (err2) { fallback(); }
@@ -2585,13 +2928,15 @@ function evtxRenderFields(rec) {
 
 // One-line snippet for the collapsed row: documented headline + first useful values.
 function evtxRowSnippet(rec) {
+  const oneLine = s => String(s).replace(/\s+/g, ' ').trim();
+  const cap = s => { s = oneLine(s); return s.length > 180 ? s.slice(0, 177) + '…' : s; };
   const { headline, rows } = evtxRenderFields(rec);
   if (headline) {
-    const detail = rows.slice(0, 3).map(([k, v]) => v).filter(Boolean).join(' · ');
-    return detail ? headline + '  —  ' + detail : headline;
+    const detail = rows.slice(0, 3).map(([k, v]) => oneLine(v)).filter(Boolean).join(' · ');
+    return cap(detail ? headline + '  —  ' + detail : headline);
   }
-  if (rec.snippet) return rec.snippet;
-  if (rows.length) return rows.slice(0, 4).map(([k, v]) => (k ? k + ': ' : '') + v).join(' | ');
+  if (rec.snippet) return cap(rec.snippet);
+  if (rows.length) return cap(rows.slice(0, 4).map(([k, v]) => (k ? k + ': ' : '') + v).join(' | '));
   return '';
 }
 
@@ -3833,72 +4178,126 @@ function applyFilter() {
   renderLevelGroups(entries, data);
 }
 
-// Group level-filtered entries by their normalised key. One collapsed row per
-// distinct error, latest-first; click → latest occurrence + ▲▼ navigation.
+// Group level-filtered entries by LOGGER. One collapsed row per logger showing
+// the total number of matching entries. Click a logger row → expand inline to
+// show that logger's entries, themselves deduplicated (identical entries collapsed
+// with their own count). Click a deduplicated entry → open in viewer with ▲▼ nav.
 function renderLevelGroups(entries, data) {
-  const groups = new Map(); // key -> { key, sample, occurrences:[lines] }
+  // Bucket by logger
+  const loggers = new Map(); // loggerName -> { logger, occurrences:[lines] }
   for (const l of entries) {
-    const key = normaliseForGrouping(l);
-    let g = groups.get(key);
-    if (!g) { g = { key, occurrences: [] }; groups.set(key, g); }
+    const lg = l.logger || '(no logger)';
+    let g = loggers.get(lg);
+    if (!g) { g = { logger: lg, occurrences: [] }; loggers.set(lg, g); }
     g.occurrences.push(l);
   }
-  const groupList = [...groups.values()];
-  groupList.forEach(g => g.occurrences.sort((a,b) => (b.ts||0) - (a.ts||0)));
-  groupList.sort((a,b) => (b.occurrences[0].ts||0) - (a.occurrences[0].ts||0));
+  const loggerList = [...loggers.values()];
+  // Newest activity first, then by volume
+  loggerList.forEach(g => g.occurrences.sort((a,b) => (b.ts||0) - (a.ts||0)));
+  loggerList.sort((a,b) => {
+    const at = a.occurrences[0].ts||0, bt = b.occurrences[0].ts||0;
+    if (bt !== at) return bt - at;
+    return b.occurrences.length - a.occurrences.length;
+  });
 
+  const totalEntries = entries.length;
   document.getElementById('result-count').textContent =
-    `${groupList.length.toLocaleString()} distinct ${groupList.length===1?'entry':'entries'}`;
-  document.getElementById('results-header-count').textContent = groupList.length.toLocaleString();
+    `${loggerList.length.toLocaleString()} logger${loggerList.length===1?'':'s'} · ${totalEntries.toLocaleString()} ${totalEntries===1?'entry':'entries'}`;
+  document.getElementById('results-header-count').textContent = loggerList.length.toLocaleString();
 
-  RS.entries = null; // not using the windowed plain renderer in grouped mode
+  RS.entries = null;
   const list = document.getElementById('results-list');
   list.onscroll = null;
   list.innerHTML = '';
-  if (!groupList.length) {
+  if (!loggerList.length) {
     list.innerHTML = '<div class="empty-state"><div class="empty-state-icon">📋</div><div>No entries in this view</div></div>';
     return;
   }
 
-  // Render incrementally in batches to stay responsive for many distinct errors
   let idx = 0;
-  const BATCH = 80;
+  const BATCH = 60;
   const renderBatch = () => {
-    const end = Math.min(idx + BATCH, groupList.length);
+    const end = Math.min(idx + BATCH, loggerList.length);
     for (; idx < end; idx++) {
-      const g = groupList[idx];
+      const g = loggerList[idx];
       const latest = g.occurrences[0];
-      const kb = kbMatchLine(latest);
-      const item = document.createElement('div');
-      item.className = 'result-item level-group';
-      item.innerHTML = `
-        <div class="ri-meta">
-          ${kb ? kbBadgeHtml() : ''}
+      // Does any entry under this logger match a recognised signature?
+      const hasKb = g.occurrences.some(l => kbMatchLine(l));
+      const wrap = document.createElement('div');
+      wrap.className = 'logger-group';
+      wrap.innerHTML = `
+        <div class="logger-head">
+          <span class="lg-caret">▸</span>
+          ${hasKb ? kbBadgeHtml() : ''}
           <span class="level-badge ${latest.level||'?'}">${latest.level||'?'}</span>
-          ${g.occurrences.length > 1 ? `<span class="rg-count">${g.occurrences.length}×</span>` : ''}
-          <span class="ri-line">L${latest.lineNo}</span>
-          <span class="ri-file">${escHtml(latest._file || '')}</span>
+          <span class="lg-name">${escHtml(g.logger)}</span>
+          <span class="lg-count">${g.occurrences.length}×</span>
         </div>
-        <div class="ri-msg">${getStrippedHtml(latest)}</div>
+        <div class="logger-body" style="display:none"></div>
       `;
-      item.addEventListener('click', (e) => {
-        if (e.target.closest('.kb-badge')) return;
-        document.querySelectorAll('.result-item').forEach(i => i.classList.remove('focused'));
-        item.classList.add('focused');
-        openOccurrenceGroup(g.occurrences, data, latest.level ? `${latest.level} · ${g.occurrences.length}×` : `${g.occurrences.length}×`);
+      const head = wrap.querySelector('.logger-head');
+      const body = wrap.querySelector('.logger-body');
+      const caret = wrap.querySelector('.lg-caret');
+      let built = false;
+      head.addEventListener('click', () => {
+        const open = body.style.display !== 'none';
+        if (open) { body.style.display = 'none'; caret.textContent = '▸'; wrap.classList.remove('open'); return; }
+        if (!built) { buildLoggerBody(body, g, data); built = true; }
+        body.style.display = 'block'; caret.textContent = '▾'; wrap.classList.add('open');
       });
-      if (kb) {
-        const b = item.querySelector('.kb-badge');
-        if (b) b.addEventListener('click', ev => { ev.stopPropagation(); showKbPopover(kb, latest.text, b); });
-      }
-      list.appendChild(item);
+      // Right-click on the logger head → Yext search on the latest entry
+      attachYextContextMenu(head, latest);
+      list.appendChild(wrap);
     }
-    if (idx < groupList.length) {
-      // Yield, then continue (keeps UI responsive on huge distinct counts)
-      requestAnimationFrame(renderBatch);
-    }
+    if (idx < loggerList.length) requestAnimationFrame(renderBatch);
   };
   renderBatch();
+}
+
+// Build the expanded body for a logger group: dedupe its entries by normalised
+// key, newest-first, each row showing its own occurrence count.
+function buildLoggerBody(body, loggerGroup, data) {
+  const dedup = new Map(); // normKey -> { occurrences:[lines] }
+  for (const l of loggerGroup.occurrences) {
+    const key = normaliseForGrouping(l);
+    let d = dedup.get(key);
+    if (!d) { d = { key, occurrences: [] }; dedup.set(key, d); }
+    d.occurrences.push(l);
+  }
+  const dedupList = [...dedup.values()];
+  dedupList.forEach(d => d.occurrences.sort((a,b) => (b.ts||0) - (a.ts||0)));
+  dedupList.sort((a,b) => (b.occurrences[0].ts||0) - (a.occurrences[0].ts||0));
+
+  const frag = document.createDocumentFragment();
+  for (const d of dedupList) {
+    const latest = d.occurrences[0];
+    const kb = kbMatchLine(latest);
+    const row = document.createElement('div');
+    row.className = 'result-item logger-entry';
+    row.innerHTML = `
+      <div class="ri-meta">
+        ${kb ? kbBadgeHtml() : ''}
+        <span class="level-badge ${latest.level||'?'}">${latest.level||'?'}</span>
+        ${d.occurrences.length > 1 ? `<span class="rg-count">${d.occurrences.length}×</span>` : ''}
+        <span class="ri-line">L${latest.lineNo}</span>
+        <span class="ri-file">${escHtml(latest._file || '')}</span>
+      </div>
+      <div class="ri-msg">${getStrippedHtml(latest)}</div>
+    `;
+    row.addEventListener('click', (e) => {
+      if (e.target.closest('.kb-badge')) return;
+      document.querySelectorAll('.result-item').forEach(i => i.classList.remove('focused'));
+      row.classList.add('focused');
+      openOccurrenceGroup(d.occurrences, data, latest.level ? `${latest.level} · ${d.occurrences.length}×` : `${d.occurrences.length}×`);
+    });
+    if (kb) {
+      const b = row.querySelector('.kb-badge');
+      if (b) b.addEventListener('click', ev => { ev.stopPropagation(); showKbPopover(kb, latest.text, b); });
+    }
+    attachYextContextMenu(row, latest);
+    frag.appendChild(row);
+  }
+  body.appendChild(frag);
 }
 
 // Group recognised-error entries by signature id, newest occurrence first.
@@ -3959,6 +4358,7 @@ function renderRecognisedGroups(entries, data) {
       e.stopPropagation();
       showOtherComponentsPopover(g.sig, others, othersBtn);
     });
+    attachYextContextMenu(item, latest);
     list.appendChild(item);
   });
 }
@@ -4130,6 +4530,7 @@ function renderResultsBatch() {
       item.classList.add('focused');
       openInViewer(entry, data);
     });
+    attachYextContextMenu(item, entry);
     frag.appendChild(item);
   }
 
@@ -4242,6 +4643,8 @@ function buildLineEl(l, i) {
       showKbPopover(kb, l.text, badgeEl);
     });
   }
+  // Right-click → scrubbed Yext search (skip pure continuation/stack lines)
+  if (!l.isContinuation) attachYextContextMenu(div, l);
   return div;
 }
 
@@ -4907,14 +5310,101 @@ function updateRecognisedCount() {
     return;
   }
   const data = state.loadedData[state.activeCompId];
-  let n = 0;
+  // Count DISTINCT recognised signatures (the same error repeated counts once)
+  const distinct = new Set();
   for (const l of data.merged) {
-    if (!l.isContinuation && l.level && kbMatchLine(l)) n++;
+    if (l.isContinuation || !l.level) continue;
+    const sig = kbMatchLine(l);
+    if (sig) distinct.add(sig.id);
   }
+  const n = distinct.size;
   btn.innerHTML = n > 0
     ? `⚠ Recognised errors <span class="kb-count">${n}</span>`
     : '⚠ Recognised errors';
 }
+
+// ── Transient toast notification ──
+let _toastTimer = null;
+function showAppToast(msg, ms) {
+  const t = document.getElementById('app-toast');
+  if (!t) return;
+  t.textContent = msg;
+  t.classList.remove('hidden');
+  // force reflow so the transition runs
+  void t.offsetWidth;
+  t.classList.add('show');
+  if (_toastTimer) clearTimeout(_toastTimer);
+  _toastTimer = setTimeout(() => {
+    t.classList.remove('show');
+    setTimeout(() => t.classList.add('hidden'), 220);
+  }, ms || 3200);
+}
+
+// ── Right-click "Search Yext" on any log line/result row ──
+// Scrubs the entry (timestamp/level stripped + PII scrubbed), copies it to the
+// clipboard, tells the user, and opens Yext for pasting.
+function attachYextContextMenu(el, entry) {
+  el.addEventListener('contextmenu', (e) => {
+    e.preventDefault();
+    showLogContextMenu(e.clientX, e.clientY, entry);
+  });
+}
+
+function showLogContextMenu(x, y, entry) {
+  const menu = document.getElementById('log-context-menu');
+  menu.innerHTML = `
+    <div class="lcm-hint">Log entry actions</div>
+    <button class="lcm-item" data-act="yext">🔎 Search in Yext (scrubbed)</button>
+    <button class="lcm-item" data-act="copy">📋 Copy scrubbed text</button>
+  `;
+  menu.classList.remove('hidden');
+  // Position, clamped to viewport
+  const mw = menu.offsetWidth || 220, mh = menu.offsetHeight || 80;
+  let left = Math.min(x, window.innerWidth - mw - 8);
+  let top  = Math.min(y, window.innerHeight - mh - 8);
+  menu.style.left = Math.max(8, left) + 'px';
+  menu.style.top  = Math.max(8, top) + 'px';
+
+  const doScrub = () => {
+    // Strip timestamp/level prefix, then scrub PII — full message, no truncation
+    const stripped = stripTimestampAndLevelMain(entry.text);
+    return scrubPII(stripped).scrubbed.trim();
+  };
+
+  menu.querySelector('[data-act="yext"]').onclick = () => {
+    const scrubbed = doScrub();
+    const finishOpen = () => window.open(YEXT_URL, '_blank', 'noopener');
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(scrubbed)
+        .then(() => showAppToast('✓ Scrubbed log text copied — paste it into Yext'))
+        .catch(() => showAppToast('⚠ Couldn\'t copy automatically — Yext opened; copy manually'))
+        .finally(finishOpen);
+    } else {
+      showAppToast('⚠ Clipboard unavailable — Yext opened; copy manually');
+      finishOpen();
+    }
+    hideLogContextMenu();
+  };
+  menu.querySelector('[data-act="copy"]').onclick = () => {
+    const scrubbed = doScrub();
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(scrubbed)
+        .then(() => showAppToast('✓ Scrubbed log text copied to clipboard'))
+        .catch(() => showAppToast('⚠ Couldn\'t copy to clipboard'));
+    }
+    hideLogContextMenu();
+  };
+}
+function hideLogContextMenu() {
+  const menu = document.getElementById('log-context-menu');
+  if (menu) menu.classList.add('hidden');
+}
+// Dismiss the context menu on any outside click, scroll, or Escape
+document.addEventListener('click', (e) => {
+  if (!e.target.closest('#log-context-menu')) hideLogContextMenu();
+});
+document.addEventListener('scroll', hideLogContextMenu, true);
+document.addEventListener('keydown', (e) => { if (e.key === 'Escape') hideLogContextMenu(); });
 
 // Called when the external dictionary loads after initial render
 function refreshKbAffectedViews() {
