@@ -969,6 +969,18 @@ if (typeof window !== 'undefined') window.parseHar = parseHar;
   .tree-file.active { background: var(--highlight-similar); color: var(--accent-teal); border-left-color: var(--accent-teal); }
   .tree-file .tf-count { margin-left: auto; font-size: 9px; color: var(--text-muted); }
   .tree-file.evtx { color: var(--accent-purple); }
+  /* Rolled-log nesting: older .log.N files tucked under the newest with [+N] */
+  .tf-roll-toggle {
+    margin-left: 8px; flex-shrink: 0;
+    font-size: 9px; font-family: var(--font-mono); line-height: 14px;
+    color: var(--accent-teal); cursor: pointer; user-select: none;
+    border: 1px solid var(--border); border-radius: 4px; padding: 0 5px;
+    transition: border-color 0.12s, background 0.12s, color 0.12s;
+  }
+  .tf-roll-toggle:hover { border-color: var(--accent-teal); background: var(--bg-base); color: var(--text-primary); }
+  .tf-roll-toggle.open { color: var(--text-secondary); }
+  .tree-rolls { margin-left: 22px; border-left: 1px solid var(--border); }
+  .tree-rolls.collapsed { display: none; }
   .sidebar-section-label {
     padding: 8px 12px 4px;
     font-size: 10px;
@@ -2333,6 +2345,15 @@ if (typeof window !== 'undefined') window.parseHar = parseHar;
   .nh-name { flex: 1; color: var(--text-primary); font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .nh-meta { color: var(--text-muted); font-family: var(--font-mono); font-size: 10px; white-space: nowrap; }
   .nh-current-tag { color: var(--accent-purple); font-size: 9px; font-weight: 700; text-transform: uppercase; }
+  .nh-del {
+    flex-shrink: 0; width: 18px; height: 18px; line-height: 1; padding: 0;
+    border: 1px solid transparent; border-radius: 4px; background: none;
+    color: var(--text-muted); font-size: 12px; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    opacity: 0; transition: opacity 0.12s, color 0.12s, border-color 0.12s, background 0.12s;
+  }
+  .nh-item:hover .nh-del { opacity: 1; }
+  .nh-del:hover { color: var(--level-error); border-color: var(--level-error); background: var(--bg-base); }
   #notes-note-head {
     display: flex; align-items: center; justify-content: space-between;
     font-size: 11px; font-weight: 700; color: var(--text-secondary); margin-bottom: -4px;
@@ -5215,6 +5236,9 @@ function renderSidebarComponents(container) {
     const item = document.createElement('div');
     item.className = 'component-item';
     item.dataset.compId = compId;
+    // Hover description — the component's purpose (same text shown on the
+    // welcome screen) so it's discoverable from the sidebar too.
+    item.title = comp.desc ? `${comp.name} — ${comp.desc}` : comp.name;
     item.innerHTML = `
       <div class="comp-search-check" data-comp="${compId}" title="Include/exclude from search">✓</div>
       <div class="comp-icon" style="background:${prod.color}22;color:${prod.color}">${prod.icon}</div>
@@ -5249,8 +5273,11 @@ function renderSidebarTree(container) {
 
   // Map each loaded component file → its compId for click handling
   Object.entries(state.loadedData).forEach(([compId, data]) => {
+    const cd = data.compDef || {};
     (data.files || []).forEach(f => {
-      addToTree(f.path || f.name, { compId, kind: 'log', count: (f.lines || []).length, loaded: f.loaded !== false });
+      addToTree(f.path || f.name, { compId, kind: 'log', count: (f.lines || []).length,
+        loaded: f.loaded !== false, rank: f.rank || 0,
+        desc: cd.desc || '', compName: cd.name || '' });
     });
   });
   // EVTX files
@@ -5281,34 +5308,84 @@ function buildTreeDom(node, prefix) {
       frag.appendChild(folder);
     });
   }
-  // Files
-  (node.files || []).sort((a,b)=>a.name.localeCompare(b.name)).forEach(f => {
-    const fileEl = document.createElement('div');
-    fileEl.className = 'tree-file' + (f.kind === 'evtx' ? ' evtx' : '');
-    const icon = f.kind === 'evtx' ? '🗔' : '📄';
-    const countLabel = f.kind === 'evtx'
-      ? (f.count ? f.count.toLocaleString() : '')
-      : (f.loaded === false ? '⏬ not loaded' : (f.count ? f.count.toLocaleString() : ''));
-    if (f.loaded === false) fileEl.style.opacity = '0.6';
-    fileEl.innerHTML = `${icon} <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escHtml(f.name)}</span><span class="tf-count">${countLabel}</span>`;
-    if (f.kind === 'evtx') {
-      fileEl.addEventListener('click', () => {
-        container_clearTreeActive();
-        fileEl.classList.add('active');
-        openEvtxWindow(f.evtxKey);
+  // Files — rolled logs (SS.log, SS.log.1, SS.log.2 …) are grouped so the newest
+  // sits at the top level and the older rolls nest under a clickable [+N] toggle.
+  const rollBase = (name) => name.replace(/(\.log)\.\d+$/i, '$1');
+  const groups = new Map();
+  (node.files || []).forEach(f => {
+    const key = (f.kind === 'log')
+      ? (f.compId + '|' + rollBase(f.name).toLowerCase())
+      : ('@' + f.name);
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key).push(f);
+  });
+  const groupArr = Array.from(groups.values());
+  // Within a group: newest (lowest roll rank) first → it becomes the parent.
+  groupArr.forEach(g => g.sort((a, b) => (a.rank || 0) - (b.rank || 0) || a.name.localeCompare(b.name)));
+  // Between groups: alphabetical by the newest file's name.
+  groupArr.sort((a, b) => a[0].name.localeCompare(b[0].name));
+
+  groupArr.forEach(group => {
+    const parent = group[0];
+    const older  = group.slice(1); // older rolled logs, newest-to-oldest
+    const parentEl = buildTreeFileEl(parent);
+    if (older.length) {
+      const rolls = document.createElement('div');
+      rolls.className = 'tree-rolls collapsed';
+      older.forEach(of => rolls.appendChild(buildTreeFileEl(of)));
+
+      const toggle = document.createElement('span');
+      toggle.className = 'tf-roll-toggle';
+      toggle.textContent = '+' + older.length;
+      toggle.title = `${older.length} older rolled log${older.length === 1 ? '' : 's'} — click to show / hide`;
+      toggle.addEventListener('click', (e) => {
+        e.stopPropagation(); // don't trigger the parent file's activate-click
+        const collapsed = rolls.classList.toggle('collapsed');
+        toggle.textContent = (collapsed ? '+' : '−') + older.length;
+        toggle.classList.toggle('open', !collapsed);
       });
+      parentEl.appendChild(toggle);
+      frag.appendChild(parentEl);
+      frag.appendChild(rolls);
     } else {
-      fileEl.addEventListener('click', () => {
-        container_clearTreeActive();
-        fileEl.classList.add('active');
-        activateComponent(f.compId, f.name); // scope results to this file only
-        // If this specific file isn't loaded, offer to load older logs
-        if (f.loaded === false) loadOlderLogs(f.compId);
-      });
+      frag.appendChild(parentEl);
     }
-    frag.appendChild(fileEl);
   });
   return frag;
+}
+
+// Build a single tree-file row (log or EVTX) with its click behaviour and a
+// hover description. Extracted so rolled-log children render identically to
+// their parent row.
+function buildTreeFileEl(f) {
+  const fileEl = document.createElement('div');
+  fileEl.className = 'tree-file' + (f.kind === 'evtx' ? ' evtx' : '');
+  const icon = f.kind === 'evtx' ? '🗔' : '📄';
+  const countLabel = f.kind === 'evtx'
+    ? (f.count ? f.count.toLocaleString() : '')
+    : (f.loaded === false ? '⏬ not loaded' : (f.count ? f.count.toLocaleString() : ''));
+  if (f.loaded === false) fileEl.style.opacity = '0.6';
+  // Hover description: the owning component's purpose for logs; a label for EVTX.
+  fileEl.title = f.kind === 'evtx'
+    ? 'Windows Event Log'
+    : (f.desc ? `${f.compName ? f.compName + ' — ' : ''}${f.desc}` : (f.compName || ''));
+  fileEl.innerHTML = `${icon} <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escHtml(f.name)}</span><span class="tf-count">${countLabel}</span>`;
+  if (f.kind === 'evtx') {
+    fileEl.addEventListener('click', () => {
+      container_clearTreeActive();
+      fileEl.classList.add('active');
+      openEvtxWindow(f.evtxKey);
+    });
+  } else {
+    fileEl.addEventListener('click', () => {
+      container_clearTreeActive();
+      fileEl.classList.add('active');
+      activateComponent(f.compId, f.name); // scope results to this file only
+      // If this specific file isn't loaded, offer to load older logs
+      if (f.loaded === false) loadOlderLogs(f.compId);
+    });
+  }
+  return fileEl;
 }
 
 function container_clearTreeActive() {
@@ -5325,6 +5402,7 @@ function renderEvtxSidebarItems(container) {
   Object.values(evtx).forEach(ev => {
     const item = document.createElement('div');
     item.className = 'component-item';
+    item.title = 'Windows Event Log — decoded in your browser';
     item.innerHTML = `
       <div class="comp-icon" style="background:var(--accent-purple)22;color:var(--accent-purple)">🗔</div>
       <span class="comp-name">${escHtml(ev.name)}</span>
@@ -6102,10 +6180,24 @@ function vsInit(lines, focusLineNo) {
   VS._renderedEnd   = end;
   VS._fullRender    = false;
 
-  // Scroll the focus element into view — no maths, just DOM
+  // Scroll the focus element into view — no maths, just DOM.
+  // Re-assert after the browser settles layout: on the FIRST open (right after
+  // switching to the analyser) the monospace web-font often hasn't loaded yet,
+  // so the initial centre is computed with shorter fallback-font rows. When the
+  // real font swaps in every row grows and the focused line drifts well below
+  // the viewport (the classic "opens ~35 lines too high"). Re-centring on the
+  // next frame and once fonts are ready keeps it anchored — still no pixel maths.
   const focusEl = rows.querySelector('.focus-line');
   if (focusEl) {
-    focusEl.scrollIntoView({ block: 'center' });
+    const recentre = () => {
+      const el = document.getElementById('log-content-rows').querySelector('.focus-line');
+      if (el) el.scrollIntoView({ block: 'center' });
+    };
+    recentre();
+    requestAnimationFrame(() => { recentre(); requestAnimationFrame(recentre); });
+    if (document.fonts && document.fonts.ready) {
+      document.fonts.ready.then(recentre).catch(() => {});
+    }
   } else {
     content.scrollTop = 0;
   }
@@ -8456,6 +8548,22 @@ const Notes = (function () {
     if (!sessions.find(x => x.id === id)) return;
     currentId = id; persist(); bindPins(); refreshUI();
   }
+  // Remove a single saved session. If it was the active one, fall back to the
+  // most-recent remaining session (or a fresh empty 'Notes' session if none are
+  // left) so there is always something to write into.
+  function deleteSession(id) {
+    const idx = sessions.findIndex(x => x.id === id);
+    if (idx === -1) return;
+    const wasCurrent = (id === currentId);
+    sessions.splice(idx, 1);
+    if (wasCurrent) {
+      currentId = sessions.length ? sessions[0].id : null;
+      if (!currentId) { const s = makeSession('Notes'); sessions.unshift(s); currentId = s.id; }
+      bindPins();
+      refreshUI();
+    }
+    persist();
+  }
   function refreshUI() {
     const ta = document.getElementById('notes-text');
     if (ta) ta.value = current().note || '';
@@ -8756,11 +8864,12 @@ const Notes = (function () {
   // History list for the session picker: [{id, name, createdAt, isCurrent, pinCount}]
   function listSessions() {
     return sessions.map(s => ({ id: s.id, name: s.name, createdAt: s.createdAt,
-                                isCurrent: s.id === currentId, pinCount: (s.pins || []).length }));
+                                isCurrent: s.id === currentId, pinCount: (s.pins || []).length,
+                                hasNote: !!(s.note || '').trim() }));
   }
 
   return { init, addPin, jumpToPin, clearPins, buildExport, preloadRecognised,
-           newSession, switchSession, listSessions, currentName: () => current().name,
+           newSession, switchSession, deleteSession, listSessions, currentName: () => current().name,
            getCurrentId: () => currentId,
            hasPins: () => pins.length > 0 };
 })();
@@ -8813,12 +8922,28 @@ const Notes = (function () {
         <span class="nh-name">${escHtml(s.name)}</span>
         <span class="nh-meta">${s.pinCount} pin${s.pinCount === 1 ? '' : 's'} · ${when}</span>
         ${s.isCurrent ? '<span class="nh-current-tag">current</span>' : ''}
+        <button class="nh-del" data-del="${s.id}" title="Remove this session">✕</button>
       </div>`;
     }).join('') || '<div class="nh-item" style="cursor:default;color:var(--text-muted)">No sessions yet</div>';
     historyPanel.querySelectorAll('.nh-item[data-id]').forEach(el => {
       el.addEventListener('click', () => {
         Notes.switchSession(el.dataset.id);
         historyPanel.classList.add('hidden');
+      });
+    });
+    // Per-session delete — kept separate from the row click via stopPropagation.
+    // Confirm only when there's something to lose (a note or pins).
+    historyPanel.querySelectorAll('.nh-del[data-del]').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const id = btn.dataset.del;
+        const s = Notes.listSessions().find(x => x.id === id);
+        if (s && (s.hasNote || s.pinCount > 0) &&
+            !confirm(`Remove the session "${s.name}"? Its note and ${s.pinCount} pin${s.pinCount === 1 ? '' : 's'} will be deleted.`)) {
+          return;
+        }
+        Notes.deleteSession(id);
+        renderHistory(); // refresh the list in place
       });
     });
   }
@@ -9216,7 +9341,7 @@ if ('serviceWorker' in navigator) {
 // ═══════════════════════════════════════════════════════════════
 //  GUIDED TOUR
 // ═══════════════════════════════════════════════════════════════
-const TOUR_KEY = 'tour-completed-v3';
+const TOUR_KEY = 'tour-completed-v4';
 
 const TOUR_STEPS = [
   {
@@ -9233,6 +9358,14 @@ const TOUR_STEPS = [
     body: 'Start by choosing the product whose logs you want to analyse — Secret Server, Delinea Platform, or Connection Manager. This determines which components and log files the tool expects.',
     target: '.product-grid',
     position: 'below',
+    setup: () => tourEnsureWizard(),
+  },
+  {
+    id: 'standalone',
+    title: 'Or just one file — no product needed',
+    body: 'In a hurry, or only have a single capture to look at? You don\'t have to pick a product at all. Right here on the welcome screen you can <strong>⬆ Analyse an EVTX file</strong>, <strong>🌐 Analyse a PCAP file</strong>, or <strong>🔗 Analyse a HAR file</strong> on their own — each opens straight into its own floating analyser. (The same three tools are also available from the top bar once logs are loaded, which the tour covers a little later.)',
+    target: '#wizard-standalone',
+    position: 'above',
     setup: () => tourEnsureWizard(),
   },
   {
