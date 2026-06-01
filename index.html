@@ -1202,6 +1202,17 @@ window.__EVTX_PARSER_SRC__ = document.getElementById("evtx-parser-lib").textCont
   .evtx-rec-meta { display: flex; align-items: center; gap: 8px; font-size: 10px; font-family: var(--font-mono); color: var(--text-muted); margin-bottom: 2px; }
   .evtx-rec-time { color: var(--accent-purple); }
   .evtx-rec-snippet { font-size: 11px; color: var(--text-secondary); font-family: var(--font-mono); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  #evtx-detail-panel { display:none; position:fixed; z-index:10001; background:var(--bg-elevated); border:1px solid var(--border); border-radius:var(--radius-md); box-shadow:var(--shadow-lg); width:520px; max-height:70vh; display:flex; flex-direction:column; overflow:hidden; bottom:20px; right:20px; }
+  #evtx-detail-panel.hidden { display:none!important; }
+  #evtx-detail-header { display:flex; align-items:center; gap:8px; padding:8px 12px; background:var(--bg-tertiary); border-bottom:1px solid var(--border); font-size:11px; font-weight:700; font-family:var(--font-mono); color:var(--text-primary); }
+  #evtx-detail-header .edh-eid { background:var(--bg-elevated); border:1px solid var(--border); border-radius:4px; padding:1px 6px; }
+  #evtx-detail-header .edh-spacer { flex:1; }
+  #btn-evtx-detail-close { background:none; border:1px solid var(--border); border-radius:4px; color:var(--text-muted); cursor:pointer; font-size:11px; padding:1px 6px; }
+  #btn-evtx-detail-close:hover { border-color:var(--level-error); color:var(--level-error); }
+  #evtx-detail-body { flex:1; overflow-y:auto; padding:10px 12px; font-size:11px; font-family:var(--font-mono); }
+  .evtx-dfield { display:flex; gap:8px; padding:3px 0; border-bottom:1px solid rgba(255,255,255,0.04); }
+  .evtx-dfield-name { color:var(--accent-purple); min-width:120px; flex-shrink:0; }
+  .evtx-dfield-val { color:var(--text-primary); word-break:break-all; white-space:pre-wrap; }
   .evtx-eid-badge { background: var(--bg-elevated); border: 1px solid var(--border); border-radius: 4px; padding: 0 5px; color: var(--text-primary); }
   /* Correlation popover */
   #evtx-correlate-pop {
@@ -1764,6 +1775,18 @@ window.__EVTX_PARSER_SRC__ = document.getElementById("evtx-parser-lib").textCont
   </div>
 </div>
 
+<!-- EVTX EVENT DETAIL PANEL -->
+<div id="evtx-detail-panel" class="hidden">
+  <div id="evtx-detail-header">
+    <span id="edh-provider" style="color:var(--text-muted)"></span>
+    <span class="edh-eid" id="edh-eid"></span>
+    <span id="edh-level"></span>
+    <span class="edh-spacer"></span>
+    <button id="btn-evtx-detail-close">✕</button>
+  </div>
+  <div id="evtx-detail-body"></div>
+</div>
+
 <!-- EVTX SUMMARY OVERLAY -->
 <div id="evtx-overlay" class="hidden">
   <div id="evtx-overlay-header">
@@ -2107,9 +2130,51 @@ function kbBadgeHtml() {
 
 // Worker source: imports the inlined EVTXLib (the worker is created from a
 // Blob that first pulls in the bundle text, then defines the handler).
+// ── Shared helpers for EVTX data extraction (used by worker AND main-thread path) ──
+function _evtxExtractSnippet(ev, rawXml, fm) {
+  try { const m = fm(ev); if (m && m.trim()) return m.trim(); } catch (_) {}
+  if (ev.data && ev.data.items && ev.data.items.length) {
+    const txt = ev.data.items.map(it => (it.name ? it.name + ': ' : '') + (it.value || '')).filter(Boolean).join(' | ');
+    if (txt.trim()) return txt.trim();
+  }
+  if (!rawXml) return '';
+  // Named <Data Name="x">v</Data>
+  const named = [];
+  const namedRe = /<Data Name="([^"]+)"[^>]*>([^<]*)<\/Data>/gi;
+  let m2;
+  while ((m2 = namedRe.exec(rawXml)) !== null) { if (m2[2].trim()) named.push(m2[1] + ': ' + m2[2].trim()); }
+  if (named.length) return named.join(' | ');
+  // Unnamed <Data> with optional &lt;string&gt; escaping
+  const unnamed = [];
+  const unnamedRe = /<Data>([^<]+)<\/Data>/gi;
+  while ((m2 = unnamedRe.exec(rawXml)) !== null) {
+    const block = m2[1], strings = [];
+    const strRe = /&lt;string&gt;(.*?)&lt;\/string&gt;/gi; let sm;
+    while ((sm = strRe.exec(block)) !== null) {
+      const val = sm[1].replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>').trim();
+      if (val) strings.push(val);
+    }
+    if (strings.length) unnamed.push(...strings);
+    else { const p = block.replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>').trim(); if (p) unnamed.push(p); }
+  }
+  return unnamed.join(' | ');
+}
+function _evtxExtractEventId(ev, rawXml) {
+  if (ev.eventId && ev.eventId !== 0) return ev.eventId;
+  if (!rawXml) return ev.eventId;
+  const m = rawXml.match(/<EventID[^>]*>(\d+)<\/EventID>/i);
+  return m ? parseInt(m[1], 10) : ev.eventId;
+}
+function _evtxExtractLevel(ev, rawXml) {
+  if (ev.levelName && ev.levelName !== 'Unknown') return ev.levelName;
+  if (!rawXml) return ev.levelName || null;
+  const m = rawXml.match(/<Level>(\d+)<\/Level>/i);
+  if (!m) return ev.levelName || null;
+  const lvlMap = {0:'LogAlways',1:'Critical',2:'Error',3:'Warning',4:'Information',5:'Verbose'};
+  return lvlMap[parseInt(m[1],10)] || ev.levelName || null;
+}
+
 function makeEvtxWorker() {
-  // EVTX_PARSER_SRC is the inlined library (set in <head>). We build a worker
-  // that has the library available on `self`, then parses a posted buffer.
   const workerBody = `
     if (typeof process === 'undefined') { self.process = { env: {} }; }
     self.onmessage = async function(e) {
@@ -2119,23 +2184,88 @@ function makeEvtxWorker() {
           self.postMessage({ error: 'parser-unavailable' });
           return;
         }
-        const events = await self.EVTXLib.parseEvtxBuffer(buffer, { limit: limit || 200000 });
-        // Map to the compact shape the UI expects, computing the message text.
+        const events = await self.EVTXLib.parseEvtxBuffer(buffer, { limit: limit || 200000, includeRawXml: true });
         const fm = self.EVTXLib.finalMessage;
-        const mapped = events.map(ev => {
-          let msg = '';
-          try { msg = fm(ev) || ''; } catch (_) {}
-          if (!msg && ev.data && ev.data.items && ev.data.items.length) {
-            msg = ev.data.items.map(it => (it.name ? it.name + '=' : '') + it.value).join(', ');
+
+        // Extract useful text from a raw event XML string.
+        // Handles: named <Data Name="x">v</Data>, unnamed <Data>v</Data>,
+        // and the legacy escaped &lt;string&gt;v&lt;/string&gt; format.
+        function extractSnippet(ev, rawXml) {
+          // 1. Try the library's own message formatter first
+          try { const m = fm(ev); if (m && m.trim()) return m.trim(); } catch (_) {}
+
+          // 2. Try structured data items from the parser
+          if (ev.data && ev.data.items && ev.data.items.length) {
+            const txt = ev.data.items.map(it => (it.name ? it.name + ': ' : '') + (it.value || '')).filter(Boolean).join(' | ');
+            if (txt.trim()) return txt.trim();
           }
+
+          if (!rawXml) return '';
+
+          // 3. Try named <Data Name="...">value</Data>
+          const named = [];
+          const namedRe = /<Data Name="([^"]+)"[^>]*>([^<]*)<\/Data>/gi;
+          let m2;
+          while ((m2 = namedRe.exec(rawXml)) !== null) {
+            if (m2[2].trim()) named.push(m2[1] + ': ' + m2[2].trim());
+          }
+          if (named.length) return named.join(' | ');
+
+          // 4. Try unnamed <Data>value</Data> blocks
+          const unnamed = [];
+          const unnamedRe = /<Data>([^<]+)<\/Data>/gi;
+          while ((m2 = unnamedRe.exec(rawXml)) !== null) {
+            // Each Data block may contain multiple &lt;string&gt;...&lt;/string&gt; values
+            const block = m2[1];
+            const strings = [];
+            const strRe = /&lt;string&gt;(.*?)&lt;\/string&gt;/gi;
+            let sm;
+            while ((sm = strRe.exec(block)) !== null) {
+              const val = sm[1].replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>').trim();
+              if (val) strings.push(val);
+            }
+            if (strings.length) {
+              unnamed.push(...strings);
+            } else {
+              const plain = block.replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>').trim();
+              if (plain) unnamed.push(plain);
+            }
+          }
+          if (unnamed.length) return unnamed.join(' | ');
+
+          return '';
+        }
+
+        // Extract the real EventID — some older providers store it with Qualifiers
+        // e.g. <EventID Qualifiers="49152">1325</EventID>; the library may return 0
+        function extractEventId(ev, rawXml) {
+          if (ev.eventId && ev.eventId !== 0) return ev.eventId;
+          if (!rawXml) return ev.eventId;
+          const m = rawXml.match(/<EventID[^>]*>(\d+)<\/EventID>/i);
+          return m ? parseInt(m[1], 10) : ev.eventId;
+        }
+
+        // Extract level name properly
+        function extractLevel(ev, rawXml) {
+          if (ev.levelName && ev.levelName !== 'Unknown') return ev.levelName;
+          if (!rawXml) return ev.levelName || null;
+          const m = rawXml.match(/<Level>(\d+)<\/Level>/i);
+          if (!m) return ev.levelName || null;
+          const lvlMap = {0:'LogAlways',1:'Critical',2:'Error',3:'Warning',4:'Information',5:'Verbose'};
+          return lvlMap[parseInt(m[1],10)] || ev.levelName || null;
+        }
+
+        const mapped = events.map(ev => {
+          const rawXml = (ev.raw && ev.raw.xml) || '';
           return {
             ts: ev.timestamp ? Date.parse(ev.timestamp) : null,
-            eventId: (ev.eventId != null ? ev.eventId : null),
+            eventId: extractEventId(ev, rawXml),
             provider: ev.provider && ev.provider.name ? ev.provider.name : null,
-            level: ev.levelName || null,
+            level: extractLevel(ev, rawXml),
             channel: ev.channel || null,
             computer: ev.computer || null,
-            snippet: msg,
+            snippet: extractSnippet(ev, rawXml),
+            rawXml: rawXml,
           };
         });
         self.postMessage({ records: mapped });
@@ -2149,7 +2279,8 @@ function makeEvtxWorker() {
   return new Worker(URL.createObjectURL(blob));
 }
 
-// Run EVTXLib directly on the main thread (fallback when blob workers are blocked by CSP).
+// Parse an EVTX ArrayBuffer in a worker → resolves to the compact record array.
+// Main-thread fallback for when blob: workers are blocked (e.g. GitHub Pages CSP).
 async function parseEvtxMainThread(arrayBuffer) {
   if (!window.EVTXLib || !window.EVTXLib.parseEvtxBuffer) {
     const src = window.__EVTX_PARSER_SRC__ || '';
@@ -2158,33 +2289,29 @@ async function parseEvtxMainThread(arrayBuffer) {
   }
   if (!window.EVTXLib || !window.EVTXLib.parseEvtxBuffer) throw new Error('parser-unavailable');
   const buffer = arrayBuffer instanceof Uint8Array ? arrayBuffer : new Uint8Array(arrayBuffer);
-  const events = await window.EVTXLib.parseEvtxBuffer(buffer, { limit: 200000 });
+  const events = await window.EVTXLib.parseEvtxBuffer(buffer, { limit: 200000, includeRawXml: true });
   const fm = window.EVTXLib.finalMessage;
   return events.map(ev => {
-    let msg = '';
-    try { msg = fm(ev) || ''; } catch (_) {}
-    if (!msg && ev.data && ev.data.items && ev.data.items.length) {
-      msg = ev.data.items.map(it => (it.name ? it.name + '=' : '') + it.value).join(', ');
-    }
+    const rawXml = (ev.raw && ev.raw.xml) || '';
     return {
       ts: ev.timestamp ? Date.parse(ev.timestamp) : null,
-      eventId: (ev.eventId != null ? ev.eventId : null),
+      eventId: _evtxExtractEventId(ev, rawXml),
       provider: ev.provider && ev.provider.name ? ev.provider.name : null,
-      level: ev.levelName || null,
+      level: _evtxExtractLevel(ev, rawXml),
       channel: ev.channel || null,
       computer: ev.computer || null,
-      snippet: msg,
+      snippet: _evtxExtractSnippet(ev, rawXml, fm),
+      rawXml,
     };
   });
 }
 
-// Parse an EVTX ArrayBuffer in a worker → resolves to the compact record array.
-// Falls back to main-thread parsing if blob: workers are blocked (e.g. GitHub Pages CSP).
 function parseEvtxAsync(arrayBuffer) {
   return new Promise((resolve, reject) => {
     let worker;
     try { worker = makeEvtxWorker(); }
     catch (e) {
+      // Blob worker blocked (CSP) — run on main thread
       parseEvtxMainThread(arrayBuffer).then(resolve).catch(reject);
       return;
     }
@@ -2192,29 +2319,25 @@ function parseEvtxAsync(arrayBuffer) {
     const fallback = () => {
       if (settled) return; settled = true;
       try { worker.terminate(); } catch (_) {}
-      const buf = (arrayBuffer && arrayBuffer.byteLength > 0) ? arrayBuffer : null;
-      if (!buf) { reject(new Error('parser-unavailable')); return; }
-      parseEvtxMainThread(buf).then(resolve).catch(reject);
+      if (arrayBuffer && arrayBuffer.byteLength > 0)
+        parseEvtxMainThread(arrayBuffer).then(resolve).catch(reject);
+      else reject(new Error('parser-unavailable'));
     };
     worker.onmessage = e => {
       if (settled) return; settled = true;
       worker.terminate();
       if (e.data.error) {
-        if (e.data.error === 'parser-unavailable') {
+        if (e.data.error === 'parser-unavailable')
           parseEvtxMainThread(arrayBuffer).then(resolve).catch(reject);
-        } else {
-          reject(new Error(e.data.error));
-        }
-      } else {
-        resolve(e.data.records || []);
-      }
+        else reject(new Error(e.data.error));
+      } else resolve(e.data.records || []);
     };
     worker.onerror = () => fallback();
-    // Clone before transfer so fallback still has the data if worker fails
+    // Clone before transfer so fallback still has data if worker fails
     const clone = arrayBuffer.slice ? arrayBuffer.slice(0) : arrayBuffer;
     try {
       worker.postMessage({ buffer: arrayBuffer, limit: 200000 }, [arrayBuffer]);
-      arrayBuffer = clone; // now holds the clone for fallback use
+      arrayBuffer = clone;
     } catch (_) {
       try { worker.postMessage({ buffer: arrayBuffer, limit: 200000 }); }
       catch (err2) { fallback(); }
@@ -2358,19 +2481,21 @@ function openEvtxSummary(key) {
   ev.records.slice(0, 1000).forEach((rec, idx) => {
     const row = document.createElement('div');
     row.className = 'evtx-rec';
+    const levelColour = {Error:'var(--level-error)',Warning:'var(--level-warn)',Critical:'var(--level-critical)',Information:'var(--level-info)',Verbose:'var(--level-verbose)'}[rec.level] || 'var(--text-muted)';
     row.innerHTML = `
       <div class="evtx-rec-meta">
         <span class="evtx-rec-time">${fmtTime(rec.ts)}</span>
         ${rec.eventId != null ? `<span class="evtx-eid-badge">EID ${rec.eventId}</span>` : ''}
-        ${rec.level ? `<span>${rec.level}</span>` : ''}
-        ${rec.provider ? `<span style="color:var(--text-muted)">${escHtml(rec.provider)}</span>` : ''}
+        ${rec.level ? `<span style="color:${levelColour}">${escHtml(rec.level)}</span>` : ''}
+        ${rec.provider ? `<span style="color:var(--text-muted);font-size:10px">${escHtml(rec.provider)}</span>` : ''}
       </div>
-      <div class="evtx-rec-snippet">${escHtml(rec.snippet || '(no message text for this event)')}</div>
+      <div class="evtx-rec-snippet">${escHtml(rec.snippet || '(no event data extracted)')}</div>
     `;
     row.addEventListener('click', (e) => {
       document.querySelectorAll('.evtx-rec').forEach(r => r.classList.remove('selected'));
       row.classList.add('selected');
       evtxSelectedRecord = rec;
+      showEvtxDetail(rec);
       if (haveLogs) showEvtxCorrelatePopover(rec, e.clientX, e.clientY);
     });
     rl.appendChild(row);
@@ -2407,6 +2532,65 @@ function openEvtxWindow(key) {
 
 document.getElementById('evtx-file-switcher').addEventListener('change', (e) => {
   openEvtxSummary(e.target.value);
+});
+
+// Show the event detail panel for a record
+function showEvtxDetail(rec) {
+  const panel = document.getElementById('evtx-detail-panel');
+  const body = document.getElementById('evtx-detail-body');
+  document.getElementById('edh-provider').textContent = rec.provider || '';
+  document.getElementById('edh-eid').textContent = rec.eventId != null ? 'EID ' + rec.eventId : '';
+  const lc = {Error:'var(--level-error)',Warning:'var(--level-warn)',Critical:'var(--level-critical)',Information:'var(--level-info)',Verbose:'var(--level-verbose)'}[rec.level] || 'var(--text-muted)';
+  const levelEl = document.getElementById('edh-level');
+  levelEl.textContent = rec.level || '';
+  levelEl.style.color = lc;
+
+  const fields = [];
+  if (rec.ts)       fields.push(['Time',     new Date(rec.ts).toISOString().replace('T',' ').replace('Z','')]);
+  if (rec.computer) fields.push(['Computer', rec.computer]);
+  if (rec.channel)  fields.push(['Channel',  rec.channel]);
+
+  // Parse fields from rawXml if available
+  const xml = rec.rawXml || '';
+  if (xml) {
+    // Named Data fields
+    const namedRe = /<Data Name="([^"]+)"[^>]*>([^<]*)<\/Data>/gi;
+    let m;
+    while ((m = namedRe.exec(xml)) !== null) {
+      fields.push([m[1], m[2].trim()]);
+    }
+    // Unnamed Data fields (handle escaped <string> format)
+    const unnamedRe = /<Data>([^<]+)<\/Data>/gi;
+    let idx = 1;
+    while ((m = unnamedRe.exec(xml)) !== null) {
+      const block = m[1];
+      const strings = [];
+      const strRe = /&lt;string&gt;(.*?)&lt;\/string&gt;/gi;
+      let sm;
+      while ((sm = strRe.exec(block)) !== null) {
+        const val = sm[1].replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>').trim();
+        if (val) strings.push(val);
+      }
+      if (strings.length) {
+        strings.forEach((s, i) => fields.push(['Data[' + (idx+i) + ']', s]));
+        idx += strings.length;
+      } else {
+        const plain = block.replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>').trim();
+        if (plain) { fields.push(['Data[' + idx + ']', plain]); idx++; }
+      }
+    }
+  } else if (rec.snippet) {
+    fields.push(['Message', rec.snippet]);
+  }
+
+  body.innerHTML = fields.map(([k, v]) =>
+    `<div class="evtx-dfield"><span class="evtx-dfield-name">${escHtml(k)}</span><span class="evtx-dfield-val">${escHtml(v)}</span></div>`
+  ).join('');
+  panel.classList.remove('hidden');
+}
+
+document.getElementById('btn-evtx-detail-close').addEventListener('click', () => {
+  document.getElementById('evtx-detail-panel').classList.add('hidden');
 });
 
 // Make the EVTX window draggable by its header
