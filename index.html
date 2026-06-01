@@ -1268,6 +1268,10 @@ if (typeof window !== 'undefined') window.parseHar = parseHar;
     padding: 6px 12px;
     gap: 6px;
     flex-shrink: 0;
+    /* overflow must be visible so #gtr-popover (position:absolute) is not clipped */
+    overflow: visible;
+    position: relative;
+    z-index: 20;
   }
   .topbar-row { display: flex; align-items: center; gap: 8px; min-height: 30px; }
   .topbar-row-secondary { border-top: 1px solid var(--border); padding-top: 6px; }
@@ -1334,7 +1338,7 @@ if (typeof window !== 'undefined') window.parseHar = parseHar;
   #gtr-reset:hover { border-color: var(--level-error); color: var(--level-error); }
   #gtr-reset.hidden { display: none; }
   #gtr-popover {
-    position: absolute; top: calc(100% + 6px); left: 0; z-index: 500;
+    position: absolute; top: calc(100% + 6px); left: 0; z-index: 1500;
     width: 260px; padding: 12px; background: var(--bg-base);
     border: 1px solid var(--accent-teal); border-radius: var(--radius-lg); box-shadow: var(--shadow-lg);
     display: flex; flex-direction: column; gap: 8px;
@@ -1387,23 +1391,40 @@ if (typeof window !== 'undefined') window.parseHar = parseHar;
     display: flex; align-items: center; gap: 6px;
     flex-shrink: 0;
   }
+  /* Pass 1 fix: overflow:visible so the native <select> dropdown and any
+     custom menus can escape the overflow:hidden on #results-panel.
+     Pass 2 layout: two-row grid — logger top-left, term below it (full
+     width of left column), Run button on the right spanning both rows. */
   #results-control {
-    display: flex; align-items: center; gap: 6px; padding: 7px 10px;
-    border-bottom: 1px solid var(--border); flex-shrink: 0; flex-wrap: wrap;
+    display: grid;
+    grid-template-columns: 1fr auto;
+    grid-template-rows: auto auto;
+    gap: 5px 6px;
+    padding: 7px 10px;
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+    /* overflow must NOT be hidden so the native <select> dropdown escapes */
+    overflow: visible;
   }
   #results-logger {
-    flex: 0 1 auto; max-width: 45%; font-size: 11px; padding: 4px 6px;
+    grid-column: 1; grid-row: 1;
+    width: 100%;
+    font-size: 11px; padding: 4px 6px;
     background: var(--bg-elevated); color: var(--text-primary);
     border: 1px solid var(--border); border-radius: var(--radius-sm); cursor: pointer;
   }
   #results-term {
-    flex: 1 1 90px; min-width: 70px; font-size: 11px; padding: 4px 8px;
+    grid-column: 1; grid-row: 2;
+    width: 100%;
+    font-size: 11px; padding: 4px 8px;
     background: var(--bg-base); color: var(--text-primary);
     border: 1px solid var(--border); border-radius: var(--radius-sm); font-family: var(--font-mono);
   }
   #results-term:focus, #results-logger:focus { border-color: var(--accent-teal); outline: none; }
   #btn-run-results {
-    flex: 0 0 auto; font-size: 11px; font-weight: 700; padding: 4px 12px;
+    grid-column: 2; grid-row: 1 / 3;
+    align-self: stretch;
+    font-size: 11px; font-weight: 700; padding: 4px 12px;
     background: var(--accent-teal-dim); color: var(--accent-teal);
     border: 1px solid var(--accent-teal); border-radius: var(--radius-sm); cursor: pointer; transition: all 0.12s;
   }
@@ -1482,14 +1503,47 @@ if (typeof window !== 'undefined') window.parseHar = parseHar;
     flex-shrink: 0; flex-wrap: wrap;
   }
   #viewer-file-label {
+    display: flex; align-items: center; gap: 6px;
     font-size: 11px; font-family: var(--font-mono);
     color: var(--text-secondary);
     padding: 3px 8px;
     background: var(--bg-elevated);
     border-radius: var(--radius-sm);
     border: 1px solid var(--border);
-    max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    max-width: 280px; white-space: nowrap;
   }
+  #viewer-file-label .vfl-name { overflow: hidden; text-overflow: ellipsis; }
+  #viewer-file-label .vfl-loc {
+    flex-shrink: 0; color: var(--text-muted); font-size: 10px;
+    padding-left: 6px; border-left: 1px solid var(--border);
+    max-width: 130px; overflow: hidden; text-overflow: ellipsis;
+  }
+  #viewer-file-label .vfl-caret { flex-shrink: 0; color: var(--text-muted); font-size: 9px; }
+  #viewer-file-label.has-menu { cursor: pointer; }
+  #viewer-file-label.has-menu:hover { border-color: var(--accent-teal); color: var(--text-primary); }
+  #viewer-file-label.has-menu:hover .vfl-caret { color: var(--accent-teal); }
+  #viewer-file-menu {
+    position: fixed; z-index: 9999;
+    background: var(--bg-elevated); border: 1px solid var(--border);
+    border-radius: var(--radius-md); box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+    padding: 4px; min-width: 200px; max-width: 380px;
+    max-height: 340px; overflow-y: auto;
+    font-family: var(--font-mono); font-size: 11px;
+  }
+  .vfm-group {
+    padding: 6px 8px 3px; font-size: 9px; font-weight: 700;
+    text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-muted);
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .vfm-item {
+    display: flex; align-items: center; gap: 6px;
+    padding: 5px 8px; border-radius: var(--radius-sm); cursor: pointer;
+    color: var(--text-secondary);
+  }
+  .vfm-item:hover { background: var(--bg-hover); color: var(--text-primary); }
+  .vfm-item.active { background: var(--highlight-similar); color: var(--accent-teal); }
+  .vfm-item .vfm-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .vfm-item .vfm-note { flex-shrink: 0; font-size: 9px; color: var(--text-muted); }
   .viewer-search-wrap { position: relative; flex: 1; min-width: 140px; }
   #viewer-search {
     width: 100%;
@@ -2319,7 +2373,7 @@ if (typeof window !== 'undefined') window.parseHar = parseHar;
     background: var(--bg-elevated); color: var(--text-secondary); font-size: 12px; cursor: pointer; transition: all 0.12s;
   }
   .notes-act-btn:hover { border-color: var(--accent-purple); color: var(--text-primary); }
-  #notes-body { flex: 1; display: flex; flex-direction: column; min-height: 0; padding: 10px; gap: 10px; }
+  #notes-body { flex: 1; display: flex; flex-direction: column; min-height: 0; padding: 10px; gap: 10px; overflow-y: auto; }
   #notes-session-bar {
     display: flex; align-items: center; gap: 6px; font-size: 11px;
     padding: 6px 8px; background: var(--bg-surface); border: 1px solid var(--border); border-radius: var(--radius-sm);
@@ -3582,7 +3636,10 @@ const state = {
   gtrLabel: '',    // human label for the time-range trigger button
   gtrPresetMin: 0, // active preset in minutes (0 = all time, null = custom)
   sidebarView: 'tree', // 'components' | 'tree' — default to the file tree
-  activeFileName: null, // when set, results are scoped to this single file within the active component
+  activeFilePath: null, // when set, results are scoped to this single file (by path) within the active component
+  activeFileName: null, // display name (basename) of the scoped file, for labels
+  viewerCompId: null,   // component whose file is currently open in the viewer
+  viewerFilePath: null, // path identity of the file currently open in the viewer
   resultsTerm: '',      // on-demand logger/keyword filter for the grouped results
   resultsRun: false,    // whether grouped results have been run for the current selection
   loadedEvtx: {}, // path -> evtx summary
@@ -4914,7 +4971,7 @@ const LEVEL_NORM = {
 // Matches stack trace / exception continuation lines
 const CONTINUATION_RE = /^(\\s+at\\s|---\\s*(End of|inner exception)|\\s*--->\\s|[A-Za-z][\\w.]*Exception[:\\s]|[A-Za-z][\\w.]*Error[:\\s])/;
 
-function parseFile(raw, filename) {
+function parseFile(raw, filename, filepath) {
   const rawLines = raw.split('\\n');
   const lines = [];
   let lastLevel=null, lastTs=null, lastLogger=null, lastParentLineNo=null;
@@ -4963,7 +5020,8 @@ function parseFile(raw, filename) {
       parentLineNo: isContinuation ? lastParentLineNo : null,
       ts: ts ? ts.getTime() : null,
       logger,
-      _file: filename
+      _file: filename,
+      _path: filepath || filename
     });
   }
   return lines;
@@ -4971,7 +5029,7 @@ function parseFile(raw, filename) {
 
 self.onmessage = function(e) {
   const { compId, files } = e.data;
-  const parsed = files.map(f => ({ name:f.name, size:f.size, path:f.path||f.name, lines:parseFile(f.raw, f.name) }));
+  const parsed = files.map(f => ({ name:f.name, size:f.size, path:f.path||f.name, lines:parseFile(f.raw, f.name, f.path||f.name) }));
   self.postMessage({ compId, parsed });
 };
 `;
@@ -5043,7 +5101,7 @@ function analyseFiles() {
           return t > bt ? f : best;
         }, null);
       }
-      activateComponent(first, primaryFile ? primaryFile.name : null);
+      activateComponent(first, primaryFile ? (primaryFile.path || primaryFile.name) : null);
       // Reflect the selection in the tree highlight.
       try {
         document.querySelectorAll('.tree-file').forEach(el => {
@@ -5276,7 +5334,7 @@ function renderSidebarTree(container) {
     const cd = data.compDef || {};
     (data.files || []).forEach(f => {
       addToTree(f.path || f.name, { compId, kind: 'log', count: (f.lines || []).length,
-        loaded: f.loaded !== false, rank: f.rank || 0,
+        loaded: f.loaded !== false, rank: f.rank || 0, path: f.path || f.name,
         desc: cd.desc || '', compName: cd.name || '' });
     });
   });
@@ -5377,12 +5435,21 @@ function buildTreeFileEl(f) {
       openEvtxWindow(f.evtxKey);
     });
   } else {
-    fileEl.addEventListener('click', () => {
+    fileEl.addEventListener('click', async () => {
       container_clearTreeActive();
       fileEl.classList.add('active');
-      activateComponent(f.compId, f.name); // scope results to this file only
-      // If this specific file isn't loaded, offer to load older logs
-      if (f.loaded === false) loadOlderLogs(f.compId);
+      // Resolve the real file entry (the leaf only carries display fields).
+      const comp = state.loadedData[f.compId];
+      const real = comp && comp.files
+        ? comp.files.find(ff => (ff.path || ff.name) === (f.path || f.name)) : null;
+      // Parse just this file if it's a deferred (older / not-yet-loaded) log.
+      if (real && real.loaded === false) {
+        flashViewerStatus('Loading ' + real.name + '…');
+        await loadSingleOlderFile(f.compId, real);
+        flashViewerStatus('');
+      }
+      // Scope results + viewer to this exact file (by path → node-aware).
+      activateComponent(f.compId, f.path || f.name);
     });
   }
   return fileEl;
@@ -5413,9 +5480,12 @@ function renderEvtxSidebarItems(container) {
   });
 }
 
-function activateComponent(compId, fileName) {
+function activateComponent(compId, filePath) {
   state.activeCompId = compId;
-  state.activeFileName = fileName || null; // null = whole component (all files merged)
+  // Scope by PATH so two nodes' identically-named logs (e.g. Node1/SS.log vs
+  // Node2/SS.log) stay distinct. null = whole component (all files merged).
+  state.activeFilePath = filePath || null;
+  state.activeFileName = filePath ? filePath.split('/').pop() : null;
   document.querySelectorAll('.component-item').forEach(el => {
     el.classList.toggle('active', el.dataset.compId === compId);
   });
@@ -5444,7 +5514,7 @@ function activateComponent(compId, fileName) {
     if (termEl) termEl.value = '';
     populateResultsLoggers();
     // Show the most recent entries in the viewer; grouped results are opt-in.
-    openLatestForSelection(compId, state.activeFileName);
+    openLatestForSelection(compId, state.activeFilePath);
     showResultsHint();
   }
 }
@@ -5492,11 +5562,11 @@ document.querySelectorAll('.level-filter-btn').forEach(btn => {
 
 // Open the viewer at the most recent entries for the current selection: the
 // bottom of the newest log (the file with the latest activity, or the chosen file).
-function openLatestForSelection(compId, fileName) {
+function openLatestForSelection(compId, filePath) {
   const data = state.loadedData[compId];
   if (!data || !data.files) return;
   let file = null;
-  if (fileName) file = data.files.find(f => f.name === fileName && f.loaded !== false && f.lines && f.lines.length);
+  if (filePath) file = data.files.find(f => (f.path || f.name) === filePath && f.loaded !== false && f.lines && f.lines.length);
   if (!file) {
     const loaded = data.files.filter(f => f.loaded !== false && f.lines && f.lines.length);
     if (!loaded.length) return;
@@ -5523,7 +5593,7 @@ function populateResultsLoggers() {
   if (data && data.merged) {
     for (const l of data.merged) {
       if (l.isContinuation || !l.level) continue;
-      if (state.activeFileName && l._file !== state.activeFileName) continue;
+      if (state.activeFilePath && (l._path || l._file) !== state.activeFilePath) continue;
       if (l.logger) loggers.add(l.logger);
     }
   }
@@ -5538,9 +5608,13 @@ function showResultsHint() {
   const list = document.getElementById('results-list');
   if (!list) return;
   const data = state.activeCompId && state.loadedData[state.activeCompId];
-  const scope = state.activeFileName
-    ? state.activeFileName
-    : (data && data.compDef ? data.compDef.name : 'this component');
+  let scope;
+  if (state.activeFilePath) {
+    const loc = fileLocLabel(state.activeFilePath, state.activeFileName);
+    scope = loc ? `${state.activeFileName} (${loc})` : state.activeFileName;
+  } else {
+    scope = (data && data.compDef ? data.compDef.name : 'this component');
+  }
   list.innerHTML = `
     <div class="empty-state">
       <div class="empty-state-icon">📊</div>
@@ -5570,9 +5644,9 @@ function applyFilter() {
   if (!data) return;
 
   let entries = data.merged;
-  // Scope to a single file when one is selected in the tree (null = whole component).
-  if (state.activeFileName) {
-    entries = entries.filter(l => l._file === state.activeFileName);
+  // Scope to a single file when one is selected (null = whole component).
+  if (state.activeFilePath) {
+    entries = entries.filter(l => (l._path || l._file) === state.activeFilePath);
   }
   if (state.activeLevel !== 'ALL') {
     const want = state.activeLevel === 'ERROR' ? ['ERROR','CRITICAL'] : [state.activeLevel];
@@ -5838,6 +5912,11 @@ function showOtherComponentsPopover(sig, others, anchorEl) {
   const r = anchorEl.getBoundingClientRect();
   pop.style.top = (r.bottom + 6) + 'px';
   pop.style.left = Math.max(12, Math.min(r.left, window.innerWidth - 260)) + 'px';
+  // Clamp bottom: flip above anchor if needed
+  const ph2 = pop.offsetHeight;
+  if (r.bottom + 6 + ph2 > window.innerHeight - 8) {
+    pop.style.top = Math.max(8, r.top - ph2 - 6) + 'px';
+  }
 }
 
 document.addEventListener('click', (e) => {
@@ -5998,8 +6077,12 @@ let currentViewerLines = [];
 let currentFocusEntry  = null;
 
 function openInViewer(entry, data) {
-  // Find the file
-  const file = data.files.find(f => f.name === entry._file);
+  // Find the exact file. Match by PATH first so two nodes' identically-named
+  // logs (Node1/SS.log vs Node2/SS.log) resolve to the right one; fall back to
+  // the basename for older data/mock lines that carry no path.
+  const key = entry._path || entry._file;
+  const file = data.files.find(f => (f.path || f.name) === key)
+            || data.files.find(f => f.name === entry._file);
   if (!file) return;
 
   state.focusedLineNo  = entry.lineNo;
@@ -6010,13 +6093,127 @@ function openInViewer(entry, data) {
   currentFocusEntry  = entry;
   currentViewerLines = file.lines;
 
-  document.getElementById('viewer-file-label').textContent = entry._file;
+  // Track what's open so the file-label menu can offer siblings (other nodes /
+  // engines, or rolled logs of the same component).
+  state.viewerCompId   = Object.keys(state.loadedData).find(k => state.loadedData[k] === data) || state.activeCompId;
+  state.viewerFilePath = file.path || file.name;
+  updateViewerFileLabel();
 
   renderViewerLines(file.lines, entry.lineNo, state.timeWindow);
   document.getElementById('viewer-search').value = '';
   state.searchMatches = [];
   state.searchIndex   = 0;
   updateSearchCount();
+}
+
+// Node/engine label for a file = the folder portion of its path (everything
+// before the basename). '' when the file was uploaded loose (no folders).
+function fileLocLabel(path, name) {
+  if (!path) return '';
+  const parts = path.split('/').filter(Boolean);
+  if (parts.length <= 1) return '';
+  return parts.slice(0, -1).join('/');
+}
+
+// Render the viewer's file label. When the active component has more than one
+// file (multiple nodes/engines, or rolled logs) the label becomes a dropdown
+// so it's always clear which log is open and easy to switch.
+function updateViewerFileLabel() {
+  const labelEl = document.getElementById('viewer-file-label');
+  if (!labelEl) return;
+  const data = state.loadedData[state.viewerCompId];
+  const file = data && data.files ? data.files.find(f => (f.path || f.name) === state.viewerFilePath) : null;
+  const name = file ? file.name : (state.viewerFilePath || 'No file selected');
+  const loc  = file ? fileLocLabel(file.path, file.name) : '';
+  const siblingCount = data && data.files ? data.files.length : 0;
+  const hasMenu = siblingCount > 1;
+  labelEl.classList.toggle('has-menu', hasMenu);
+  labelEl.innerHTML = `<span class="vfl-name">${escHtml(name)}</span>`
+    + (loc ? `<span class="vfl-loc">${escHtml(loc)}</span>` : '')
+    + (hasMenu ? '<span class="vfl-caret">▾</span>' : '');
+  labelEl.title = (loc ? `${name} — ${loc}` : name) + (hasMenu ? '\n(click to switch node / engine / log)' : '');
+  labelEl.onclick = hasMenu ? (e) => { e.stopPropagation(); toggleViewerFileMenu(labelEl); } : null;
+}
+
+function toggleViewerFileMenu(anchorEl) {
+  if (document.getElementById('viewer-file-menu')) { closeViewerFileMenu(); return; }
+  const data = state.loadedData[state.viewerCompId];
+  if (!data || !data.files) return;
+  // Group the component's files by node/engine; newest roll first within each.
+  const files = data.files.slice().sort((a, b) =>
+    fileLocLabel(a.path, a.name).localeCompare(fileLocLabel(b.path, b.name))
+    || (a.rank || 0) - (b.rank || 0) || a.name.localeCompare(b.name));
+  const byLoc = new Map();
+  files.forEach(f => {
+    const loc = fileLocLabel(f.path, f.name) || '(no folder)';
+    if (!byLoc.has(loc)) byLoc.set(loc, []);
+    byLoc.get(loc).push(f);
+  });
+  const menu = document.createElement('div');
+  menu.id = 'viewer-file-menu';
+  let html = '';
+  byLoc.forEach((fs, loc) => {
+    html += `<div class="vfm-group">${escHtml(loc)}</div>`;
+    fs.forEach(f => {
+      const fkey = f.path || f.name;
+      const active = fkey === state.viewerFilePath ? ' active' : '';
+      const note = f.loaded === false
+        ? '<span class="vfm-note">load</span>'
+        : `<span class="vfm-note">${((f.lines ? f.lines.length : f.count) || 0).toLocaleString()}</span>`;
+      html += `<div class="vfm-item${active}" data-key="${escHtml(fkey)}">📄 <span class="vfm-name">${escHtml(f.name)}</span>${note}</div>`;
+    });
+  });
+  menu.innerHTML = html;
+  document.body.appendChild(menu);
+  const r = anchorEl.getBoundingClientRect();
+  menu.style.top  = (r.bottom + 4) + 'px';
+  menu.style.left = Math.min(r.left, window.innerWidth - menu.offsetWidth - 12) + 'px';
+  // Clamp bottom: if menu would overflow viewport, flip it above the anchor
+  const menuH = menu.offsetHeight;
+  if (r.bottom + 4 + menuH > window.innerHeight - 8) {
+    menu.style.top = Math.max(8, r.top - menuH - 4) + 'px';
+  }
+  menu.querySelectorAll('.vfm-item[data-key]').forEach(it => {
+    it.addEventListener('click', () => {
+      const fkey = it.dataset.key;
+      closeViewerFileMenu();
+      const f = data.files.find(ff => (ff.path || ff.name) === fkey);
+      if (f) openComponentFileInViewer(state.viewerCompId, f);
+    });
+  });
+  setTimeout(() => document.addEventListener('click', viewerFileMenuOutside, true), 0);
+}
+function viewerFileMenuOutside(e) {
+  const menu = document.getElementById('viewer-file-menu');
+  if (menu && !menu.contains(e.target) && !e.target.closest('#viewer-file-label')) closeViewerFileMenu();
+}
+function closeViewerFileMenu() {
+  const menu = document.getElementById('viewer-file-menu');
+  if (menu) menu.remove();
+  document.removeEventListener('click', viewerFileMenuOutside, true);
+}
+
+// Open a specific file of a component in the viewer, parsing it first if it's a
+// deferred (older / not-yet-loaded) file. Also scopes the results to that file.
+async function openComponentFileInViewer(compId, file) {
+  const data = state.loadedData[compId];
+  if (!data) return;
+  if (file.loaded === false) {
+    flashViewerStatus('Loading ' + file.name + '…');
+    await loadSingleOlderFile(compId, file);
+    flashViewerStatus('');
+  }
+  if (!file.lines || !file.lines.length) return;
+  state.activeCompId   = compId;
+  state.activeFilePath = file.path || file.name;
+  state.activeFileName = file.name;
+  document.querySelectorAll('.component-item').forEach(el =>
+    el.classList.toggle('active', el.dataset.compId === compId));
+  openInViewer(file.lines[file.lines.length - 1], data);
+  if (!globalSearchActive) {
+    populateResultsLoggers();
+    if (state.resultsRun) applyFilter(); else showResultsHint();
+  }
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -6464,8 +6661,12 @@ function openSimilarOverlay(logger) {
   SIM.term  = logger || '';
   simInput.value = SIM.term;
 
-  // Show the filename being reviewed
-  const filename = document.getElementById('viewer-file-label').textContent || '';
+  // Show the file being reviewed (node-aware), derived from state rather than
+  // the label markup (which now contains node + caret spans).
+  const vData = state.loadedData[state.viewerCompId];
+  const vFile = vData && vData.files ? vData.files.find(f => (f.path || f.name) === state.viewerFilePath) : null;
+  const vLoc = vFile ? fileLocLabel(vFile.path, vFile.name) : '';
+  const filename = vFile ? (vLoc ? `${vFile.name} · ${vLoc}` : vFile.name) : (state.viewerFilePath || '');
   document.getElementById('similar-overlay-filename').textContent = filename ? `📄 ${filename}` : '';
 
   simOverlay.classList.remove('hidden');
@@ -7393,7 +7594,11 @@ document.getElementById('btn-home').addEventListener('click', () => {
   document.getElementById('viewer-placeholder').style.display = 'flex';
   VS.lines = []; VS.searchMatchIndices = []; VS.focusLineNo = null;
   VS._renderedStart = 0; VS._renderedEnd = 0; VS._fullRender = false;
-  document.getElementById('viewer-file-label').textContent = 'No file selected';
+  const vfl = document.getElementById('viewer-file-label');
+  vfl.textContent = 'No file selected';
+  vfl.classList.remove('has-menu'); vfl.onclick = null;
+  state.viewerCompId = null; state.viewerFilePath = null;
+  closeViewerFileMenu();
   document.getElementById('viewer-search').value = '';
   document.getElementById('sidebar-search').value = '';
   document.getElementById('result-count').textContent = '— entries';
@@ -9341,7 +9546,7 @@ if ('serviceWorker' in navigator) {
 // ═══════════════════════════════════════════════════════════════
 //  GUIDED TOUR
 // ═══════════════════════════════════════════════════════════════
-const TOUR_KEY = 'tour-completed-v4';
+const TOUR_KEY = 'tour-completed-v5';
 
 const TOUR_STEPS = [
   {
@@ -9435,7 +9640,7 @@ const TOUR_STEPS = [
   {
     id: 'viewer',
     title: 'Log viewer',
-    body: 'The full log opens here with the selected line highlighted. Use the <strong>±</strong> buttons to narrow to ±15m / 30m / 1h / 4h around it. Stack traces collapse by default — expand them when you need the detail.',
+    body: 'The full log opens here with the selected line highlighted. The <strong>file name at the top-left</strong> shows which log is open — when a bundle has several <strong>nodes or engines</strong> (or rolled <code>.log.1</code> files), it becomes a dropdown so you can switch which node / engine / log you\'re viewing, and it always shows the folder it came from. Use the <strong>±</strong> buttons to narrow to ±15m / 30m / 1h / 4h around the line. Stack traces collapse by default — expand them when you need the detail.',
     target: '#log-viewer',
     position: 'left',
     setup: () => tourEnsureAnalyser(),
@@ -9662,7 +9867,7 @@ function tourInjectMockData() {
     mockLines.push({
       lineNo: i + 1, text,
       level: isErr ? 'ERROR' : level, isContinuation: false, parentLineNo: null,
-      ts, logger, _file: 'SS.log',
+      ts, logger, _file: 'SS.log', _path: 'Node1/SS/SS.log',
     });
   }
   state.loadedData = {
