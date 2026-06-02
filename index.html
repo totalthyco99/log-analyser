@@ -2295,6 +2295,43 @@ if (typeof window !== 'undefined') window.parseHar = parseHar;
   #timeline-title { font-size: 13px; font-weight: 700; color: var(--text-primary); }
   #timeline-sub { font-size: 11px; color: var(--text-muted); font-family: var(--font-mono); }
   #timeline-errors-only-wrap { font-size: 11px; color: var(--text-secondary); display: flex; align-items: center; gap: 5px; cursor: pointer; }
+  /* Node / source selector (header) — appears only when logs span >1 node */
+  #timeline-node-wrap { display: none; }
+  #timeline-node-wrap.show { display: flex; align-items: center; }
+  #tl-node-btn {
+    display: inline-flex; align-items: center; gap: 6px; max-width: 240px;
+    font-size: 11px; padding: 4px 9px; cursor: pointer; transition: all 0.12s;
+    background: var(--bg-elevated); color: var(--text-secondary);
+    border: 1px solid var(--accent-purple); border-radius: 12px;
+  }
+  #tl-node-btn:hover { color: var(--text-primary); border-color: var(--accent-teal); }
+  #tl-node-btn .tlnb-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 700; }
+  #tl-node-btn .tlnb-caret { font-size: 8px; color: var(--accent-teal); flex-shrink: 0; }
+  #tl-node-menu {
+    position: fixed; z-index: 480; min-width: 220px; max-width: 360px; max-height: 50vh; overflow-y: auto;
+    background: var(--bg-elevated); border: 1px solid var(--accent-purple);
+    border-radius: var(--radius-md); box-shadow: 0 12px 32px rgba(0,0,0,0.5); padding: 4px;
+  }
+  #tl-node-menu .tlnm-head { font-size: 10px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-muted); padding: 6px 8px 4px; }
+  #tl-node-menu .tlnm-item {
+    display: flex; align-items: center; justify-content: space-between; gap: 10px;
+    padding: 6px 8px; border-radius: var(--radius-sm); cursor: pointer; font-size: 12px; color: var(--text-secondary);
+  }
+  #tl-node-menu .tlnm-item:hover { background: var(--bg-hover); color: var(--text-primary); }
+  #tl-node-menu .tlnm-item.active { background: var(--bg-active); color: var(--accent-teal); }
+  #tl-node-menu .tlnm-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  #tl-node-menu .tlnm-note { flex-shrink: 0; font-size: 10px; color: var(--text-muted); font-family: var(--font-mono); }
+  /* Loading state while the timeline is assembled */
+  #tl-loading {
+    flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 14px; color: var(--text-muted); font-size: 12px;
+  }
+  #tl-loading .tl-spinner {
+    width: 34px; height: 34px; border-radius: 50%;
+    border: 3px solid var(--border); border-top-color: var(--accent-teal);
+    animation: tl-spin 0.8s linear infinite;
+  }
+  @keyframes tl-spin { to { transform: rotate(360deg); } }
   #btn-timeline-close {
     width: 28px; height: 28px; border-radius: var(--radius-sm); border: 1px solid var(--border);
     background: var(--bg-elevated); color: var(--text-muted); cursor: pointer; transition: all 0.12s;
@@ -3146,7 +3183,7 @@ if (typeof window !== 'undefined') window.parseHar = parseHar;
               </div>
             </div>
             <div class="topbar-spacer"></div>
-            <button id="btn-timeline" title="Merge all components into one chronological stream for the current time range">🕒 Cross-component timeline</button>
+            <button id="btn-timeline" title="Merge a node's components into one chronological stream — opens on the last 24 hours of logs; move day by day and switch node from inside">🕒 Cross-component timeline</button>
             <button id="btn-export-findings" title="Export selected entries as a PII-scrubbed support summary">📋 Export findings</button>
             <button id="btn-tz-toggle" title="Toggle timestamp display between local time and UTC">🌍 <span id="tz-mode">Local</span></button>
           </div>
@@ -3386,14 +3423,17 @@ if (typeof window !== 'undefined') window.parseHar = parseHar;
     <div id="timeline-title">Cross-component timeline</div>
     <div id="timeline-sub"></div>
     <div class="evtx-spacer"></div>
+    <div id="timeline-node-wrap" title="Choose which node / source to view. Only one node is loaded at a time to keep things fast and clear.">
+      <button id="tl-node-btn"><span class="tlnb-icon">🖧</span><span class="tlnb-name">Node</span><span class="tlnb-caret">▾</span></button>
+    </div>
     <label id="timeline-errors-only-wrap" title="Show only ERROR/CRITICAL lines"><input type="checkbox" id="timeline-errors-only"> Errors only</label>
     <button id="btn-timeline-close" title="Close">✕</button>
   </div>
   <div id="timeline-comps" title="Click a component to include/exclude it from the timeline"></div>
   <div id="timeline-nav">
-    <button id="tl-prev" title="Move the window back 5 days">◀ 5 days</button>
+    <button id="tl-prev" title="Move the window back one day">◀ 1 day</button>
     <div id="tl-window-label"></div>
-    <button id="tl-next" title="Move the window forward 5 days">5 days ▶</button>
+    <button id="tl-next" title="Move the window forward one day">1 day ▶</button>
     <div class="evtx-spacer"></div>
     <input id="tl-search" type="text" placeholder="Filter by logger or keyword…" autocomplete="off">
     <span id="tl-match-count"></span>
@@ -8597,7 +8637,7 @@ document.getElementById('btn-tz-toggle').addEventListener('click', () => {
   document.getElementById('tz-mode').textContent = state.tzMode === 'utc' ? 'UTC' : 'Local';
   // Refresh any open views that show timestamps
   const tlo = document.getElementById('timeline-overlay');
-  if (tlo && !tlo.classList.contains('hidden')) buildTimeline();
+  if (tlo && !tlo.classList.contains('hidden')) { renderTimelineNodeSelector(); renderTimeline(); }
   const po = document.getElementById('pcap-overlay');
   if (po && !po.classList.contains('hidden') && state.activePcap) openPcapWindow(state.activePcap);
   const ho = document.getElementById('har-overlay');
@@ -8616,33 +8656,56 @@ function componentColorMap() {
 
 // ═══════════════════════════════════════════════════════════════
 //  CROSS-COMPONENT TIMELINE
-//  • per-component include/exclude   • 5-day window (newest first)
+//  • one node/source loaded at a time   • 1-day window (newest first)
+//  • opens on the most recent 24h of logs; ◀/▶ move day by day
 //  • logger/keyword filter highlights matches; ▲▼ jump across the
 //    whole range, moving the window to land on each match.
 // ═══════════════════════════════════════════════════════════════
 const TL = {
-  WINDOW_MS: 5 * 24 * 60 * 60 * 1000,
+  WINDOW_MS: 24 * 60 * 60 * 1000,   // one day
   included: null,   // Set of compIds shown (null = not yet initialised)
   windowEnd: null,  // epoch ms — most-recent edge of the visible window
   query: '',
   matches: [],      // row objects (across the whole range) matching the query
   matchIdx: -1,
-  allRows: [],      // every eligible row across included comps (asc by ts)
+  allRows: [],      // every eligible row in the chosen node (asc by ts)
   dataMin: null, dataMax: null,
+  node: null,            // selected node key ('' = local/no folder); null = uninitialised
+  nodes: [],             // [{ key, label, lineCount, maxTs, comps:Set }]
+  nodeComps: [],         // compIds present in the selected node
+  nodeCommonDepth: 0,    // shared leading path-segments to strip (wrapper folders)
 };
 
 document.getElementById('btn-timeline').addEventListener('click', () => {
   if (!Object.keys(state.loadedData || {}).length) { showAppToast && showAppToast('Load some logs first'); return; }
   document.getElementById('timeline-overlay').classList.remove('hidden');
-  // Include all components by default.
-  TL.included = new Set(Object.keys(state.loadedData));
   TL.query = ''; TL.matches = []; TL.matchIdx = -1; TL.windowEnd = null;
   const searchEl = document.getElementById('tl-search');
   if (searchEl) searchEl.value = '';
-  rebuildTimelineData(true);
-  renderTimelineChips();
-  renderTimeline();
+  // Show a spinner straight away, then do the heavy gathering on the next
+  // frame so the overlay paints first (large bundles take a moment).
+  setTimelineLoading(true);
+  requestAnimationFrame(() => setTimeout(() => {
+    tlComputeNodeCommonDepth();
+    tlBuildNodeList();
+    // Default to the node with the most recent activity so we open on
+    // something useful rather than everything at once.
+    let def = TL.nodes[0] ? TL.nodes[0].key : '';
+    let best = -Infinity;
+    for (const n of TL.nodes) { if (n.maxTs != null && n.maxTs > best) { best = n.maxTs; def = n.key; } }
+    setActiveTimelineNode(def, /*resetWindow*/true, /*spinner already shown*/false);
+  }, 0));
 });
+
+// Show/clear the loading state in the list area.
+function setTimelineLoading(on) {
+  const list = document.getElementById('timeline-list');
+  if (!list) return;
+  if (on) {
+    list.innerHTML = '<div id="tl-loading"><div class="tl-spinner"></div><div>Building timeline…</div></div>';
+  }
+  // When off, the next renderTimeline() replaces the content.
+}
 document.getElementById('btn-timeline-close').addEventListener('click', () => {
   document.getElementById('timeline-overlay').classList.add('hidden');
 });
@@ -8667,17 +8730,143 @@ document.getElementById('tl-search').addEventListener('keydown', (e) => {
   }
 });
 
-// Gather every eligible row across the included components. Optionally reset
-// the window to the most recent activity.
+// ── Node / source grouping ──
+// A "node" is the machine/source a line came from, derived from its folder
+// path. Bundles often wrap everything in an outer folder (the zip name) and
+// hold one folder per node beneath it, so we strip the shared leading path
+// segments and key on the first segment that actually differs.
+function tlComputeNodeCommonDepth() {
+  const labels = [];
+  for (const data of Object.values(state.loadedData || {})) {
+    (data.files || []).forEach(f => {
+      const l = fileLocLabel(f.path, f.name);
+      if (l) labels.push(l.split('/').filter(Boolean));
+    });
+  }
+  let depth = 0;
+  if (labels.length) {
+    const minLen = Math.min(...labels.map(s => s.length));
+    for (let i = 0; i < minLen; i++) {
+      const seg = labels[0][i];
+      if (labels.every(s => s[i] === seg)) depth++; else break;
+    }
+    // If every path is identical (a single source), keep the last common
+    // segment as the node rather than stripping it down to nothing.
+    if (depth === minLen && labels.every(s => s.length === minLen)) depth = Math.max(0, depth - 1);
+  }
+  TL.nodeCommonDepth = depth;
+}
+function tlNodeKey(line) {
+  const label = fileLocLabel(line._path || line._file, '');
+  if (!label) return '';
+  const segs = label.split('/').filter(Boolean);
+  const rest = segs.slice(TL.nodeCommonDepth);
+  return (rest.length ? rest[0] : segs[segs.length - 1]) || '';
+}
+function tlNodeLabel(key) { return key && key.length ? key : '(local)'; }
+
+// Scan the loaded logs once to list the distinct nodes, with a line count,
+// newest-activity timestamp, and which components appear in each.
+function tlBuildNodeList() {
+  const map = new Map();   // key → { key, label, lineCount, maxTs, comps:Set }
+  for (const [compId, data] of Object.entries(state.loadedData || {})) {
+    if (!data.merged) continue;
+    for (const l of data.merged) {
+      if (l.isContinuation || !l.level) continue;
+      const key = tlNodeKey(l);
+      let n = map.get(key);
+      if (!n) { n = { key, label: tlNodeLabel(key), lineCount: 0, maxTs: null, comps: new Set() }; map.set(key, n); }
+      n.lineCount++;
+      n.comps.add(compId);
+      if (l.ts != null && (n.maxTs == null || l.ts > n.maxTs)) n.maxTs = l.ts;
+    }
+  }
+  TL.nodes = [...map.values()].sort((a, b) => (b.maxTs || 0) - (a.maxTs || 0) || a.label.localeCompare(b.label));
+  return TL.nodes;
+}
+
+// Switch the timeline to a node: scope the included components to that node,
+// rebuild, and refresh the UI. Shows the spinner unless one is already up.
+function setActiveTimelineNode(key, resetWindow, withSpinner) {
+  TL.node = key;
+  const entry = TL.nodes.find(n => n.key === key);
+  TL.nodeComps = entry ? [...entry.comps] : Object.keys(state.loadedData || {});
+  TL.included = new Set(TL.nodeComps);
+  TL.matchIdx = -1;
+  const run = () => {
+    rebuildTimelineData(resetWindow);
+    recomputeMatches();
+    renderTimelineNodeSelector();
+    renderTimelineChips();
+    renderTimeline();
+  };
+  if (withSpinner) {
+    setTimelineLoading(true);
+    requestAnimationFrame(() => setTimeout(run, 0));
+  } else {
+    run();
+  }
+}
+
+// Header node selector — hidden unless logs span more than one node.
+function renderTimelineNodeSelector() {
+  const wrap = document.getElementById('timeline-node-wrap');
+  if (!wrap) return;
+  const multi = TL.nodes.length > 1;
+  wrap.classList.toggle('show', multi);
+  if (!multi) return;
+  const nameEl = wrap.querySelector('.tlnb-name');
+  if (nameEl) nameEl.textContent = tlNodeLabel(TL.node);
+}
+function tlCloseNodeMenu() {
+  const m = document.getElementById('tl-node-menu');
+  if (m) m.remove();
+  document.removeEventListener('click', tlNodeMenuOutside, true);
+}
+function tlNodeMenuOutside(e) {
+  const m = document.getElementById('tl-node-menu');
+  if (m && !m.contains(e.target) && !e.target.closest('#tl-node-btn')) tlCloseNodeMenu();
+}
+document.getElementById('tl-node-btn').addEventListener('click', (e) => {
+  e.stopPropagation();
+  if (document.getElementById('tl-node-menu')) { tlCloseNodeMenu(); return; }
+  const menu = document.createElement('div');
+  menu.id = 'tl-node-menu';
+  let html = '<div class="tlnm-head">View one node / source</div>';
+  TL.nodes.forEach(n => {
+    const active = n.key === TL.node ? ' active' : '';
+    html += `<div class="tlnm-item${active}" data-key="${escHtml(n.key)}">`
+      + `<span class="tlnm-name">🖧 ${escHtml(n.label)}</span>`
+      + `<span class="tlnm-note">${n.comps.size} comp${n.comps.size === 1 ? '' : 's'} · ${n.lineCount.toLocaleString()}</span></div>`;
+  });
+  menu.innerHTML = html;
+  document.body.appendChild(menu);
+  const r = e.currentTarget.getBoundingClientRect();
+  menu.style.top = (r.bottom + 4) + 'px';
+  menu.style.left = Math.min(r.left, window.innerWidth - menu.offsetWidth - 12) + 'px';
+  menu.querySelectorAll('.tlnm-item[data-key]').forEach(it => {
+    it.addEventListener('click', () => {
+      const key = it.dataset.key;
+      tlCloseNodeMenu();
+      if (key !== TL.node) setActiveTimelineNode(key, /*resetWindow*/true, /*withSpinner*/true);
+    });
+  });
+  setTimeout(() => document.addEventListener('click', tlNodeMenuOutside, true), 0);
+});
+
+// Gather every eligible row in the selected node across the included
+// components. Optionally reset the window to the most recent activity.
 function rebuildTimelineData(resetWindow) {
   const errorsOnly = document.getElementById('timeline-errors-only').checked;
   const rows = [];
   for (const [compId, data] of Object.entries(state.loadedData || {})) {
     if (TL.included && !TL.included.has(compId)) continue;
+    if (!data.merged) continue;
     const name = data.compDef ? data.compDef.name : compId;
     for (const l of data.merged) {
       if (l.isContinuation || l.ts == null || !l.level) continue;
       if (errorsOnly && l.level !== 'ERROR' && l.level !== 'CRITICAL') continue;
+      if (TL.node != null && tlNodeKey(l) !== TL.node) continue;
       rows.push({ ts: l.ts, compId, compName: name, line: l, data });
     }
   }
@@ -8739,7 +8928,12 @@ function renderTimelineChips() {
   const wrap = document.getElementById('timeline-comps');
   if (!wrap) return;
   wrap.innerHTML = '';
-  Object.entries(state.loadedData || {}).forEach(([id, d]) => {
+  // Only the components present in the selected node are offered.
+  const comps = (TL.nodeComps && TL.nodeComps.length)
+    ? TL.nodeComps : Object.keys(state.loadedData || {});
+  comps.forEach((id) => {
+    const d = state.loadedData[id];
+    if (!d) return;
     const chip = document.createElement('div');
     const on = TL.included.has(id);
     chip.className = 'tl-chip' + (on ? '' : ' excluded');
@@ -8775,8 +8969,9 @@ function renderTimeline(focusRow) {
   const windowRows = TL.allRows.filter(r => r.ts > winStart && r.ts <= winEnd);
 
   // Header sub + window label
+  const nodeBit = (TL.nodes && TL.nodes.length > 1) ? ` · 🖧 ${tlNodeLabel(TL.node)}` : '';
   document.getElementById('timeline-sub').textContent =
-    `${TL.allRows.length.toLocaleString()} entries · ${TL.included.size} component${TL.included.size === 1 ? '' : 's'}`;
+    `${TL.allRows.length.toLocaleString()} entries · ${TL.included.size} component${TL.included.size === 1 ? '' : 's'}${nodeBit}`;
   const label = document.getElementById('tl-window-label');
   if (label) {
     if (TL.dataMax == null) label.textContent = '—';
@@ -8802,7 +8997,7 @@ function renderTimeline(focusRow) {
   // Build the list with day separators
   list.innerHTML = '';
   if (!windowRows.length) {
-    list.innerHTML = '<div class="tl-empty">No entries in this 5-day window. Use ◀ / ▶ to move, or adjust the component filters.</div>';
+    list.innerHTML = '<div class="tl-empty">No entries in this 24-hour window. Use ◀ / ▶ to move day by day, or adjust the node and component filters.</div>';
     return;
   }
   const q = (TL.query || '').trim().toLowerCase();
