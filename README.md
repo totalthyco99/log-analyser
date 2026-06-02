@@ -76,6 +76,7 @@ Highlight any text in the log viewer, then click **Scrub PII & Copy** in the bot
 - Files are matched to their component automatically by filename — including rolled logs like `SS.log.1`, `SS.log.2`
 - **Lazy loading** — only the most recent log per component is parsed up front to keep things fast and memory-light; older rolled files load on demand via **Load older logs**
 - **Upload additional files** at any time without losing what you've already loaded
+- The **EVTX**, **PCAP**, and **HAR** analysers can also be launched **on their own from the welcome screen** — no log bundle required — if you only need to inspect one of those
 - Hover the **ⓘ** button next to any component to see the typical path where that log file lives on the server
 
 ### Sidebar — components & file tree
@@ -86,7 +87,7 @@ Highlight any text in the log viewer, then click **Scrub PII & Copy** in the bot
 - Filter entries by **ERROR**, **CRITICAL**, **WARNING**, **INFO**, **VERBOSE**, or **DEBUG** across all loaded files
 - Matching entries are **grouped by logger**, newest activity first, with a total count and a severity breakdown per logger
 - Expand a logger to see its entries with identical messages **collapsed and counted**; click one to open it in the viewer and step through every occurrence with ▲▼
-- **Right-click any entry** to copy a scrubbed copy of the line or search it in Yext (see *Recognised errors* and *PII scrubbing*)
+- **Right-click any entry** to copy a scrubbed copy of the line, search it in Yext, or pin it to your notes (see *Recognised errors*, *Notes & pinned entries*, and *PII scrubbing*)
 
 ### Global time range
 - Restrict **every** loaded log to a specific start/end window with a single control
@@ -97,7 +98,7 @@ Highlight any text in the log viewer, then click **Scrub PII & Copy** in the bot
 - Lines matching a known error show an amber **!** badge linking straight to the relevant article
 - The **Recognised errors** view lists each distinct known error once, showing how many times it occurred; step through every occurrence with ▲▼, or jump to other components that hit the same error
 - **Search in Yext** — from a recognised error's badge, or by right-clicking any log line, the tool copies a **PII-scrubbed** copy of the text to your clipboard and opens Yext ready to paste
-- **🧪 Test KB** (footer) — paste any line to check whether it matches a signature, and see which dictionary version is loaded (inline or hosted)
+- **⚠ Recognised errors…** (in **🗒 Notes**) — preview every recognised error found in the currently loaded logs, then optionally add a summary to your note and pin one example of each in a single click
 
 ### Log viewer
 - Opens the complete log file with the selected entry highlighted and centred
@@ -137,11 +138,19 @@ Highlight any text in the log viewer, then click **Scrub PII & Copy** in the bot
 - **📋 Export findings** — generate a PII-scrubbed support summary (distinct recognised errors with counts, per-component error/critical tallies, active time range, optional EVTX summary) ready to paste into a ticket
 - **🌍 Local / UTC toggle** — switch how all timestamps are displayed across the app, so logs, EVTX and captures line up without time-zone drift
 
+### Notes & pinned entries
+- **🗒 Notes** opens a persistent, on-device scratchpad — type free-form notes (root-cause theories, timestamps of interest, ticket numbers) and they save automatically as you go
+- **📌 Pin this line** — right-click any log line to pin it; each pin records the line text, its timestamp, and the file and folder it came from, so you can find it again even after the logs are gone. Click a pin to jump straight back to it in the viewer
+- **Named sessions** — each set of logs you load gets its own note set, named after the zip (or the product and time for loose files), and **🕘 History** reopens the last 10
+- **⚠ Recognised errors…** — preview the recognised errors found in the loaded logs and, in one click, append a summary to your note and pin one example of each
+- **Copy** or **download** the note and all pinned entries as a text file, with a **scrub toggle** that PII-scrubs the copied/exported text (your stored pins and the logs themselves are never altered)
+- Stored only in this browser, on this device — survives reloads and cache-busting, but not a manual "clear site data"
+
 ### PII scrubbing
 - Highlight any text in the log viewer with your mouse
 - The **Scrub PII & Copy** button shows a preview of every replacement before anything is copied
 - Patterns scrubbed: IPv4 and IPv6 addresses, email addresses, `DOMAIN\username` pairs, UPNs, Windows SIDs, UNC paths, GUIDs, and key=value username fields
-- **Right-click any log line** to copy a scrubbed copy of it, or to search it in Yext — the text is always scrubbed before it reaches the clipboard
+- **Right-click any log line** to copy a scrubbed copy of it, search it in Yext, or pin it to your notes — text sent to the clipboard or to Yext is always scrubbed first
 - A copyable text box is provided as a fallback if the browser blocks clipboard access
 
 ### Appearance & convenience
@@ -149,7 +158,8 @@ Highlight any text in the log viewer, then click **Scrub PII & Copy** in the bot
 - **Resizable panels** — the sidebar, results, and viewer widths persist between sessions
 - **Installable** as a Progressive Web App for quick access
 - **Hard refresh** button to clear the cache and pull the latest version, with automatic update detection
-- **Feedback** button for sending ideas or reporting issues
+- **🩺 Diagnostics** — a privacy-safe troubleshooting panel that collects **metadata and app errors only** (app version, environment, memory, and a timeline of events — never log content, file names, or scrubbed text). View this-session and previous-session records, then copy or download (PII-scrubbed on export) to share with the developer if you hit a problem
+- **⭐ GitHub** and **💬 Feedback** buttons for viewing the source or sending ideas and reporting issues
 
 ### Privacy
 - 100% client-side — log data never leaves your device
