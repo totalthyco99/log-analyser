@@ -1653,22 +1653,35 @@ if (typeof window !== 'undefined') window.parseHar = parseHar;
   #btn-prev-match:hover, #btn-next-match:hover { border-color: var(--accent-purple); color: var(--text-primary); }
 
   /* TIME WINDOW */
-  .time-window-wrap {
-    display: flex; align-items: center; gap: 4px;
-    flex-shrink: 0;
+  /* Viewer time-range tool (mirrors the global time-range control) */
+  #viewer-time-range { position: relative; display: flex; align-items: center; gap: 4px; flex-shrink: 0; }
+  #btn-vtr {
+    display: flex; align-items: center; gap: 6px; padding: 4px 10px;
+    border: 1px solid var(--border); border-radius: var(--radius-md);
+    background: var(--bg-elevated); color: var(--text-secondary);
+    font-size: 11px; font-weight: 600; cursor: pointer; transition: all 0.12s; white-space: nowrap;
   }
-  .time-window-label { font-size: 10px; color: var(--text-muted); font-weight: 600; letter-spacing: 0.5px; }
-  .tw-btn {
-    padding: 3px 7px;
-    border: 1px solid var(--border);
-    border-radius: 20px;
-    font-size: 10px; font-family: var(--font-mono); font-weight: 600;
-    color: var(--text-muted);
-    background: var(--bg-elevated);
-    transition: all 0.12s; cursor: pointer;
+  #btn-vtr:hover { border-color: var(--accent-teal); color: var(--text-primary); }
+  #viewer-time-range.active #btn-vtr { border-color: var(--accent-teal); color: var(--accent-teal); background: var(--highlight-similar); }
+  #vtr-reset {
+    width: 22px; height: 22px; border-radius: var(--radius-sm); flex-shrink: 0;
+    border: 1px solid var(--border); background: var(--bg-base); color: var(--text-muted);
+    font-size: 11px; cursor: pointer; transition: all 0.12s;
   }
-  .tw-btn:hover { border-color: var(--accent-teal); color: var(--accent-teal); }
-  .tw-btn.active { background: var(--accent-teal-dim); border-color: var(--accent-teal); color: var(--accent-teal); }
+  #vtr-reset:hover { border-color: var(--level-error); color: var(--level-error); }
+  #vtr-reset.hidden { display: none; }
+  #vtr-popover {
+    position: absolute; top: calc(100% + 6px); left: 0; z-index: 1500;
+    width: 260px; padding: 12px; background: var(--bg-base);
+    border: 1px solid var(--accent-teal); border-radius: var(--radius-lg); box-shadow: var(--shadow-lg);
+    display: flex; flex-direction: column; gap: 8px;
+  }
+  #vtr-popover.hidden { display: none; }
+  #vtr-apply {
+    padding: 6px 8px; border-radius: var(--radius-sm); border: 1px solid var(--accent-teal);
+    background: var(--accent-teal-dim); color: var(--accent-teal); font-size: 11px; font-weight: 700; cursor: pointer; transition: all 0.12s;
+  }
+  #vtr-apply:hover { background: var(--accent-teal); color: #fff; }
   #btn-highlight-similar {
     padding: 4px 10px;
     border: 1px solid var(--border);
@@ -2332,6 +2345,11 @@ if (typeof window !== 'undefined') window.parseHar = parseHar;
     animation: tl-spin 0.8s linear infinite;
   }
   @keyframes tl-spin { to { transform: rotate(360deg); } }
+  .tl-trunc {
+    padding: 6px 14px; font-size: 11px; color: var(--text-muted);
+    background: var(--bg-surface); border-bottom: 1px dashed var(--border);
+    text-align: center; position: sticky; top: 0; z-index: 1;
+  }
   #btn-timeline-close {
     width: 28px; height: 28px; border-radius: var(--radius-sm); border: 1px solid var(--border);
     background: var(--bg-elevated); color: var(--text-muted); cursor: pointer; transition: all 0.12s;
@@ -2369,7 +2387,13 @@ if (typeof window !== 'undefined') window.parseHar = parseHar;
   }
   #tl-search:focus { border-color: var(--accent-teal); outline: none; }
   #tl-match-count { font-size: 10px; color: var(--accent-teal); font-family: var(--font-mono); min-width: 60px; text-align: right; }
-  #timeline-list { flex: 1; overflow-y: auto; font-family: var(--font-mono); font-size: 11px; }
+  #timeline-list { flex: 1; overflow-y: auto; overflow-x: hidden; font-family: var(--font-mono); font-size: 12px; line-height: 1.7; position: relative; }
+  #tl-sizer { position: relative; width: 1px; pointer-events: none; }
+  #tl-rows { position: absolute; left: 0; right: 0; top: 0; }
+  #tl-rows .log-line { cursor: pointer; }
+  #tl-rows .log-line .lc { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; word-break: normal; }
+  #tl-rows .log-line.tl-current { background: var(--highlight-focus) !important; }
+  #tl-rows .log-line.tl-match { background: var(--highlight-search); }
   .tl-day-sep {
     position: sticky; top: 0; z-index: 1; padding: 4px 14px; background: var(--bg-surface);
     border-bottom: 1px solid var(--border); border-top: 1px solid var(--border);
@@ -3233,13 +3257,26 @@ if (typeof window !== 'undefined') window.parseHar = parseHar;
               <button id="btn-prev-match" title="Previous match">▲</button>
               <button id="btn-next-match" title="Next match">▼</button>
               <div class="topbar-divider"></div>
-              <div class="time-window-wrap">
-                <span class="time-window-label">±</span>
-                <button class="tw-btn" data-minutes="15">15m</button>
-                <button class="tw-btn" data-minutes="30">30m</button>
-                <button class="tw-btn" data-minutes="60">1h</button>
-                <button class="tw-btn" data-minutes="240">4h</button>
-                <button class="tw-btn active" data-minutes="0">All</button>
+              <div id="viewer-time-range" title="Restrict the open file to a time range">
+                <button id="btn-vtr" title="Choose a time range">⏱ <span id="vtr-label-text">Whole file</span> <span style="opacity:.6">▾</span></button>
+                <button id="vtr-reset" class="hidden" title="Show the whole file again">✕</button>
+                <div id="vtr-popover" class="hidden">
+                  <div class="gtr-pop-title">Around this entry</div>
+                  <div class="gtr-presets">
+                    <button data-min="15">± 15 minutes</button>
+                    <button data-min="30">± 30 minutes</button>
+                    <button data-min="60">± 1 hour</button>
+                    <button data-min="240">± 4 hours</button>
+                    <button data-min="0" class="gtr-all">Whole file</button>
+                  </div>
+                  <div class="gtr-pop-note">Centred on the line you opened.</div>
+                  <div class="gtr-pop-title">Custom range</div>
+                  <div class="gtr-custom">
+                    <label>From <input type="datetime-local" id="vtr-start" step="1"></label>
+                    <label>To <input type="datetime-local" id="vtr-end" step="1"></label>
+                    <button id="vtr-apply" title="Apply this custom range">Apply custom range</button>
+                  </div>
+                </div>
               </div>
               <div class="topbar-divider"></div>
               <button id="btn-highlight-similar" title="Highlight entries with same logger">Similar</button>
@@ -3806,7 +3843,9 @@ const state = {
   focusedLineNo: null,
   focusedLogger: null,
   activeLevel: 'ALL',
-  timeWindow: 0, // minutes, 0=all
+  timeWindow: 0, // minutes, 0=all (± preset around the focused entry)
+  viewerRange: null,      // {start,end} epoch ms — custom absolute range in the viewer
+  viewerRangeLabel: '',   // label for the viewer range button
   highlightSimilar: false,
   searchMatches: [],
   searchIndex: 0,
@@ -5296,6 +5335,8 @@ function analyseFiles() {
     else if (Object.keys(state.loadedEvtx).length) {
       openEvtxWindow(Object.keys(state.loadedEvtx)[0]);
     }
+    // Quietly pre-build the cross-component timeline so it opens instantly.
+    if (typeof tlSchedulePreload === 'function') tlSchedulePreload();
   };
 
   if (!compIds.length) {
@@ -6973,17 +7014,27 @@ function vsScroll() {
 // Attach scroll listener once
 document.getElementById('log-content').addEventListener('scroll', vsScroll, { passive: true });
 
-function renderViewerLines(allLines, focusLineNo, windowMinutes) {
-  let lines = allLines;
-
-  if (windowMinutes > 0) {
+// Filter the open file's lines by the viewer's time scope: a custom absolute
+// range if set, otherwise a ± window around the focused entry, otherwise all.
+function filterViewerLines(allLines, focusLineNo) {
+  if (state.viewerRange) {
+    const { start, end } = state.viewerRange;
+    return allLines.filter(l => l.ts != null && (start == null || l.ts >= start) && (end == null || l.ts <= end));
+  }
+  if (state.timeWindow > 0) {
     const focusLine = allLines.find(l => l.lineNo === focusLineNo);
     if (focusLine && focusLine.ts) {
-      const fts   = focusLine.ts;
-      const delta = windowMinutes * 60 * 1000;
-      lines = allLines.filter(l => l.ts !== null && Math.abs(l.ts - fts) <= delta);
+      const delta = state.timeWindow * 60 * 1000;
+      return allLines.filter(l => l.ts !== null && Math.abs(l.ts - focusLine.ts) <= delta);
     }
   }
+  return allLines;
+}
+
+function renderViewerLines(allLines, focusLineNo, windowMinutes) {
+  let lines = filterViewerLines(allLines, focusLineNo);
+  // Never leave the viewer blank (e.g. a custom range that excludes this file).
+  if (!lines.length && allLines.length) lines = allLines;
 
   VS.highlightSimilar = state.highlightSimilar;
   VS.similarLogger    = state.focusedLogger;
@@ -7055,16 +7106,87 @@ function scrollToSearchIndex(idx) {
   }
 }
 
-// TIME WINDOW
-document.querySelectorAll('.tw-btn').forEach(btn => {
-  btn.addEventListener('click', () => {
-    document.querySelectorAll('.tw-btn').forEach(b => b.classList.remove('active'));
-    btn.classList.add('active');
-    state.timeWindow = parseInt(btn.dataset.minutes);
-    if (currentViewerLines.length) {
-      renderViewerLines(currentViewerLines, state.focusedLineNo, state.timeWindow);
-    }
+// VIEWER TIME RANGE — a popover tool (presets + custom From/To) mirroring the
+// global time-range control, but scoped to the open file.
+function vtrMinsLabel(min) {
+  return ({ 15: '15 minutes', 30: '30 minutes', 60: '1 hour', 240: '4 hours' })[min] || (min + 'm');
+}
+function refreshVtrLabel() {
+  const wrap = document.getElementById('viewer-time-range');
+  if (!wrap) return;
+  const active = !!state.viewerRange || state.timeWindow > 0;
+  wrap.classList.toggle('active', active);
+  document.getElementById('vtr-reset').classList.toggle('hidden', !active);
+  const txt = document.getElementById('vtr-label-text');
+  if (txt) txt.textContent = state.viewerRange ? (state.viewerRangeLabel || 'Custom range')
+    : (state.timeWindow > 0 ? '± ' + vtrMinsLabel(state.timeWindow) : 'Whole file');
+  document.querySelectorAll('#vtr-popover .gtr-presets button').forEach(b => {
+    const m = b.dataset.min;
+    const on = state.viewerRange ? false : (m === '0' ? state.timeWindow === 0 : String(state.timeWindow) === m);
+    b.classList.toggle('active', on);
   });
+}
+function rerenderViewer() {
+  if (currentViewerLines.length) renderViewerLines(currentViewerLines, state.focusedLineNo);
+}
+function applyVtrPreset(min) {
+  state.viewerRange = null;
+  state.viewerRangeLabel = '';
+  state.timeWindow = min;
+  refreshVtrLabel();
+  document.getElementById('vtr-popover').classList.add('hidden');
+  rerenderViewer();
+}
+document.querySelectorAll('#vtr-popover .gtr-presets button').forEach(btn => {
+  btn.addEventListener('click', () => applyVtrPreset(parseInt(btn.dataset.min, 10)));
+});
+document.getElementById('vtr-apply').addEventListener('click', () => {
+  const start = parseLocalDatetime(document.getElementById('vtr-start').value);
+  const end   = parseLocalDatetime(document.getElementById('vtr-end').value);
+  if (start == null && end == null) { showAppToast && showAppToast('Enter a From and/or To time'); return; }
+  // Validate against the open file so we never apply an empty range.
+  const hit = currentViewerLines.some(l => l.ts != null && (start == null || l.ts >= start) && (end == null || l.ts <= end));
+  if (!hit) { showAppToast && showAppToast('No log lines in that range'); return; }
+  state.viewerRange = { start, end };
+  state.timeWindow = 0;
+  const fmt = (ms) => ms == null ? '…' : fmtTimeTz(ms, false);
+  state.viewerRangeLabel = `${fmt(start)} → ${fmt(end)}`;
+  refreshVtrLabel();
+  document.getElementById('vtr-popover').classList.add('hidden');
+  rerenderViewer();
+});
+document.getElementById('vtr-reset').addEventListener('click', () => {
+  state.viewerRange = null; state.viewerRangeLabel = ''; state.timeWindow = 0;
+  document.getElementById('vtr-start').value = '';
+  document.getElementById('vtr-end').value = '';
+  refreshVtrLabel();
+  rerenderViewer();
+});
+document.getElementById('btn-vtr').addEventListener('click', (e) => {
+  e.stopPropagation();
+  const pop = document.getElementById('vtr-popover');
+  pop.classList.toggle('hidden');
+  // On open, prefill the custom inputs (around the focused entry) if empty.
+  if (!pop.classList.contains('hidden')) {
+    const sEl = document.getElementById('vtr-start'), eEl = document.getElementById('vtr-end');
+    if (!sEl.value && !eEl.value && currentViewerLines.length) {
+      const fl = currentViewerLines.find(l => l.lineNo === state.focusedLineNo);
+      let center = fl && fl.ts ? fl.ts : null;
+      if (center == null) { for (let i = currentViewerLines.length - 1; i >= 0; i--) { if (currentViewerLines[i].ts) { center = currentViewerLines[i].ts; break; } } }
+      if (center != null) {
+        const toLocal = (ms) => { const d = new Date(ms - new Date(ms).getTimezoneOffset() * 60000); return d.toISOString().slice(0, 19); };
+        sEl.value = toLocal(center - 30 * 60000);
+        eEl.value = toLocal(center + 30 * 60000);
+      }
+    }
+  }
+});
+document.addEventListener('click', (e) => {
+  const pop = document.getElementById('vtr-popover');
+  if (pop && !pop.classList.contains('hidden') && !e.target.closest('#viewer-time-range')) pop.classList.add('hidden');
+});
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') { const p = document.getElementById('vtr-popover'); if (p) p.classList.add('hidden'); }
 });
 
 // HIGHLIGHT SIMILAR
@@ -8036,7 +8158,11 @@ document.getElementById('btn-home').addEventListener('click', () => {
   document.getElementById('results-header-count').textContent = '';
   document.getElementById('btn-scrub').disabled = true;
   document.querySelectorAll('.level-filter-btn').forEach(b => b.classList.toggle('active', b.dataset.level === 'ALL'));
-  document.querySelectorAll('.tw-btn').forEach(b => b.classList.toggle('active', b.dataset.minutes === '0'));
+  // Reset viewer time-range tool
+  state.viewerRange = null; state.viewerRangeLabel = '';
+  const vs = document.getElementById('vtr-start'); if (vs) vs.value = '';
+  const ve = document.getElementById('vtr-end'); if (ve) ve.value = '';
+  if (typeof refreshVtrLabel === 'function') refreshVtrLabel();
   currentViewerLines = [];
   currentFocusEntry  = null;
 
@@ -8674,28 +8800,88 @@ const TL = {
   nodes: [],             // [{ key, label, lineCount, maxTs, comps:Set }]
   nodeComps: [],         // compIds present in the selected node
   nodeCommonDepth: 0,    // shared leading path-segments to strip (wrapper folders)
+  _win: [],              // rows in the current window (the virtual list's data)
+  lineH: 0,              // measured row height (px) for virtual scrolling
+  overscan: 18,          // extra rows rendered above/below the viewport
+  _raf: null,
+  _pinBottom: false,     // keep the view stuck to the newest entry
+  _prepared: false,      // background preload has run
+  _preparedSig: '',      // data signature the preload was built against
 };
 
 document.getElementById('btn-timeline').addEventListener('click', () => {
   if (!Object.keys(state.loadedData || {}).length) { showAppToast && showAppToast('Load some logs first'); return; }
   document.getElementById('timeline-overlay').classList.remove('hidden');
-  TL.query = ''; TL.matches = []; TL.matchIdx = -1; TL.windowEnd = null;
+  TL.query = ''; TL.matches = []; TL.matchIdx = -1;
   const searchEl = document.getElementById('tl-search');
   if (searchEl) searchEl.value = '';
-  // Show a spinner straight away, then do the heavy gathering on the next
-  // frame so the overlay paints first (large bundles take a moment).
+  // Fast path: the background preload already gathered this node's rows and the
+  // data hasn't changed since — open instantly, no spinner.
+  if (TL._prepared && TL._preparedSig === tlDataSig() && TL.nodes.length) {
+    tlResetViewToNewest();
+    renderTimelineNodeSelector();
+    renderTimelineChips();
+    renderTimeline();
+    return;
+  }
+  // Slow path: gather on the next frame so the spinner paints first.
   setTimelineLoading(true);
   requestAnimationFrame(() => setTimeout(() => {
-    tlComputeNodeCommonDepth();
-    tlBuildNodeList();
-    // Default to the node with the most recent activity so we open on
-    // something useful rather than everything at once.
-    let def = TL.nodes[0] ? TL.nodes[0].key : '';
-    let best = -Infinity;
-    for (const n of TL.nodes) { if (n.maxTs != null && n.maxTs > best) { best = n.maxTs; def = n.key; } }
-    setActiveTimelineNode(def, /*resetWindow*/true, /*spinner already shown*/false);
+    tlPrepareData();          // computes nodes + builds the default node's rows
+    tlResetViewToNewest();
+    renderTimelineNodeSelector();
+    renderTimelineChips();
+    renderTimeline();
   }, 0));
 });
+
+// A cheap signature of the loaded data — used to tell whether the preloaded
+// timeline is still valid.
+function tlDataSig() {
+  let comps = 0, lines = 0;
+  for (const d of Object.values(state.loadedData || {})) { comps++; lines += (d.merged ? d.merged.length : 0); }
+  return comps + ':' + lines;
+}
+
+// Compute nodes, pick the most-recent node as default, and build its rows.
+function tlPrepareData() {
+  tlComputeNodeCommonDepth();
+  tlBuildNodeList();
+  let def = TL.nodes[0] ? TL.nodes[0].key : '';
+  let best = -Infinity;
+  for (const n of TL.nodes) { if (n.maxTs != null && n.maxTs > best) { best = n.maxTs; def = n.key; } }
+  TL.node = def;
+  const entry = TL.nodes.find(n => n.key === def);
+  TL.nodeComps = entry ? [...entry.comps] : Object.keys(state.loadedData || {});
+  TL.included = new Set(TL.nodeComps);
+  TL.windowEnd = null;
+  rebuildTimelineData(true);
+  TL._prepared = true;
+  TL._preparedSig = tlDataSig();
+}
+
+// Reset the on-screen view to the most-recent window of the current node,
+// with every component shown and no search — without re-scanning.
+function tlResetViewToNewest() {
+  TL.included = new Set(TL.nodeComps);
+  TL.query = ''; TL.matches = []; TL.matchIdx = -1;
+  TL.windowEnd = TL.dataMax != null ? TL.dataMax : Date.now();
+}
+
+// Build the timeline quietly in the background so the first open is instant.
+let _tlPreloadTimer = null;
+function tlSchedulePreload() {
+  clearTimeout(_tlPreloadTimer);
+  const run = () => {
+    try {
+      const tlo = document.getElementById('timeline-overlay');
+      if (tlo && !tlo.classList.contains('hidden')) return;   // don't disturb an open timeline
+      if (Object.keys(state.loadedData || {}).length) tlPrepareData();
+    } catch (_) {}
+  };
+  if (window.requestIdleCallback) requestIdleCallback(run, { timeout: 4000 });
+  else _tlPreloadTimer = setTimeout(run, 1200);
+}
 
 // Show/clear the loading state in the list area.
 function setTimelineLoading(on) {
@@ -8704,21 +8890,36 @@ function setTimelineLoading(on) {
   if (on) {
     list.innerHTML = '<div id="tl-loading"><div class="tl-spinner"></div><div>Building timeline…</div></div>';
   }
-  // When off, the next renderTimeline() replaces the content.
+  // When off, the next renderTimeline() rebuilds the list scaffold.
 }
 document.getElementById('btn-timeline-close').addEventListener('click', () => {
   document.getElementById('timeline-overlay').classList.add('hidden');
 });
 document.getElementById('timeline-errors-only').addEventListener('change', () => {
-  rebuildTimelineData(false); recomputeMatches(); renderTimeline();
+  recomputeMatches(); renderTimeline(null, 'keep');
 });
 document.getElementById('tl-prev').addEventListener('click', () => { shiftWindow(-1); });
 document.getElementById('tl-next').addEventListener('click', () => { shiftWindow(1); });
+// One delegated click handler for all rows (cheaper than a listener per row).
+document.getElementById('timeline-list').addEventListener('click', (e) => {
+  const rowEl = e.target.closest('.log-line');
+  if (!rowEl || rowEl.dataset.i == null) return;
+  const r = TL._win && TL._win[+rowEl.dataset.i];
+  if (!r) return;
+  document.getElementById('timeline-overlay').classList.add('hidden');
+  if (state.activeCompId !== r.compId) activateComponent(r.compId);
+  openInViewer(r.line, r.data);
+});
+// Repaint the visible slice as the user scrolls (virtual list).
+document.getElementById('timeline-list').addEventListener('scroll', () => {
+  if (TL._raf) cancelAnimationFrame(TL._raf);
+  TL._raf = requestAnimationFrame(tlPaintVisible);
+}, { passive: true });
 let tlSearchDebounce = null;
 document.getElementById('tl-search').addEventListener('input', (e) => {
   TL.query = e.target.value;
   clearTimeout(tlSearchDebounce);
-  tlSearchDebounce = setTimeout(() => { recomputeMatches(); renderTimeline(); }, 200);
+  tlSearchDebounce = setTimeout(() => { recomputeMatches(); renderTimeline(null, 'keep'); }, 200);
 });
 document.getElementById('tl-match-prev').addEventListener('click', () => stepMatch(-1));
 document.getElementById('tl-match-next').addEventListener('click', () => stepMatch(1));
@@ -8854,18 +9055,19 @@ document.getElementById('tl-node-btn').addEventListener('click', (e) => {
   setTimeout(() => document.addEventListener('click', tlNodeMenuOutside, true), 0);
 });
 
-// Gather every eligible row in the selected node across the included
-// components. Optionally reset the window to the most recent activity.
+// Gather every eligible row in the selected node — across ALL of the node's
+// components — sorted once. Component include/exclude and the errors-only
+// toggle are applied cheaply at render/search time, so toggling them never
+// needs another scan or re-sort (that was the slow part).
 function rebuildTimelineData(resetWindow) {
-  const errorsOnly = document.getElementById('timeline-errors-only').checked;
   const rows = [];
+  const inNode = (TL.nodeComps && TL.nodeComps.length) ? new Set(TL.nodeComps) : null;
   for (const [compId, data] of Object.entries(state.loadedData || {})) {
-    if (TL.included && !TL.included.has(compId)) continue;
     if (!data.merged) continue;
+    if (inNode && !inNode.has(compId)) continue;   // cheap skip for comps not in node
     const name = data.compDef ? data.compDef.name : compId;
     for (const l of data.merged) {
       if (l.isContinuation || l.ts == null || !l.level) continue;
-      if (errorsOnly && l.level !== 'ERROR' && l.level !== 'CRITICAL') continue;
       if (TL.node != null && tlNodeKey(l) !== TL.node) continue;
       rows.push({ ts: l.ts, compId, compName: name, line: l, data });
     }
@@ -8879,6 +9081,13 @@ function rebuildTimelineData(resetWindow) {
   } else {
     clampWindow();
   }
+}
+
+// Does a row pass the current component-include + errors-only filters?
+function tlRowPasses(r, errorsOnly) {
+  if (!TL.included.has(r.compId)) return false;
+  if (errorsOnly && r.line.level !== 'ERROR' && r.line.level !== 'CRITICAL') return false;
+  return true;
 }
 
 function clampWindow() {
@@ -8899,8 +9108,10 @@ function shiftWindow(dir) {
 function recomputeMatches() {
   const q = (TL.query || '').trim().toLowerCase();
   if (!q) { TL.matches = []; TL.matchIdx = -1; return; }
+  const errorsOnly = document.getElementById('timeline-errors-only').checked;
   TL.matches = TL.allRows.filter(r =>
-    (r.line.logger || '').toLowerCase().includes(q) || (r.line.text || '').toLowerCase().includes(q));
+    tlRowPasses(r, errorsOnly) &&
+    ((r.line.logger || '').toLowerCase().includes(q) || (r.line.text || '').toLowerCase().includes(q)));
   TL.matchIdx = -1;
 }
 
@@ -8941,10 +9152,11 @@ function renderTimelineChips() {
     chip.addEventListener('click', () => {
       if (TL.included.has(id)) { if (TL.included.size > 1) TL.included.delete(id); }
       else TL.included.add(id);
-      renderTimelineChips();
-      rebuildTimelineData(false);
+      // Reflect the change on the chip immediately — the row list is just a
+      // cheap re-filter of the already-built array, so no rebuild/sort here.
+      chip.classList.toggle('excluded', !TL.included.has(id));
       recomputeMatches();
-      renderTimeline();
+      renderTimeline(null, 'keep');
     });
     wrap.appendChild(chip);
   });
@@ -8958,31 +9170,107 @@ function fmtClock(ts) {
   return fmtTimeTz(ts, true);
 }
 
-function renderTimeline(focusRow) {
+// Measure one row's height in the timeline list (matches .log-line styling).
+function tlMeasureRowH() {
+  const rows = document.getElementById('tl-rows');
+  if (!rows) return TL.lineH || 20.4;
+  const probe = document.createElement('div');
+  probe.className = 'log-line';
+  probe.style.cssText = 'visibility:hidden;position:absolute';
+  probe.innerHTML = '<span class="ln">1</span><span class="lc">x</span>';
+  rows.appendChild(probe);
+  const h = probe.getBoundingClientRect().height || 20.4;
+  rows.removeChild(probe);
+  return h;
+}
+
+// Render only the rows currently in (or near) the viewport — the rest is just
+// empty space held open by the sizer. Keeps the DOM tiny no matter how many
+// entries are in the window, so scrolling and toggling stay smooth.
+function tlPaintVisible() {
+  const list = document.getElementById('timeline-list');
+  const rows = document.getElementById('tl-rows');
+  if (!list || !rows) return;
+  const win = TL._win || [];
+  if (!win.length) { rows.innerHTML = ''; return; }
+  if (!TL.lineH) TL.lineH = tlMeasureRowH();
+  const lh = TL.lineH;
+  const scrollTop = list.scrollTop;
+  const viewH = list.clientHeight || 400;
+  const first = Math.max(0, Math.floor(scrollTop / lh) - TL.overscan);
+  const last  = Math.min(win.length - 1, Math.ceil((scrollTop + viewH) / lh) + TL.overscan);
+  rows.style.top = (first * lh) + 'px';
+
   const colors = componentColorMap();
+  const q = (TL.query || '').trim().toLowerCase();
+  const curMatch = (TL.matchIdx >= 0 && TL.matches[TL.matchIdx]) ? TL.matches[TL.matchIdx] : null;
+  let html = '';
+  for (let i = first; i <= last; i++) {
+    const r = win[i];
+    const lvl = r.line.level || '';
+    const isCurrent = curMatch && r.line === curMatch.line && r.compId === curMatch.compId;
+    const isMatch = !isCurrent && q && ((r.line.logger || '').toLowerCase().includes(q) || (r.line.text || '').toLowerCase().includes(q));
+    let cls = 'log-line';
+    if (lvl) cls += ' level-' + lvl;
+    if (isCurrent) cls += ' tl-current'; else if (isMatch) cls += ' tl-match';
+    html += `<div class="${cls}" data-i="${i}" title="${escHtml(r.compName)} — ${escHtml(r.line._file || '')}:${r.line.lineNo}" style="border-left-color:${colors[r.compId]}">`
+      + `<span class="ln">${r.line.lineNo}</span><span class="lc">${getSafeHtml(r.line)}</span></div>`;
+  }
+  rows.innerHTML = html;
+}
+
+// After a "pin to bottom" render, re-assert the bottom once layout settles —
+// the monospace web-font often swaps in after first paint and grows every row,
+// which would otherwise leave us parked above the newest entry. Skipped if the
+// user has already scrolled away from the bottom.
+function tlReassertBottom() {
+  if (!TL._pinBottom) return;
+  const list = document.getElementById('timeline-list');
+  const tlo  = document.getElementById('timeline-overlay');
+  if (!list || !tlo || tlo.classList.contains('hidden')) return;
+  const lh = TL.lineH || 20.4;
+  if (list.scrollHeight - (list.scrollTop + list.clientHeight) > lh * 3) return; // user scrolled up
+  const measured = tlMeasureRowH();
+  if (measured) TL.lineH = measured;
+  const sizer = document.getElementById('tl-sizer');
+  if (sizer) sizer.style.height = ((TL._win || []).length * TL.lineH) + 'px';
+  list.scrollTop = list.scrollHeight;
+  tlPaintVisible();
+}
+
+// mode: 'bottom' (default — pin newest), 'center' (focus a match), 'keep'
+// (preserve the current scroll position, e.g. when toggling components).
+function renderTimeline(focusRow, mode) {
   const list = document.getElementById('timeline-list');
   if (!list) return;
 
-  // Window bounds
+  // Window bounds + one pass to collect the visible rows and the total shown
+  // (both honour the component-include + errors-only filters).
   const winEnd = TL.windowEnd != null ? TL.windowEnd : (TL.dataMax || Date.now());
   const winStart = winEnd - TL.WINDOW_MS;
-  const windowRows = TL.allRows.filter(r => r.ts > winStart && r.ts <= winEnd);
+  const errorsOnly = document.getElementById('timeline-errors-only').checked;
+  const win = [];
+  let totalShown = 0;
+  for (const r of TL.allRows) {
+    if (!tlRowPasses(r, errorsOnly)) continue;
+    totalShown++;
+    if (r.ts > winStart && r.ts <= winEnd) win.push(r);
+  }
+  TL._win = win;
 
   // Header sub + window label
   const nodeBit = (TL.nodes && TL.nodes.length > 1) ? ` · 🖧 ${tlNodeLabel(TL.node)}` : '';
   document.getElementById('timeline-sub').textContent =
-    `${TL.allRows.length.toLocaleString()} entries · ${TL.included.size} component${TL.included.size === 1 ? '' : 's'}${nodeBit}`;
+    `${totalShown.toLocaleString()} entries · ${TL.included.size} component${TL.included.size === 1 ? '' : 's'}${nodeBit}`;
   const label = document.getElementById('tl-window-label');
   if (label) {
     if (TL.dataMax == null) label.textContent = '—';
     else label.textContent = `${new Date(Math.max(winStart, TL.dataMin)).toLocaleDateString(undefined,{day:'numeric',month:'short'})} – ${new Date(winEnd).toLocaleDateString(undefined,{day:'numeric',month:'short',year:'numeric'})}`;
   }
-  // Enable/disable nav buttons
   const prevBtn = document.getElementById('tl-prev'), nextBtn = document.getElementById('tl-next');
   if (prevBtn) prevBtn.disabled = (TL.dataMin == null) || (winStart <= TL.dataMin);
   if (nextBtn) nextBtn.disabled = (TL.dataMax == null) || (winEnd >= TL.dataMax);
 
-  // Match count
   const mc = document.getElementById('tl-match-count');
   if (mc) {
     if (!TL.query.trim()) mc.textContent = '';
@@ -8994,47 +9282,43 @@ function renderTimeline(focusRow) {
   if (matchPrev) matchPrev.disabled = !TL.matches.length;
   if (matchNext) matchNext.disabled = !TL.matches.length;
 
-  // Build the list with day separators
-  list.innerHTML = '';
-  if (!windowRows.length) {
+  if (!win.length) {
+    TL._pinBottom = false;
     list.innerHTML = '<div class="tl-empty">No entries in this 24-hour window. Use ◀ / ▶ to move day by day, or adjust the node and component filters.</div>';
     return;
   }
-  const q = (TL.query || '').trim().toLowerCase();
+
+  // (Re)create the virtual-scroll scaffold (spinner/empty state may have replaced it).
+  if (!document.getElementById('tl-rows')) {
+    list.innerHTML = '<div id="tl-sizer"></div><div id="tl-rows"></div>';
+  }
+  if (!TL.lineH) TL.lineH = tlMeasureRowH();
+  const lh = TL.lineH;
+  document.getElementById('tl-sizer').style.height = (win.length * lh) + 'px';
+
+  // Decide where to sit.
   const curMatch = (TL.matchIdx >= 0 && TL.matches[TL.matchIdx]) ? TL.matches[TL.matchIdx] : (focusRow || null);
-  const frag = document.createDocumentFragment();
-  let lastDay = '';
-  let currentEl = null;
-  windowRows.forEach(r => {
-    const day = fmtDay(r.ts);
-    if (day !== lastDay) {
-      const sep = document.createElement('div');
-      sep.className = 'tl-day-sep';
-      sep.textContent = day;
-      frag.appendChild(sep);
-      lastDay = day;
-    }
-    const isMatch = q && ((r.line.logger || '').toLowerCase().includes(q) || (r.line.text || '').toLowerCase().includes(q));
-    const isCurrent = curMatch && r.line === curMatch.line && r.compId === curMatch.compId;
-    const row = document.createElement('div');
-    row.className = 'tl-row' + (isMatch ? ' tl-match' : '') + (isCurrent ? ' tl-current' : '');
-    row.style.borderLeftColor = colors[r.compId];
-    row.innerHTML = `
-      <span class="tl-ts">${fmtClock(r.ts)}</span>
-      <span class="tl-comp" style="color:${colors[r.compId]}">${escHtml(r.compName)}</span>
-      <span class="tl-lvl level-${r.line.level}"><span class="level-badge ${r.line.level}">${r.line.level}</span></span>
-      <span class="tl-msg">${escHtml(stripTimestampAndLevelMain(r.line.text)).slice(0,400)}</span>
-    `;
-    row.addEventListener('click', () => {
-      document.getElementById('timeline-overlay').classList.add('hidden');
-      if (state.activeCompId !== r.compId) activateComponent(r.compId);
-      openInViewer(r.line, r.data);
-    });
-    if (isCurrent) currentEl = row;
-    frag.appendChild(row);
-  });
-  list.appendChild(frag);
-  if (currentEl) currentEl.scrollIntoView({ block: 'center' });
+  let curIdx = -1;
+  if (curMatch) curIdx = win.findIndex(r => r.line === curMatch.line && r.compId === curMatch.compId);
+  const viewH = list.clientHeight || 400;
+  const m = (curIdx >= 0) ? 'center' : (mode || 'bottom');
+  if (m === 'center') {
+    TL._pinBottom = false;
+    list.scrollTop = Math.max(0, curIdx * lh - viewH / 2 + lh / 2);
+  } else if (m === 'keep') {
+    TL._pinBottom = false;
+    const maxTop = Math.max(0, win.length * lh - viewH);
+    if (list.scrollTop > maxTop) list.scrollTop = maxTop;
+  } else { // bottom — newest in view
+    TL._pinBottom = true;
+    list.scrollTop = Math.max(0, win.length * lh - viewH);
+  }
+  tlPaintVisible();
+
+  if (TL._pinBottom) {
+    requestAnimationFrame(() => { tlReassertBottom(); requestAnimationFrame(tlReassertBottom); });
+    if (document.fonts && document.fonts.ready) document.fonts.ready.then(tlReassertBottom).catch(() => {});
+  }
 }
 
 // ═══════════════════════════════════════════════════════════════
