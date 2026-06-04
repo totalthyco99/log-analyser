@@ -3025,6 +3025,106 @@ if (typeof window !== 'undefined') window.parseHar = parseHar;
     transition: color 0.12s;
   }
   #btn-pwa-never:hover { color: var(--text-secondary); }
+
+  /* ════ Search results view (middle panel) ════ */
+  #results-panel.search-active #results-control { display: none; }
+  #results-panel.search-active #results-list { padding-top: 2px; }
+  .result-item .ri-msg .search-highlight {
+    background: var(--accent-purple); color: #fff; border-radius: 2px; padding: 0 1px;
+  }
+  .result-item.focused { outline: 1px solid var(--accent-purple); outline-offset: -1px; }
+  #search-summary-bar {
+    flex-shrink: 0; display: none; align-items: center; gap: 10px; flex-wrap: wrap;
+    padding: 6px 12px; font-size: 11px; color: var(--text-secondary);
+    background: var(--bg-surface); border-bottom: 1px solid var(--border);
+  }
+  #results-panel.search-active #search-summary-bar { display: flex; }
+  #search-summary-bar .ssb-filters { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+  #search-summary-bar .ssb-chip {
+    font-size: 10px; padding: 2px 7px; border-radius: 10px; font-family: var(--font-mono);
+    background: var(--bg-elevated); border: 1px solid var(--border); color: var(--text-muted);
+  }
+  #search-summary-bar .ssb-chip.active { border-color: var(--accent-purple); color: var(--accent-purple); }
+  #search-summary-bar .ssb-spacer { flex: 1; }
+
+  /* ════ Cross-component timeline — wrap / move / resize ════ */
+  #timeline-overlay.tl-moved { transform: none; }
+  #timeline-header { cursor: grab; user-select: none; }
+  #timeline-header.tl-dragging { cursor: grabbing; }
+  #timeline-header button, #timeline-header input, #timeline-header label, #timeline-header #tl-node-btn { cursor: pointer; }
+  #timeline-wrap-wrap { font-size: 11px; color: var(--text-secondary); display: flex; align-items: center; gap: 5px; cursor: pointer; white-space: nowrap; }
+  #timeline-wrap-wrap input { accent-color: var(--accent-teal); cursor: pointer; margin: 0; }
+  /* When wrapping is on, rows flow naturally and text wraps */
+  #timeline-list.tl-wrap #tl-rows { position: static; }
+  #timeline-list.tl-wrap #tl-sizer { display: none; }
+  #timeline-list.tl-wrap #tl-rows .log-line { position: relative; }
+  #timeline-list.tl-wrap #tl-rows .log-line .lc {
+    white-space: pre-wrap; overflow: visible; text-overflow: clip; word-break: break-word;
+  }
+  #tl-resize-handle {
+    position: absolute; right: 2px; bottom: 2px; width: 16px; height: 16px;
+    cursor: nwse-resize; z-index: 5; opacity: 0.5;
+    background:
+      linear-gradient(135deg, transparent 0 45%, var(--text-muted) 45% 55%, transparent 55% 100%),
+      linear-gradient(135deg, transparent 0 70%, var(--text-muted) 70% 80%, transparent 80% 100%);
+  }
+  #tl-resize-handle:hover { opacity: 1; }
+  .tl-wrap-notice {
+    padding: 6px 14px; font-size: 11px; color: var(--level-warn);
+    background: var(--level-warn-bg); border-bottom: 1px dashed var(--level-warn);
+    text-align: center;
+  }
+
+  /* ════ Recognised-error detection popup (anchored to the toolbar button) ════ */
+  #rec-detect-pop {
+    position: fixed; z-index: 520; width: min(340px, 92vw);
+    background: var(--bg-elevated); border: 1px solid #F59E0B; border-radius: var(--radius-md);
+    box-shadow: 0 14px 40px rgba(0,0,0,0.5); padding: 12px 14px; font-size: 12px;
+    color: var(--text-secondary);
+  }
+  #rec-detect-pop.hidden { display: none; }
+  #rec-detect-pop .rdp-title { font-weight: 700; color: #F59E0B; display: flex; align-items: center; gap: 6px; margin-bottom: 4px; }
+  #rec-detect-pop .rdp-body { line-height: 1.5; margin-bottom: 10px; color: var(--text-secondary); }
+  #rec-detect-pop .rdp-actions { display: flex; gap: 8px; }
+  #rec-detect-pop button {
+    font-size: 11px; padding: 5px 11px; border-radius: var(--radius-sm); cursor: pointer;
+    border: 1px solid var(--border); background: var(--bg-surface); color: var(--text-secondary); transition: all 0.12s;
+  }
+  #rec-detect-pop button.primary { background: #F59E0B; color: #1a1205; border-color: #F59E0B; font-weight: 700; }
+  #rec-detect-pop button.primary:hover { opacity: 0.9; }
+  #rec-detect-pop button:not(.primary):hover { border-color: var(--text-muted); color: var(--text-primary); }
+  #rec-detect-pop .rdp-arrow {
+    position: absolute; top: -7px; width: 12px; height: 12px; transform: rotate(45deg);
+    background: var(--bg-elevated); border-left: 1px solid #F59E0B; border-top: 1px solid #F59E0B;
+  }
+
+  /* Per-recognised-error action buttons (in the grouped results) */
+  .recognised-group .rg-actions { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 7px; }
+  .recognised-group .rg-act {
+    font-size: 10px; padding: 3px 9px; border-radius: 10px; cursor: pointer; transition: all 0.12s;
+    background: var(--bg-elevated); border: 1px solid var(--border); color: var(--text-secondary);
+  }
+  .recognised-group .rg-act:hover { border-color: var(--accent-teal); color: var(--text-primary); }
+  .recognised-group .rg-act.rg-dismiss:hover { border-color: var(--level-warn); color: var(--level-warn); }
+  .rec-restore-note { margin-top: 10px; font-size: 11px; color: var(--text-muted); text-align: center; }
+  .rec-restore-note button {
+    font-size: 11px; padding: 3px 10px; margin-left: 6px; border-radius: var(--radius-sm); cursor: pointer;
+    background: var(--bg-elevated); border: 1px solid var(--border); color: var(--text-secondary);
+  }
+  .rec-restore-note button:hover { border-color: var(--accent-teal); color: var(--text-primary); }
+
+  /* Top-bar "add formats" dropdown (declutters EVTX/PCAP/HAR) */
+  #add-formats-menu {
+    position: absolute; z-index: 60; top: calc(100% + 4px); left: 0; min-width: 160px;
+    background: var(--bg-elevated); border: 1px solid var(--border); border-radius: var(--radius-md);
+    box-shadow: 0 10px 28px rgba(0,0,0,0.45); padding: 4px; display: flex; flex-direction: column; gap: 2px;
+  }
+  #add-formats-menu.hidden { display: none; }
+  #add-formats-menu button {
+    text-align: left; font-size: 12px; padding: 6px 10px; border-radius: var(--radius-sm);
+    background: transparent; border: 1px solid transparent; color: var(--text-secondary); cursor: pointer; transition: all 0.12s;
+  }
+  #add-formats-menu button:hover { background: var(--bg-hover); color: var(--text-primary); }
 </style>
 </head>
 <body>
@@ -3174,11 +3274,19 @@ if (typeof window !== 'undefined') window.parseHar = parseHar;
             <span class="topbar-count" id="result-count">— entries</span>
             <div class="topbar-spacer"></div>
             <button id="btn-add-more" title="Keep the files already loaded and add more on top">+ Upload additional files</button>
-            <button id="btn-add-evtx" title="Upload a Windows Event Log (.evtx) and analyse it in a floating window">⬆ Upload &amp; analyse EVTX</button>
+            <div id="add-formats-wrap" style="position:relative;display:inline-block">
+              <button id="btn-add-formats" title="Upload and analyse a Windows event log, network capture, or HTTP archive">➕ EVTX / PCAP / HAR ▾</button>
+              <div id="add-formats-menu" class="hidden">
+                <button data-target="btn-add-evtx">⬆ Analyse EVTX</button>
+                <button data-target="btn-add-pcap">🌐 Analyse PCAP</button>
+                <button data-target="btn-add-har">🔗 Analyse HAR</button>
+              </div>
+            </div>
+            <button id="btn-add-evtx" style="display:none" title="Upload a Windows Event Log (.evtx) and analyse it in a floating window">⬆ Upload &amp; analyse EVTX</button>
             <input type="file" id="evtx-input" accept=".evtx" multiple style="display:none">
-            <button id="btn-add-pcap" title="Upload a network capture (.pcap/.pcapng) and view it alongside your logs">🌐 Upload &amp; analyse PCAP</button>
+            <button id="btn-add-pcap" style="display:none" title="Upload a network capture (.pcap/.pcapng) and view it alongside your logs">🌐 Upload &amp; analyse PCAP</button>
             <input type="file" id="pcap-input" accept=".pcap,.pcapng,.cap,.gz" multiple style="display:none">
-            <button id="btn-add-har" title="Upload a browser HAR (HTTP Archive) and view requests alongside your logs">🔗 Upload &amp; analyse HAR</button>
+            <button id="btn-add-har" style="display:none" title="Upload a browser HAR (HTTP Archive) and view requests alongside your logs">🔗 Upload &amp; analyse HAR</button>
             <input type="file" id="har-input" accept=".har,.json" multiple style="display:none">
           </div>
           <div class="topbar-row topbar-row-secondary">
@@ -3232,6 +3340,11 @@ if (typeof window !== 'undefined') window.parseHar = parseHar;
               </select>
               <input id="results-term" type="text" placeholder="logger or keyword…" autocomplete="off" title="Preselected from the dropdown — edit to any logger or keyword">
               <button id="btn-run-results" title="Group the entries by logger (with similar entries collapsed)">▶ Run</button>
+            </div>
+            <div id="search-summary-bar">
+              <span id="ssb-text"></span>
+              <span class="ssb-spacer"></span>
+              <span class="ssb-filters" id="ssb-filters"></span>
             </div>
             <div id="results-list">
               <div class="empty-state">
@@ -3464,6 +3577,7 @@ if (typeof window !== 'undefined') window.parseHar = parseHar;
       <button id="tl-node-btn"><span class="tlnb-icon">🖧</span><span class="tlnb-name">Node</span><span class="tlnb-caret">▾</span></button>
     </div>
     <label id="timeline-errors-only-wrap" title="Show only ERROR/CRITICAL lines"><input type="checkbox" id="timeline-errors-only"> Errors only</label>
+    <label id="timeline-wrap-wrap" title="Wrap long lines instead of truncating them"><input type="checkbox" id="timeline-wrap"> Wrap</label>
     <button id="btn-timeline-close" title="Close">✕</button>
   </div>
   <div id="timeline-comps" title="Click a component to include/exclude it from the timeline"></div>
@@ -3478,6 +3592,19 @@ if (typeof window !== 'undefined') window.parseHar = parseHar;
     <button id="tl-match-next" title="Next match (jumps the window)">▼</button>
   </div>
   <div id="timeline-list"></div>
+  <div id="tl-resize-handle" title="Drag to resize"></div>
+</div>
+
+<!-- RECOGNISED-ERROR DETECTION POPUP (anchored to the toolbar button) -->
+<div id="rec-detect-pop" class="hidden">
+  <div class="rdp-arrow"></div>
+  <div class="rdp-title">⚠ <span id="rdp-count-text">Recognised errors detected</span></div>
+  <div class="rdp-body" id="rdp-body"></div>
+  <div class="rdp-actions">
+    <button class="primary" id="rdp-view">View them</button>
+    <button id="rdp-dismiss">Don't suggest again</button>
+    <button id="rdp-later">Later</button>
+  </div>
 </div>
 
 <!-- EXPORT FINDINGS MODAL -->
@@ -4061,6 +4188,33 @@ function kbMatchLine(line) {
 // Build the small amber badge button HTML for a matched signature.
 function kbBadgeHtml() {
   return '<button class="kb-badge" title="Recognised error — click for documentation" aria-label="Recognised error">!</button>';
+}
+
+// ── Dismissed recognised-error signatures ("don't suggest again") ──
+// Persisted on this device. Dismissed signatures are hidden from the grouped
+// recognised view, excluded from the count badge, and never trigger the
+// detection popup. The user can restore them all from the recognised view.
+const KB_DISMISS_KEY = 'tse-kb-dismissed';
+const kbDismissed = (function () {
+  try { return new Set(JSON.parse(localStorage.getItem(KB_DISMISS_KEY) || '[]')); }
+  catch (_) { return new Set(); }
+})();
+function kbSaveDismissed() {
+  try { localStorage.setItem(KB_DISMISS_KEY, JSON.stringify([...kbDismissed])); } catch (_) {}
+}
+function isSigDismissed(id) { return kbDismissed.has(id); }
+function dismissSig(id) {
+  kbDismissed.add(id);
+  kbSaveDismissed();
+  // Invalidate cached counts so the badge updates.
+  for (const d of Object.values(state.loadedData || {})) { if (d) d._kbCount = null; }
+  if (typeof updateRecognisedCount === 'function') updateRecognisedCount();
+}
+function restoreAllSigs() {
+  kbDismissed.clear();
+  kbSaveDismissed();
+  for (const d of Object.values(state.loadedData || {})) { if (d) d._kbCount = null; }
+  if (typeof updateRecognisedCount === 'function') updateRecognisedCount();
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -5897,6 +6051,12 @@ document.querySelectorAll('.level-filter-btn').forEach(btn => {
     // Changing the filter set invalidates any active occurrence navigation
     const occBar = document.getElementById('occurrence-bar');
     if (occBar) occBar.style.display = 'none';
+    // While a global search is active, the level buttons filter the SEARCH
+    // results (re-run with the new level), not the grouped component view.
+    if (typeof globalSearchActive !== 'undefined' && globalSearchActive && state.globalSearchTerm) {
+      runGlobalSearch(state.globalSearchTerm);
+      return;
+    }
     state.resultsRun = true; // a level click is an explicit request to see grouped results
     applyFilter();
   });
@@ -6167,6 +6327,7 @@ function renderRecognisedGroups(entries, data) {
   for (const l of entries) {
     const sig = kbMatchLine(l);
     if (!sig) continue;
+    if (isSigDismissed(sig.id)) continue;   // "don't suggest again"
     if (!groups.has(sig.id)) groups.set(sig.id, { sig, occurrences: [] });
     groups.get(sig.id).occurrences.push(l);
   }
@@ -6183,7 +6344,12 @@ function renderRecognisedGroups(entries, data) {
   list.onscroll = null;
   list.innerHTML = '';
   if (!groupList.length) {
-    list.innerHTML = '<div class="empty-state"><div class="empty-state-icon">⚠</div><div>No recognised errors in this view</div></div>';
+    const dismissedNote = kbDismissed.size
+      ? `<div class="rec-restore-note">${kbDismissed.size} signature${kbDismissed.size === 1 ? '' : 's'} hidden via “don't suggest again”.<button id="btn-restore-sigs">Restore all</button></div>`
+      : '';
+    list.innerHTML = '<div class="empty-state"><div class="empty-state-icon">⚠</div><div>No recognised errors in this view</div></div>' + dismissedNote;
+    const rb = document.getElementById('btn-restore-sigs');
+    if (rb) rb.addEventListener('click', () => { restoreAllSigs(); applyFilter(); });
     return;
   }
 
@@ -6202,13 +6368,29 @@ function renderRecognisedGroups(entries, data) {
       </div>
       <div class="ri-msg"><strong>${escHtml(g.sig.title)}</strong></div>
       <div class="rg-snippet">${getStrippedHtml(latest)}</div>
-      ${others.length ? `<button class="rg-others" data-sig="${g.sig.id}">↗ Also in ${others.length} other component${others.length===1?'':'s'}</button>` : ''}
+      <div class="rg-actions">
+        <button class="rg-act rg-pin" title="Pin every occurrence of this error and open your notes, so you can jump back to each one">📌 Pin ${g.occurrences.length} &amp; open note</button>
+        <button class="rg-act rg-dismiss" title="Hide this recognised error and stop suggesting it on this device">🔕 Don't suggest again</button>
+        ${others.length ? `<button class="rg-others" data-sig="${g.sig.id}">↗ Also in ${others.length} other component${others.length===1?'':'s'}</button>` : ''}
+      </div>
     `;
     item.addEventListener('click', (e) => {
-      if (e.target.closest('.rg-others') || e.target.closest('.kb-badge')) return;
+      if (e.target.closest('.rg-others') || e.target.closest('.kb-badge') || e.target.closest('.rg-act')) return;
       document.querySelectorAll('.result-item').forEach(i => i.classList.remove('focused'));
       item.classList.add('focused');
       openRecognisedOccurrences(g, data);
+    });
+    const pinBtn = item.querySelector('.rg-pin');
+    if (pinBtn) pinBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      pinRecognisedGroup(g, data);
+    });
+    const dismissBtn = item.querySelector('.rg-dismiss');
+    if (dismissBtn) dismissBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      dismissSig(g.sig.id);
+      showAppToast(`🔕 Won't suggest “${g.sig.title}” again`);
+      applyFilter();
     });
     const badge = item.querySelector('.kb-badge');
     if (badge) badge.addEventListener('click', (e) => { e.stopPropagation(); showKbPopover(g.sig, latest.text, badge); });
@@ -6220,6 +6402,29 @@ function renderRecognisedGroups(entries, data) {
     attachYextContextMenu(item, latest);
     list.appendChild(item);
   });
+}
+
+// Pin every occurrence of a recognised-error group (capped for sanity) and open
+// the Notes panel, so the user can jump from each pin back to its location.
+function pinRecognisedGroup(group, data) {
+  if (typeof Notes === 'undefined' || !Notes.addPin) { showAppToast('⚠ Notes aren\'t ready yet'); return; }
+  const PIN_CAP = 50;
+  const occ = group.occurrences || [];
+  const toPin = occ.slice(0, PIN_CAP);
+  let pinned = 0;
+  toPin.forEach(line => {
+    if (Notes.addPin(line, {
+      compId: state.activeCompId,
+      label: 'Recognised: ' + group.sig.title,
+      silent: true,
+    })) pinned++;
+  });
+  // Open the Notes panel so the pinned entries (each jump-to-able) are visible.
+  const overlay = document.getElementById('notes-overlay');
+  if (overlay) overlay.classList.remove('hidden');
+  const extra = occ.length > PIN_CAP ? ` (first ${PIN_CAP} of ${occ.length})` : '';
+  if (pinned) showAppToast(`📌 Pinned ${pinned} entr${pinned === 1 ? 'y' : 'ies'}${extra} — see 🗒 Notes`);
+  else showAppToast('📌 These were already pinned — see 🗒 Notes');
 }
 
 // Which other components (besides current) contain at least one line matching sigId
@@ -7591,28 +7796,123 @@ function updateRecognisedCount() {
     return;
   }
   const data = state.loadedData[state.activeCompId];
-  // Count DISTINCT recognised signatures (the same error repeated counts once).
+  // Count DISTINCT recognised signatures (the same error repeated counts once),
+  // excluding any the user has dismissed ("don't suggest again").
   // Cached per component, invalidated when the merged log grows or the KB changes.
   let n;
-  if (data._kbCount && data._kbCount.lines === data.merged.length && data._kbCount.gen === KB._gen) {
+  if (data._kbCount && data._kbCount.lines === data.merged.length && data._kbCount.gen === KB._gen && data._kbCount.dgen === kbDismissed.size) {
     n = data._kbCount.n;
   } else {
     const distinct = new Set();
     for (const l of data.merged) {
       if (l.isContinuation || !l.level) continue;
       const sig = kbMatchLine(l);
-      if (sig) distinct.add(sig.id);
+      if (sig && !isSigDismissed(sig.id)) distinct.add(sig.id);
     }
     n = distinct.size;
-    data._kbCount = { n, lines: data.merged.length, gen: KB._gen };
+    data._kbCount = { n, lines: data.merged.length, gen: KB._gen, dgen: kbDismissed.size };
   }
   btn.innerHTML = n > 0
     ? `⚠ Recognised errors <span class="kb-count">${n}</span>`
     : '⚠ Recognised errors';
+  // Proactively surface a popup the first time a component is found to contain
+  // recognised errors (this session), unless the user is already viewing them.
+  if (n > 0) maybeShowRecognisedPopup(state.activeCompId, n);
+  else hideRecognisedPopup();
   // Note: recognised errors are no longer auto-added to notes. The user can
   // preview and add them on demand via the "Recognised errors" button in the
   // Notes panel (see the preview flow).
 }
+
+// ── Proactive recognised-error popup (anchored to the toolbar button) ──
+const _recPopupShown = new Set();   // compIds we've already prompted this session
+function recPopupDisabled() {
+  try { return localStorage.getItem('tse-rec-popup-off') === '1'; } catch (_) { return false; }
+}
+function positionRecPopup() {
+  const pop = document.getElementById('rec-detect-pop');
+  const btn = document.getElementById('btn-recognised-errors');
+  if (!pop || !btn || pop.classList.contains('hidden')) return;
+  const r = btn.getBoundingClientRect();
+  const pw = pop.offsetWidth;
+  let left = r.left;
+  if (left + pw > window.innerWidth - 12) left = window.innerWidth - pw - 12;
+  left = Math.max(12, left);
+  pop.style.top = (r.bottom + 10) + 'px';
+  pop.style.left = left + 'px';
+  const arrow = pop.querySelector('.rdp-arrow');
+  if (arrow) arrow.style.left = Math.min(pw - 24, Math.max(12, r.left + r.width / 2 - left - 6)) + 'px';
+}
+function maybeShowRecognisedPopup(compId, n) {
+  const pop = document.getElementById('rec-detect-pop');
+  if (!pop) return;
+  if (recPopupDisabled()) return;
+  if (state.recognisedOnly) return;               // already viewing them
+  if (globalSearchActive) return;                  // don't interrupt a search
+  if (_recPopupShown.has(compId)) return;          // once per component per session
+  _recPopupShown.add(compId);
+  const data = state.loadedData[compId];
+  const compName = data && data.compDef ? data.compDef.name : 'this component';
+  const body = document.getElementById('rdp-body');
+  const ct = document.getElementById('rdp-count-text');
+  if (ct) ct.textContent = `${n} recognised error${n === 1 ? '' : 's'} detected`;
+  if (body) body.innerHTML = `Found ${n} known issue${n === 1 ? '' : 's'} in <strong>${escHtml(compName)}</strong> with matching documentation. View them to see details, pin examples, or open the relevant articles.`;
+  pop.classList.remove('hidden');
+  positionRecPopup();
+}
+function hideRecognisedPopup() {
+  const pop = document.getElementById('rec-detect-pop');
+  if (pop) pop.classList.add('hidden');
+}
+(function wireRecPopup() {
+  const pop = document.getElementById('rec-detect-pop');
+  if (!pop) return;
+  const view = document.getElementById('rdp-view');
+  const dismiss = document.getElementById('rdp-dismiss');
+  const later = document.getElementById('rdp-later');
+  if (view) view.addEventListener('click', () => {
+    hideRecognisedPopup();
+    if (!state.recognisedOnly) {
+      const btn = document.getElementById('btn-recognised-errors');
+      if (btn) btn.click();   // flips into recognised-errors view
+    }
+  });
+  if (later) later.addEventListener('click', hideRecognisedPopup);
+  if (dismiss) dismiss.addEventListener('click', () => {
+    try { localStorage.setItem('tse-rec-popup-off', '1'); } catch (_) {}
+    hideRecognisedPopup();
+    showAppToast('🔕 Recognised-error pop-ups turned off (per-error options still available in the list)');
+  });
+  // Reposition on resize; dismiss on outside click.
+  window.addEventListener('resize', positionRecPopup);
+  document.addEventListener('click', (e) => {
+    if (pop.classList.contains('hidden')) return;
+    if (pop.contains(e.target) || e.target.closest('#btn-recognised-errors')) return;
+    hideRecognisedPopup();
+  });
+})();
+
+// ── Top-bar "Add formats" dropdown (EVTX / PCAP / HAR) ──
+(function wireAddFormats() {
+  const btn = document.getElementById('btn-add-formats');
+  const menu = document.getElementById('add-formats-menu');
+  if (!btn || !menu) return;
+  btn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    menu.classList.toggle('hidden');
+  });
+  menu.querySelectorAll('button[data-target]').forEach(item => {
+    item.addEventListener('click', () => {
+      menu.classList.add('hidden');
+      const target = document.getElementById(item.dataset.target);
+      if (target) target.click();   // reuse the original (hidden) button's handler
+    });
+  });
+  document.addEventListener('click', (e) => {
+    if (menu.classList.contains('hidden')) return;
+    if (!menu.contains(e.target) && e.target !== btn) menu.classList.add('hidden');
+  });
+})();
 
 // ── Transient toast notification ──
 let _toastTimer = null;
@@ -7827,6 +8127,42 @@ document.getElementById('search-older-check').addEventListener('change', () => {
   if (term) runGlobalSearch(term);
 });
 
+// True if a line's level passes the currently-active level filter button.
+// Lines with no level (continuations etc.) are excluded from search results.
+function levelMatchesActive(level) {
+  if (!level) return false;
+  if (state.activeLevel === 'ALL') return true;
+  if (state.activeLevel === 'ERROR') return level === 'ERROR' || level === 'CRITICAL';
+  return level === state.activeLevel;
+}
+
+// Escape text, then wrap each case-insensitive occurrence of the term in a
+// highlight span. Operates on the already-escaped string so it stays safe.
+function highlightSearchTerm(text, term) {
+  const safe = escHtml(text || '');
+  if (!term) return safe;
+  const safeTerm = escHtml(term);
+  if (!safeTerm) return safe;
+  const re = new RegExp(safeTerm.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi');
+  return safe.replace(re, m => `<span class="search-highlight">${m}</span>`);
+}
+
+// Populate the search summary bar with the active filters that scope the search.
+function renderSearchSummary(term) {
+  const txt = document.getElementById('ssb-text');
+  const filt = document.getElementById('ssb-filters');
+  if (txt) txt.textContent = `Searching all loaded logs for "${term}"`;
+  if (!filt) return;
+  const chips = [];
+  chips.push(`<span class="ssb-chip ${state.activeLevel !== 'ALL' ? 'active' : ''}">level: ${state.activeLevel}</span>`);
+  if (state.gtrStart != null || state.gtrEnd != null) {
+    chips.push(`<span class="ssb-chip active">time: ${escHtml(state.gtrLabel || 'range')}</span>`);
+  }
+  const excluded = state.searchExcluded ? state.searchExcluded.size : 0;
+  if (excluded) chips.push(`<span class="ssb-chip active">${excluded} component${excluded === 1 ? '' : 's'} excluded</span>`);
+  filt.innerHTML = '<span style="color:var(--text-muted)">filters:</span> ' + chips.join(' ');
+}
+
 // Begin a streaming search. Phase 1 scans loaded (newest) files immediately.
 // Phase 2 (opt-in) decompresses each older rolled file transiently, scans it,
 // keeps only matching lines, and discards the decompressed text — so older
@@ -7843,6 +8179,10 @@ async function runGlobalSearch(term) {
   updateNodeScopeChip();
   document.getElementById('sidebar-components').classList.add('search-mode-active');
   wireSearchExclusionCheckboxes();
+
+  // Switch the middle panel into a dedicated "search results" view.
+  document.getElementById('results-panel').classList.add('search-active');
+  renderSearchSummary(term);
 
   const header = document.getElementById('results-header');
   header.classList.add('search-mode');
@@ -7872,6 +8212,9 @@ async function runGlobalSearch(term) {
     item.className = 'result-item';
     const level = r.line.level || '?';
     const sig = r.line._kbCached;
+    // Preview text — fall back to the raw line if stripping leaves nothing.
+    let preview = stripForPreview(r.line.text);
+    if (!preview || !preview.trim()) preview = r.line.text || '';
     item.innerHTML = `
       <div class="ri-meta">
         ${sig ? kbBadgeHtml() : ''}
@@ -7880,7 +8223,7 @@ async function runGlobalSearch(term) {
         <span class="ri-file">${escHtml(r.fileName || r.line._file || '')}</span>
         ${r._older ? '<span class="ri-older" title="From an older rolled log">older</span>' : ''}
       </div>
-      <div class="ri-msg">${escHtml(stripForPreview(r.line.text))}</div>
+      <div class="ri-msg">${highlightSearchTerm(preview, term)}</div>
     `;
     if (sig) {
       const b = item.querySelector('.kb-badge');
@@ -7898,6 +8241,7 @@ async function runGlobalSearch(term) {
     for (const line of data.merged) {
       if (line.isContinuation) continue;
       if (!inGlobalRange(line.ts)) continue;
+      if (!levelMatchesActive(line.level)) continue;
       if (line.text.toLowerCase().includes(termL)) {
         line._kbCached = kbMatchLine(line) || null;
         const r = { compId, data, line, fileName: line._file, _older: false };
@@ -7982,6 +8326,7 @@ async function scanOlderFileTransient(compId, fileEntry, termL, remaining) {
       for (const line of parsed.lines) {
         if (line.isContinuation) continue;
         if (!inGlobalRange(line.ts)) continue;
+        if (!levelMatchesActive(line.level)) continue;
         if (line.text.toLowerCase().includes(termL)) {
           line._file = fileEntry.name;
           out.push(line);
@@ -8010,6 +8355,14 @@ async function onSearchResultClick(item, r) {
     item.classList.remove('loading');
   }
   openInViewer(r.line, r.data);
+  // Carry the search term into the viewer so the match is highlighted and
+  // scrolled to, giving an immediate preview of the hit in context.
+  const term = state.globalSearchTerm;
+  if (term) {
+    const vsInput = document.getElementById('viewer-search');
+    if (vsInput) vsInput.value = term;
+    if (typeof applyViewerSearch === 'function') applyViewerSearch(term);
+  }
 }
 
 // Load one specific older file (not all) into a component and re-merge.
@@ -8067,6 +8420,7 @@ function clearGlobalSearch() {
   state.globalSearchTerm = '';
   state.searchExcluded.clear();
   document.getElementById('results-header').classList.remove('search-mode');
+  document.getElementById('results-panel').classList.remove('search-active');
   document.getElementById('results-header-label').textContent = 'Filtered Entries';
   document.getElementById('btn-clear-search').classList.remove('visible');
   document.getElementById('sidebar-search').value = '';
@@ -8807,11 +9161,18 @@ const TL = {
   _pinBottom: false,     // keep the view stuck to the newest entry
   _prepared: false,      // background preload has run
   _preparedSig: '',      // data signature the preload was built against
+  wrap: false,           // wrap long lines (disables virtual scrolling)
+  WRAP_CAP: 4000,        // max rows rendered at once in wrap mode (perf guard)
 };
 
 document.getElementById('btn-timeline').addEventListener('click', () => {
   if (!Object.keys(state.loadedData || {}).length) { showAppToast && showAppToast('Load some logs first'); return; }
   document.getElementById('timeline-overlay').classList.remove('hidden');
+  // Restore the saved wrap preference and reflect it in the toggle + list.
+  try { TL.wrap = localStorage.getItem('tse-tl-wrap') === '1'; } catch (_) {}
+  const wrapChk = document.getElementById('timeline-wrap');
+  if (wrapChk) wrapChk.checked = TL.wrap;
+  document.getElementById('timeline-list').classList.toggle('tl-wrap', TL.wrap);
   TL.query = ''; TL.matches = []; TL.matchIdx = -1;
   const searchEl = document.getElementById('tl-search');
   if (searchEl) searchEl.value = '';
@@ -8895,8 +9256,94 @@ function setTimelineLoading(on) {
 document.getElementById('btn-timeline-close').addEventListener('click', () => {
   document.getElementById('timeline-overlay').classList.add('hidden');
 });
+
+// ── Make the timeline window movable (drag the header) and resizable (corner) ──
+(function () {
+  const overlay = document.getElementById('timeline-overlay');
+  const header  = document.getElementById('timeline-header');
+  const handle  = document.getElementById('tl-resize-handle');
+  if (!overlay || !header || !handle) return;
+
+  // Switch from the centred transform layout to explicit pixel coords, anchored
+  // at the overlay's current on-screen position. Called on the first interaction.
+  function pinToPixels() {
+    if (overlay.classList.contains('tl-moved')) return;
+    const r = overlay.getBoundingClientRect();
+    overlay.classList.add('tl-moved');
+    overlay.style.left = r.left + 'px';
+    overlay.style.top  = r.top  + 'px';
+    overlay.style.width  = r.width  + 'px';
+    overlay.style.height = r.height + 'px';
+  }
+  const clamp = (v, min, max) => Math.max(min, Math.min(max, v));
+
+  // Drag to move
+  let dragging = false, dx = 0, dy = 0;
+  header.addEventListener('pointerdown', (e) => {
+    // Ignore clicks on interactive controls inside the header.
+    if (e.target.closest('button, input, label, #tl-node-btn, a')) return;
+    pinToPixels();
+    dragging = true;
+    const r = overlay.getBoundingClientRect();
+    dx = e.clientX - r.left;
+    dy = e.clientY - r.top;
+    header.classList.add('tl-dragging');
+    header.setPointerCapture(e.pointerId);
+    e.preventDefault();
+  });
+  header.addEventListener('pointermove', (e) => {
+    if (!dragging) return;
+    const w = overlay.offsetWidth, h = overlay.offsetHeight;
+    overlay.style.left = clamp(e.clientX - dx, 4, window.innerWidth  - w - 4) + 'px';
+    overlay.style.top  = clamp(e.clientY - dy, 4, window.innerHeight - h - 4) + 'px';
+  });
+  const endDrag = (e) => {
+    if (!dragging) return;
+    dragging = false;
+    header.classList.remove('tl-dragging');
+    try { header.releasePointerCapture(e.pointerId); } catch (_) {}
+  };
+  header.addEventListener('pointerup', endDrag);
+  header.addEventListener('pointercancel', endDrag);
+
+  // Drag the corner to resize
+  let sizing = false, sx = 0, sy = 0, sw = 0, sh = 0;
+  handle.addEventListener('pointerdown', (e) => {
+    pinToPixels();
+    sizing = true;
+    sx = e.clientX; sy = e.clientY;
+    sw = overlay.offsetWidth; sh = overlay.offsetHeight;
+    handle.setPointerCapture(e.pointerId);
+    e.preventDefault(); e.stopPropagation();
+  });
+  handle.addEventListener('pointermove', (e) => {
+    if (!sizing) return;
+    const r = overlay.getBoundingClientRect();
+    const maxW = window.innerWidth  - r.left - 4;
+    const maxH = window.innerHeight - r.top  - 4;
+    overlay.style.width  = clamp(sw + (e.clientX - sx), 420, maxW) + 'px';
+    overlay.style.height = clamp(sh + (e.clientY - sy), 280, maxH) + 'px';
+    // Keep the row list filling the new height.
+    if (typeof tlPaintVisible === 'function' && !TL.wrap) tlPaintVisible();
+  });
+  const endSize = (e) => {
+    if (!sizing) return;
+    sizing = false;
+    try { handle.releasePointerCapture(e.pointerId); } catch (_) {}
+    if (typeof renderTimeline === 'function') renderTimeline(null, 'keep');
+  };
+  handle.addEventListener('pointerup', endSize);
+  handle.addEventListener('pointercancel', endSize);
+})();
 document.getElementById('timeline-errors-only').addEventListener('change', () => {
   recomputeMatches(); renderTimeline(null, 'keep');
+});
+document.getElementById('timeline-wrap').addEventListener('change', (e) => {
+  TL.wrap = e.target.checked;
+  try { localStorage.setItem('tse-tl-wrap', TL.wrap ? '1' : '0'); } catch (_) {}
+  const list = document.getElementById('timeline-list');
+  if (list) list.classList.toggle('tl-wrap', TL.wrap);
+  renderTimeline(null, 'keep');
 });
 document.getElementById('tl-prev').addEventListener('click', () => { shiftWindow(-1); });
 document.getElementById('tl-next').addEventListener('click', () => { shiftWindow(1); });
@@ -9188,6 +9635,7 @@ function tlMeasureRowH() {
 // empty space held open by the sizer. Keeps the DOM tiny no matter how many
 // entries are in the window, so scrolling and toggling stay smooth.
 function tlPaintVisible() {
+  if (TL.wrap) return;   // wrap mode renders everything up-front, no virtual repaint
   const list = document.getElementById('timeline-list');
   const rows = document.getElementById('tl-rows');
   if (!list || !rows) return;
@@ -9217,6 +9665,67 @@ function tlPaintVisible() {
       + `<span class="ln">${r.line.lineNo}</span><span class="lc">${getSafeHtml(r.line)}</span></div>`;
   }
   rows.innerHTML = html;
+}
+
+// Wrap mode: render the whole window's rows directly (no virtual scroller, no
+// fixed row height) so every line can wrap to as many display lines as needed.
+// Capped for performance; a notice is shown if the window is too large to wrap.
+function tlPaintWrapped(mode, focusRow) {
+  const list = document.getElementById('timeline-list');
+  if (!list) return;
+  const win = TL._win || [];
+  const colors = componentColorMap();
+  const q = (TL.query || '').trim().toLowerCase();
+  const curMatch = (TL.matchIdx >= 0 && TL.matches[TL.matchIdx]) ? TL.matches[TL.matchIdx]
+                 : (focusRow || null);
+
+  const capped = win.length > TL.WRAP_CAP;
+  // When capped, keep the newest WRAP_CAP rows (most relevant), unless a match
+  // is the focus — then keep a window around it.
+  let startIdx = 0;
+  if (capped) {
+    if (curMatch) {
+      const ci = win.findIndex(r => r.line === curMatch.line && r.compId === curMatch.compId);
+      if (ci >= 0) startIdx = Math.max(0, ci - Math.floor(TL.WRAP_CAP / 2));
+    } else {
+      startIdx = win.length - TL.WRAP_CAP;
+    }
+  }
+  const endIdx = Math.min(win.length, startIdx + TL.WRAP_CAP);
+
+  let html = '';
+  if (capped) {
+    html += `<div class="tl-wrap-notice">Showing ${(endIdx - startIdx).toLocaleString()} of ${win.length.toLocaleString()} lines in this window (wrap mode caps the count for performance). Narrow the window with ◀ / ▶, the component filters, or “Errors only”.</div>`;
+  }
+  html += '<div id="tl-rows"></div>';
+  list.innerHTML = html;
+  const rows = document.getElementById('tl-rows');
+
+  let curEl = null;
+  let rowHtml = '';
+  for (let i = startIdx; i < endIdx; i++) {
+    const r = win[i];
+    const lvl = r.line.level || '';
+    const isCurrent = curMatch && r.line === curMatch.line && r.compId === curMatch.compId;
+    const isMatch = !isCurrent && q && ((r.line.logger || '').toLowerCase().includes(q) || (r.line.text || '').toLowerCase().includes(q));
+    let cls = 'log-line';
+    if (lvl) cls += ' level-' + lvl;
+    if (isCurrent) cls += ' tl-current'; else if (isMatch) cls += ' tl-match';
+    rowHtml += `<div class="${cls}" data-i="${i}" title="${escHtml(r.compName)} — ${escHtml(r.line._file || '')}:${r.line.lineNo}" style="border-left-color:${colors[r.compId]}">`
+      + `<span class="ln">${r.line.lineNo}</span><span class="lc">${getSafeHtml(r.line)}</span></div>`;
+  }
+  rows.innerHTML = rowHtml;
+
+  // Position the scroll: centre a focused match, keep position, or pin bottom.
+  TL._pinBottom = false;
+  if (curMatch) {
+    curEl = rows.querySelector('.tl-current');
+    if (curEl) curEl.scrollIntoView({ block: 'center' });
+  } else if (mode === 'keep') {
+    /* leave scrollTop where it is */
+  } else { // bottom — newest in view
+    list.scrollTop = list.scrollHeight;
+  }
 }
 
 // After a "pin to bottom" render, re-assert the bottom once layout settles —
@@ -9288,8 +9797,19 @@ function renderTimeline(focusRow, mode) {
     return;
   }
 
+  // Wrap mode: render the whole window directly so lines can wrap. No virtual
+  // scroller (variable row heights would break it).
+  if (TL.wrap) {
+    list.classList.add('tl-wrap');
+    const curMatchW = (TL.matchIdx >= 0 && TL.matches[TL.matchIdx]) ? TL.matches[TL.matchIdx] : (focusRow || null);
+    const mW = curMatchW ? 'center' : (mode || 'bottom');
+    tlPaintWrapped(mW, focusRow);
+    return;
+  }
+  list.classList.remove('tl-wrap');
+
   // (Re)create the virtual-scroll scaffold (spinner/empty state may have replaced it).
-  if (!document.getElementById('tl-rows')) {
+  if (!document.getElementById('tl-rows') || !document.getElementById('tl-sizer')) {
     list.innerHTML = '<div id="tl-sizer"></div><div id="tl-rows"></div>';
   }
   if (!TL.lineH) TL.lineH = tlMeasureRowH();
@@ -9795,6 +10315,7 @@ const Notes = (function () {
       for (const l of data.merged) {
         if (l.isContinuation || !l.level) continue;
         const sig = kbMatchLine(l);
+        if (sig && typeof isSigDismissed === 'function' && isSigDismissed(sig.id)) continue;
         if (sig && !found.has(sig.id)) {
           found.set(sig.id, { sig, line: l, compId });
           if (found.size >= MAX_AUTO_SIGS) break;
