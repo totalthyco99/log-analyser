@@ -4,6 +4,115 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Log Analyser</title>
+<!--
+════════════════════════════════════════════════════════════════════════════════
+  FEATURE MAP & MAINTENANCE GUIDE   (read this first when editing)
+════════════════════════════════════════════════════════════════════════════════
+  ► IF YOU ARE AN AI ASSISTANT (OR ANY MAINTAINER) ABOUT TO EDIT THIS FILE,
+    DO THIS FIRST — BEFORE EXPLORING THE CODE:
+      1. Read this whole comment block (map + GLOBAL INVARIANTS + CONVENTIONS).
+      2. Navigate by grepping the 「banner strings」 listed below to jump straight
+         to a subsystem, instead of scanning the 13k-line file top to bottom.
+      3. Treat the GLOBAL INVARIANTS as binding — they are the cross-cutting rules
+         that are easiest to break and most expensive to rediscover.
+      4. VALIDATE before handing back (see EDITING CONVENTIONS), and UPDATE this
+         block + the local banner whenever you change behaviour.
+    Doing this keeps each change cheap and avoids re-deriving the architecture.
+
+  This is a single self-contained offline HTML tool (no build step, no network
+  deps; "your data never leaves the browser"). To jump to a subsystem, grep the
+  file for the banner text shown in 「corner brackets」 below, e.g.
+        grep -n "HAR (HTTP Archive) — request" index.html
+  Each 「string」 is a unique section banner. Line numbers drift; the strings do not.
+
+  PARSERS / DATA
+    「PCAP / PCAPNG parser」            binary frame dissect → packet summaries
+    「HAR (HTTP Archive) parser」       HAR JSON → request entries (stable ids added)
+    「EVTX — full Windows Event Log」   .evtx via bundled @ts-evtx, parsed in a Worker
+    「WINDOWS EVENT MESSAGE TEMPLATES」 headline msgs + field layouts per EventID
+    「DATA — Products, components」     product / component / level definitions
+    「KNOWLEDGE BASE」                  recognised-error → docs match (PII-scrubbed)
+    「STATE」                           the global `state` (loadedHar/Pcap/Evtx, …)
+
+  CORE UI
+    「UI — WIZARD」 welcome + standalone file buttons   「SIDEBAR」   「FILTER & RESULTS」
+    「LOG VIEWER」  「VIRTUAL SCROLLER」  「GLOBAL SEARCH」  「GLOBAL TIME RANGE」
+    「NODE / DISTRIBUTED-ENGINE SCOPING」  scope results / viewer by node
+    「SIMILAR OVERLAY」  「KB POPOVER + RECOGNISED ERRORS FILTER」
+
+  FLOATING TOOL WINDOWS  (most-iterated area — detailed notes live at each banner)
+    「Window dock」                    minimise / maximise / restore; dock chips
+    「Compare: open another file」     read-only comparison panes, focus-swap,
+                                       promote-on-close, per-viewer adapters
+    「PCAP / PCAPNG — network capture」 openPcapWindow; packet list + synced-logs tab
+    「HAR (HTTP Archive) — request」    openHarWindow; filter / sort / waterfall
+    「EVTX summary overlay」            openEvtxWindow / openEvtxSummary; event select
+    「CROSS-COMPONENT TIMELINE」        one node at a time, 1-day window
+
+  MISC  「EXPORT FINDINGS」 「NOTES & PINS」 「DIAGNOSTICS」 「THEME TOGGLE」
+        「RESIZABLE PANELS」 「PWA」 「GUIDED TOUR」 「HOME / RESET」 「BOOT」
+
+────────────────────────────────────────────────────────────────────────────────
+  GLOBAL INVARIANTS  (cross-cutting; easy to break)
+────────────────────────────────────────────────────────────────────────────────
+  • Z-INDEX LAYERS: floating overlays (evtx 450 · pcap 460 · har 465 · timeline
+    470)  ‹  window-dock 530  ‹  comparison panes .win-instance 600+ (each click /
+    focus bumps via _winInstanceZ). A MAXIMISED window lifts itself to
+    ++_winInstanceZ so it sits above panes, and restores its z on un-maximise.
+  • COMPARISON PANES are deep clones of the live overlay (see buildComparePane),
+    so they contain DUPLICATE element ids (e.g. #har-list). Code using
+    document.getElementById hits the LIVE overlay's node because the overlay sits
+    earlier in the DOM than the appended clone — rely on that; don't special-case
+    clones. Clones have NO event listeners (cloneNode drops them) and disabled
+    inputs = read-only by construction.
+  • ONE live overlay per type exists; "Compare" fakes a 2nd window with a
+    read-only clone. Per-viewer COMPARE_ADAPTERS {har,pcap,evtx} each expose
+    activeKey() / captureState() / openLive(key,state); captureState snapshots the
+    live view, openLive re-applies it. This powers the focus-swap and
+    promote-on-close. `_compareWin` is the single open pane.
+  • FOCUS / SWAP is type-aware. focusComparePane: if the pane's canonical overlay
+    is VISIBLE (a same-type live window exists) it SWAPS (snapshot live into a
+    read-only pane, promote pane to live). If that overlay is HIDDEN (the working
+    window is a different type, so nothing of this type is live) it just PROMOTES
+    the pane to its own live overlay and leaves the other-type window untouched —
+    it never swaps against a hidden/empty overlay. Close→promote (the close-button
+    handler) is same-type-only by the same reasoning (guarded on _cmpType).
+  • LIST RENDERING: the HAR, PCAP and EVTX lists are all virtualized (extend-and-
+    prune, mirrors the log viewer's vsRender) — only a window of rows is in the DOM.
+    renderHarList(har, sync, full) / renderPcapList(cap, sync, full) /
+    openEvtxSummary(key, full) take full=true to render every row when snapshotting
+    a comparison clone (the clone is static, so it needs the whole list). State that
+    must survive prune/recreate lives in the model, not the DOM: HAR expand in
+    HAR._open (Set of har-ids), PCAP focus in PCAP._focusIdx, EVTX selection in
+    _evtxSelIdx (record index == row index; EVTX has no filter). Each focus-swap
+    captures/restores that state and calls harEnsureScrollTop / pcapEnsureScrollTop /
+    evtxEnsureScrollTop to re-honour scroll. Caveat: a list scrolled very deep then
+    minimised restores scroll best-effort (top-pruned pixels aren't absolute);
+    the focus-swap restore is exact.
+  • FILTER INPUTS: the HAR and PCAP filter boxes debounce (~150ms) before
+    re-rendering (timeline search debounces too). Programmatic .value sets during
+    a focus-swap restore do not fire 'input', so they bypass the debounce.
+  • PCAP SYNCED VIEW: buildPcapSyncView() caches by PCAP._syncBuiltKey
+    (activePcap|syncComp) and rebuilds only when that changes; openPcapWindow
+    invalidates it. Scroll-sync indexes each pane once (ts array + uniform row
+    height) and binary-searches per scroll tick — no per-tick row scans or layout
+    reads. Selection is tracked by reference (_pcapFocusRow / _evtxSelectedRow)
+    instead of re-scanning all rows on every click.
+  • DOCK CHIPS: WindowDock chips use data-win="‹overlayId›|‹key›"; comparison-pane
+    chips use data-cmp-chip="1" (kept distinct so WindowDock never removes them).
+    The dock shows only while it holds chips (sync / syncDockHidden).
+
+────────────────────────────────────────────────────────────────────────────────
+  EDITING CONVENTIONS
+────────────────────────────────────────────────────────────────────────────────
+  • Keep these notes current — a stale comment is worse than none. When you wire
+    a new adapter, change a layer, etc., update this block and the local banner.
+  • Comments never change behaviour; this whole block is documentation only.
+  • VALIDATE before handing back: extract every script block and syntax-check each
+    with node (the check flag), and confirm the div open vs close tallies match.
+  • Stay single-file & offline — no module splitting, no added network deps.
+════════════════════════════════════════════════════════════════════════════════
+-->
 <script>
 /* ===== Inlined JSZip 3.10.1 (MIT) — enables in-browser ZIP extraction, fully offline ===== */
 /*!
@@ -667,6 +776,16 @@ function parseHar(text) {
       blocked: numOrNull(t.blocked), dns: numOrNull(t.dns), connect: numOrNull(t.connect),
       ssl: numOrNull(t.ssl), send: numOrNull(t.send), wait: numOrNull(t.wait), receive: numOrNull(t.receive)
     };
+    let query = [];
+    if (Array.isArray(req.queryString) && req.queryString.length) {
+      query = req.queryString.map(q => ({ name: q.name, value: q.value }));
+    } else {
+      try { const u = new URL(req.url); u.searchParams.forEach((v, k) => query.push({ name: k, value: v })); } catch (_) {}
+    }
+    const sentBytes = (numOrNull(req.headersSize) || 0) + (numOrNull(req.bodySize) || 0) || null;
+    const contentSize = (res.content && numOrNull(res.content.size));
+    const recvBytes = numOrNull(e._transferSize) != null ? e._transferSize
+      : ((numOrNull(res.headersSize) || 0) + (numOrNull(res.bodySize) || 0)) || contentSize;
     entries.push({
       ts, time,
       method: (req.method || '').toUpperCase(),
@@ -676,16 +795,38 @@ function parseHar(text) {
       statusClass,
       mime: (res.content && res.content.mimeType) ? res.content.mimeType.split(';')[0] : '',
       reqSize: numOrNull(req.bodySize),
-      respSize: (res.content && numOrNull(res.content.size)) != null ? res.content.size : numOrNull(res.bodySize),
+      respSize: contentSize != null ? contentSize : numOrNull(res.bodySize),
+      sentBytes, recvBytes,
+      protocol: res.httpVersion || req.httpVersion || '',
+      resourceType: e._resourceType || harResourceType((res.content && res.content.mimeType) || ''),
+      redirectURL: res.redirectURL || '',
+      fromCache: !!(e.cache && (e.cache.afterRequest || e.cache.beforeRequest)) || (numOrNull(res.bodySize) === 0 && contentSize > 0),
+      query,
       serverIp: e.serverIPAddress || '',
+      connection: e.connection || '',
       timings,
       isError: status >= 400 || status === 0,
       slow: time != null && time >= 1000
     });
   }
+  entries.forEach((e, i) => { e._id = i; });
   return { creator, entries };
 }
 function numOrNull(v) { return (typeof v === 'number' && v >= 0) ? v : null; }
+// Coarse resource type from a response MIME type (mirrors devtools' grouping).
+function harResourceType(mime) {
+  mime = (mime || '').toLowerCase();
+  if (!mime) return 'other';
+  if (mime.includes('html')) return 'document';
+  if (mime.includes('css')) return 'stylesheet';
+  if (mime.includes('javascript') || mime.includes('ecmascript')) return 'script';
+  if (mime.includes('json')) return 'xhr/json';
+  if (mime.includes('xml')) return 'xhr/xml';
+  if (mime.startsWith('image/')) return 'image';
+  if (mime.startsWith('font/') || mime.includes('font')) return 'font';
+  if (mime.startsWith('audio/') || mime.startsWith('video/')) return 'media';
+  return 'other';
+}
 
 if (typeof window !== 'undefined') window.parseHar = parseHar;
 </script>
@@ -714,8 +855,8 @@ if (typeof window !== 'undefined') window.parseHar = parseHar;
     --border-accent:#4C1D95;
 
     --text-primary:   #F0EEFF;
-    --text-secondary: #9E99B8;
-    --text-muted:     #5A5575;
+    --text-secondary: #CAC5E6;
+    --text-muted:     #A8A2C9;
     --text-code:      #C8C2FF;
 
     --accent-purple:  #A855F7;
@@ -764,8 +905,8 @@ if (typeof window !== 'undefined') window.parseHar = parseHar;
     --border-accent:#7C3AED;
 
     --text-primary:   #1A1033;
-    --text-secondary: #4B4580;
-    --text-muted:     #8B80B8;
+    --text-secondary: #3D3769;
+    --text-muted:     #615792;
     --text-code:      #3D2D8A;
 
     --accent-purple:  #7C3AED;
@@ -946,40 +1087,40 @@ if (typeof window !== 'undefined') window.parseHar = parseHar;
   }
   .svt-btn:hover { color: var(--text-primary); border-color: var(--accent-teal); }
   .svt-btn.active { background: var(--accent-purple); color: #fff; border-color: var(--accent-purple); }
-  /* File tree */
+  /* File tree — minimal: tight rows, quiet folders, subtle metadata */
   .tree-folder { user-select: none; }
   .tree-folder-label {
     display: flex; align-items: center; gap: 5px;
-    padding: 4px 8px; font-size: 11px; font-weight: 600;
-    color: var(--text-secondary); cursor: pointer;
-    font-family: var(--font-mono);
+    padding: 3px 8px; font-size: 10.5px; font-weight: 600;
+    color: var(--text-muted); cursor: pointer; letter-spacing: 0.2px;
+    font-family: var(--font-mono); border-radius: var(--radius-sm);
   }
   .tree-folder-label:hover { background: var(--bg-hover); color: var(--text-primary); }
-  .tree-folder-label .tf-caret { font-size: 9px; transition: transform 0.12s; width: 10px; }
+  .tree-folder-label .tf-caret { font-size: 8px; transition: transform 0.12s; width: 9px; opacity: 0.7; }
   .tree-folder.collapsed > .tree-children { display: none; }
   .tree-folder.collapsed > .tree-folder-label .tf-caret { transform: rotate(-90deg); }
-  .tree-children { padding-left: 12px; }
+  .tree-children { padding-left: 10px; }
   .tree-file {
     display: flex; align-items: center; gap: 6px;
-    padding: 4px 8px 4px 14px; font-size: 11px; cursor: pointer;
+    padding: 3px 8px 3px 12px; font-size: 10.5px; cursor: pointer;
     color: var(--text-secondary); font-family: var(--font-mono);
-    border-left: 1px solid transparent;
+    border-left: 1px solid transparent; border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
   }
   .tree-file:hover { background: var(--bg-hover); color: var(--text-primary); }
   .tree-file.active { background: var(--highlight-similar); color: var(--accent-teal); border-left-color: var(--accent-teal); }
-  .tree-file .tf-count { margin-left: auto; font-size: 9px; color: var(--text-muted); }
+  .tree-file .tf-count { margin-left: auto; font-size: 9px; color: var(--text-muted); opacity: 0.8; }
   .tree-file.evtx { color: var(--accent-purple); }
   /* Rolled-log nesting: older .log.N files tucked under the newest with [+N] */
   .tf-roll-toggle {
     margin-left: 8px; flex-shrink: 0;
     font-size: 9px; font-family: var(--font-mono); line-height: 14px;
     color: var(--accent-teal); cursor: pointer; user-select: none;
-    border: 1px solid var(--border); border-radius: 4px; padding: 0 5px;
-    transition: border-color 0.12s, background 0.12s, color 0.12s;
+    border: none; border-radius: 4px; padding: 0 4px; background: var(--bg-elevated);
+    transition: background 0.12s, color 0.12s;
   }
-  .tf-roll-toggle:hover { border-color: var(--accent-teal); background: var(--bg-base); color: var(--text-primary); }
-  .tf-roll-toggle.open { color: var(--text-secondary); }
-  .tree-rolls { margin-left: 22px; border-left: 1px solid var(--border); }
+  .tf-roll-toggle:hover { background: var(--accent-teal); color: #fff; }
+  .tf-roll-toggle.open { color: var(--text-muted); }
+  .tree-rolls { margin-left: 20px; border-left: 1px solid var(--border); }
   .tree-rolls.collapsed { display: none; }
   .sidebar-section-label {
     padding: 8px 12px 4px;
@@ -1273,7 +1414,7 @@ if (typeof window !== 'undefined') window.parseHar = parseHar;
     position: relative;
     z-index: 20;
   }
-  .topbar-row { display: flex; align-items: center; gap: 8px; min-height: 30px; }
+  .topbar-row { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; min-height: 30px; }
   .topbar-row-secondary { border-top: 1px solid var(--border); padding-top: 6px; }
   .level-filter-btn {
     padding: 4px 10px;
@@ -1297,6 +1438,25 @@ if (typeof window !== 'undefined') window.parseHar = parseHar;
   .level-filter-btn[data-level="VERBOSE"].active { opacity: 1; }
   .level-filter-btn[data-level="DEBUG"] { background: var(--level-debug-bg); color: var(--level-debug); border-color: var(--level-debug); opacity: 0.5; }
   .level-filter-btn[data-level="DEBUG"].active { opacity: 1; }
+  /* "more levels" popover (verbose / debug) */
+  #btn-more-levels {
+    padding: 4px 9px; border-radius: 20px; font-size: 11px; font-weight: 600;
+    font-family: var(--font-mono); border: 1px solid var(--border);
+    background: var(--bg-elevated); color: var(--text-secondary); cursor: pointer; transition: all 0.12s;
+    position: relative;
+  }
+  #btn-more-levels:hover { border-color: var(--accent-purple); color: var(--text-primary); }
+  #btn-more-levels.changed::after {
+    content: ''; position: absolute; top: 2px; right: 4px;
+    width: 6px; height: 6px; border-radius: 50%; background: var(--accent-purple);
+  }
+  #more-levels-menu {
+    position: absolute; z-index: 200; top: calc(100% + 4px); left: 0; min-width: 120px;
+    background: var(--bg-elevated); border: 1px solid var(--border); border-radius: var(--radius-md);
+    box-shadow: 0 12px 32px rgba(0,0,0,0.5); padding: 6px; display: flex; flex-direction: column; gap: 5px;
+  }
+  #more-levels-menu.hidden { display: none; }
+  #more-levels-menu .level-filter-btn { text-align: center; }
   .topbar-divider { width: 1px; height: 20px; background: var(--border); flex-shrink: 0; }
   .topbar-count { font-size: 11px; color: var(--text-muted); font-family: var(--font-mono); white-space: nowrap; }
   .topbar-spacer { flex: 1; }
@@ -1466,7 +1626,28 @@ if (typeof window !== 'undefined') window.parseHar = parseHar;
   .rnm-item:hover { background: var(--bg-hover); color: var(--text-primary); }
   .rnm-item.active { background: var(--highlight-similar); color: var(--accent-teal); }
   .rnm-item .rnm-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .rnm-item .rnm-check { flex-shrink: 0; width: 14px; text-align: center; color: var(--accent-teal); font-size: 12px; }
+  .rnm-item:not(.active) .rnm-check { color: var(--text-muted); }
   .rnm-item .rnm-note { flex-shrink: 0; font-size: 9px; color: var(--text-muted); }
+  #results-node-menu .rnm-group-head {
+    padding: 7px 8px 3px; margin-top: 2px; font-size: 9px; font-weight: 700;
+    text-transform: uppercase; letter-spacing: 0.6px; color: var(--accent-teal);
+    border-top: 1px solid var(--border);
+  }
+  .rnm-item .rnm-load {
+    flex-shrink: 0; margin-left: 4px; font-size: 9px; font-family: var(--font-mono);
+    padding: 2px 6px; border-radius: var(--radius-sm); cursor: pointer;
+    border: 1px solid var(--border); background: var(--bg-surface); color: var(--accent-teal);
+    transition: all 0.12s;
+  }
+  .rnm-item .rnm-load:hover { background: var(--accent-teal); color: #fff; border-color: var(--accent-teal); }
+  .rnm-item .rnm-load.loaded { color: var(--text-muted); }
+  .rnm-item .rnm-load.loaded:hover { background: var(--level-warn); color: #1A1033; border-color: var(--level-warn); }
+  .rnm-item .rnm-load:disabled { opacity: 0.5; cursor: default; }
+  /* Sidebar node/engine highlight (when a source is scoped) */
+  .tree-folder-label.node-hl { background: var(--bg-active); color: var(--accent-teal); }
+  .tree-file.node-hl { background: var(--highlight-similar); color: var(--accent-teal); border-left-color: var(--accent-teal); }
+  .component-item.node-hl { box-shadow: inset 2px 0 0 var(--accent-teal); }
   #results-list { flex: 1; overflow-y: auto; }
   .result-group-header {
     padding: 6px 10px 3px;
@@ -1736,6 +1917,21 @@ if (typeof window !== 'undefined') window.parseHar = parseHar;
   #occurrence-bar button:hover { border-color: #F59E0B; color: #F59E0B; }
   #occ-close { margin-left: 6px; }
   #occ-close:hover { border-color: var(--level-error) !important; color: var(--level-error) !important; }
+  /* Viewer context-mode bar (shown after clicking a result while a level filter is active) */
+  #viewer-context-bar {
+    display: flex; align-items: center; gap: 8px;
+    padding: 5px 12px; background: rgba(45,212,191,0.10);
+    border-bottom: 1px solid var(--accent-teal); flex-shrink: 0;
+    font-size: 11px; color: var(--text-secondary);
+  }
+  #viewer-context-bar .vcb-icon { color: var(--accent-teal); font-weight: 700; }
+  #viewer-context-bar .vcb-spacer { flex: 1; }
+  #btn-back-to-filtered {
+    padding: 3px 10px; border: 1px solid var(--accent-teal); border-radius: var(--radius-sm);
+    background: var(--bg-elevated); color: var(--accent-teal); cursor: pointer;
+    font-size: 11px; font-weight: 600; white-space: nowrap; transition: all 0.12s;
+  }
+  #btn-back-to-filtered:hover { background: var(--accent-teal); color: #fff; }
   /* Logger-grouped rows (level view) */
   .logger-group { border-bottom: 1px solid var(--border); }
   .logger-head {
@@ -1827,6 +2023,15 @@ if (typeof window !== 'undefined') window.parseHar = parseHar;
     opacity: 0; transition: opacity 0.2s, transform 0.2s; pointer-events: none;
   }
   #app-toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+  #app-toast.dismissible { display: flex; align-items: flex-start; gap: 10px; pointer-events: auto; line-height: 1.5; }
+  #app-toast .toast-msg { flex: 1; min-width: 0; }
+  #app-toast .toast-x {
+    flex-shrink: 0; width: 20px; height: 20px; margin: -1px -4px 0 auto; padding: 0;
+    border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--bg-elevated);
+    color: var(--text-muted); cursor: pointer; font-size: 11px;
+    display: inline-flex; align-items: center; justify-content: center;
+  }
+  #app-toast .toast-x:hover { border-color: var(--accent-teal); color: var(--text-primary); }
   #app-toast.hidden { display: none; }
   /* KB warning badge — high-contrast amber, sits at start of a log line / result */
   .kb-badge {
@@ -2246,7 +2451,7 @@ if (typeof window !== 'undefined') window.parseHar = parseHar;
   }
   #har-summary-bar strong { color: var(--text-primary); }
   .har-row {
-    display: grid; grid-template-columns: 130px 64px 70px 1fr 90px; gap: 10px;
+    display: grid; grid-template-columns: 120px 56px 54px 1fr 76px 200px; gap: 10px;
     padding: 5px 14px; font-size: 11px; font-family: var(--font-mono);
     border-bottom: 1px solid rgba(255,255,255,0.04); align-items: center;
   }
@@ -2255,6 +2460,15 @@ if (typeof window !== 'undefined') window.parseHar = parseHar;
     color: var(--text-muted); font-size: 10px; font-family: var(--font-ui);
     border-bottom: 1px solid var(--border); background: var(--bg-surface);
   }
+  .har-head-row .hr-sort { cursor: pointer; user-select: none; display: inline-flex; align-items: center; gap: 3px; }
+  .har-head-row .hr-sort:hover { color: var(--text-secondary); }
+  .har-head-row .hr-sort .hr-arrow { font-size: 8px; opacity: 0; }
+  .har-head-row .hr-sort.sorted .hr-arrow { opacity: 1; color: var(--accent-teal); }
+  /* Inline waterfall (relative to the whole capture window) */
+  .hr-wf { position: relative; height: 12px; }
+  .hr-wf-track { position: absolute; inset: 0; border-radius: 3px; background: rgba(255,255,255,0.04); overflow: hidden; }
+  .hr-wf-bar { position: absolute; top: 1px; bottom: 1px; display: flex; border-radius: 2px; overflow: hidden; min-width: 2px; }
+  .hr-wf-bar .ht-seg { height: 100%; }
   #har-list { flex: 1; overflow-y: auto; }
   .har-req { cursor: pointer; }
   .har-req:hover { background: var(--bg-hover); }
@@ -2288,6 +2502,25 @@ if (typeof window !== 'undefined') window.parseHar = parseHar;
   .har-timing-legend span { display: flex; align-items: center; gap: 4px; }
   .har-timing-legend .htl-dot { width: 8px; height: 8px; border-radius: 2px; }
   .har-detail-meta { font-size: 10px; color: var(--text-secondary); font-family: var(--font-mono); margin-top: 4px; word-break: break-all; }
+  .hr-wf-bar .ht-blocked { background: #6B7280; } .hr-wf-bar .ht-dns { background: #8B5CF6; }
+  .hr-wf-bar .ht-connect { background: #F59E0B; } .hr-wf-bar .ht-ssl { background: #EC4899; }
+  .hr-wf-bar .ht-send { background: #3B82F6; } .hr-wf-bar .ht-wait { background: #14B8A6; }
+  .hr-wf-bar .ht-receive { background: #22C55E; }
+  /* Richer HAR detail / inspector */
+  .har-dom-phase { font-size: 11px; margin: 2px 0 6px; color: var(--text-secondary); }
+  .har-dom-phase strong { color: var(--accent-teal); }
+  .har-phase-table { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 4px 14px; margin: 4px 0 8px; font-size: 10px; font-family: var(--font-mono); }
+  .har-phase-table .hpt-row { display: flex; align-items: center; gap: 6px; color: var(--text-muted); }
+  .har-phase-table .hpt-dot { width: 8px; height: 8px; border-radius: 2px; flex-shrink: 0; }
+  .har-phase-table .hpt-val { color: var(--text-secondary); margin-left: auto; }
+  .har-kv { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 3px 16px; margin: 6px 0; font-size: 10px; font-family: var(--font-mono); }
+  .har-kv .hkv { color: var(--text-muted); }
+  .har-kv .hkv b { color: var(--text-secondary); font-weight: 600; }
+  .har-query { margin-top: 6px; }
+  .har-query .hq-head { font-size: 10px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-muted); margin-bottom: 3px; }
+  .har-query .hq-row { display: flex; gap: 8px; font-size: 10px; font-family: var(--font-mono); padding: 1px 0; }
+  .har-query .hq-key { color: var(--accent-purple); min-width: 120px; word-break: break-all; }
+  .har-query .hq-val { color: var(--text-secondary); word-break: break-all; }
   #har-privacy-note {
     flex-shrink: 0; padding: 6px 14px; font-size: 10px; color: var(--level-warn);
     background: var(--level-warn-bg); border-top: 1px solid var(--border);
@@ -3125,6 +3358,155 @@ if (typeof window !== 'undefined') window.parseHar = parseHar;
     background: transparent; border: 1px solid transparent; color: var(--text-secondary); cursor: pointer; transition: all 0.12s;
   }
   #add-formats-menu button:hover { background: var(--bg-hover); color: var(--text-primary); }
+
+  /* Unified "Add data" dropdown + viewer "View" dropdown */
+  #add-data-menu, #viewer-view-menu {
+    position: absolute; z-index: 200; top: calc(100% + 4px); left: 0; min-width: 190px;
+    background: var(--bg-elevated); border: 1px solid var(--border); border-radius: var(--radius-md);
+    box-shadow: 0 12px 32px rgba(0,0,0,0.5); padding: 5px; display: flex; flex-direction: column; gap: 2px;
+  }
+  #viewer-view-menu { left: auto; right: 0; }
+  #add-data-menu.hidden, #viewer-view-menu.hidden { display: none; }
+  #add-data-menu button, #viewer-view-menu button {
+    text-align: left; font-size: 12px; padding: 7px 11px; border-radius: var(--radius-sm); white-space: nowrap;
+    background: transparent; border: 1px solid transparent; color: var(--text-secondary); cursor: pointer; transition: all 0.12s;
+  }
+  #add-data-menu button:hover, #viewer-view-menu button:hover { background: var(--bg-hover); color: var(--text-primary); }
+  #add-data-menu .add-data-sep { height: 1px; background: var(--border); margin: 3px 4px; }
+  #viewer-view-menu button.is-active { color: var(--accent-purple); }
+  #viewer-view-menu button.hidden { display: none; }
+
+  /* Shared dropdown menus (header More, Tools) */
+  #header-more-menu, #tools-menu {
+    position: absolute; z-index: 200; top: calc(100% + 6px); right: 0; min-width: 200px;
+    background: var(--bg-elevated); border: 1px solid var(--border); border-radius: var(--radius-md);
+    box-shadow: 0 12px 32px rgba(0,0,0,0.5); padding: 5px; display: flex; flex-direction: column; gap: 2px;
+  }
+  #tools-menu { right: auto; left: 0; }
+  #header-more-menu.hidden, #tools-menu.hidden { display: none; }
+  #header-more-menu button, #tools-menu button {
+    text-align: left; font-size: 12px; padding: 7px 11px; border-radius: var(--radius-sm); white-space: nowrap;
+    background: transparent; border: 1px solid transparent; color: var(--text-secondary); cursor: pointer; transition: all 0.12s;
+  }
+  #header-more-menu button:hover, #tools-menu button:hover { background: var(--bg-hover); color: var(--text-primary); }
+
+  /* Maximise / fullscreen the log viewer (hide sidebar + results panel) */
+  #body.vmax #sidebar, #body.vmax #resizer-sidebar,
+  #body.vmax #results-panel, #body.vmax #resizer-results { display: none !important; }
+  #body.vmax #sidebar-collapse-btn { display: none !important; }
+  #btn-viewer-max.active { background: var(--accent-purple); color: #fff; border-color: var(--accent-purple); }
+
+  /* Thin collapse rail for the sidebar */
+  #sidebar-collapse-btn {
+    flex-shrink: 0; width: 14px; align-self: stretch;
+    border: none; border-right: 1px solid var(--border);
+    background: var(--bg-surface); color: var(--text-muted);
+    cursor: pointer; font-size: 12px; font-weight: 700; line-height: 1;
+    display: flex; align-items: center; justify-content: center;
+    transition: background 0.12s, color 0.12s;
+  }
+  #sidebar-collapse-btn:hover { background: var(--bg-hover); color: var(--accent-teal); }
+  #body.sidebar-collapsed #sidebar,
+  #body.sidebar-collapsed #resizer-sidebar { display: none !important; }
+
+  /* Minimise button on floating windows */
+  .win-min {
+    width: 28px; height: 28px; border-radius: var(--radius-sm); border: 1px solid var(--border);
+    background: var(--bg-elevated); color: var(--text-muted); cursor: pointer; transition: all 0.12s;
+    font-size: 15px; line-height: 1; display: inline-flex; align-items: center; justify-content: center;
+  }
+  .win-min:hover { border-color: var(--accent-teal); color: var(--text-primary); }
+  .win-max {
+    width: 28px; height: 28px; border-radius: var(--radius-sm); border: 1px solid var(--border);
+    background: var(--bg-elevated); color: var(--text-muted); cursor: pointer; transition: all 0.12s;
+    font-size: 13px; line-height: 1; display: inline-flex; align-items: center; justify-content: center;
+  }
+  .win-max:hover { border-color: var(--accent-teal); color: var(--text-primary); }
+  .win-compare {
+    height: 28px; padding: 0 11px; border-radius: 14px; border: 1px solid var(--accent-purple);
+    background: var(--bg-elevated); color: var(--accent-purple); cursor: pointer; transition: all 0.12s;
+    font-size: 11px; font-weight: 700; line-height: 1; display: inline-flex; align-items: center; gap: 4px;
+    font-family: var(--font-ui); white-space: nowrap;
+  }
+  .win-compare:hover { background: var(--accent-purple); color: #fff; }
+  #compare-menu {
+    position: fixed; z-index: 640; min-width: 240px; max-height: 60vh; overflow-y: auto;
+    background: var(--bg-elevated); border: 1px solid var(--border); border-radius: var(--radius-md);
+    box-shadow: 0 16px 40px rgba(0,0,0,0.55); padding: 6px;
+  }
+  #compare-menu .cm-head { font-size: 9px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--accent-teal); padding: 7px 8px 3px; }
+  #compare-menu .cm-item {
+    display: flex; align-items: center; gap: 8px; padding: 7px 9px; border-radius: var(--radius-sm);
+    font-size: 12px; color: var(--text-secondary); cursor: pointer;
+  }
+  #compare-menu .cm-item:hover { background: var(--bg-hover); color: var(--text-primary); }
+  #compare-menu .cm-item .cm-note { margin-left: auto; font-size: 9px; color: var(--text-muted); font-family: var(--font-mono); }
+  #compare-menu .cm-upload { color: var(--accent-purple); font-weight: 600; }
+  #compare-menu .cm-head.cm-upload-head { border-top: 1px solid var(--border); margin-top: 4px; }
+  #compare-menu .cm-empty { padding: 10px; font-size: 11px; color: var(--text-muted); }
+  /* Detached side-by-side window (a live snapshot of a tool window) */
+  .win-instance {
+    position: fixed; display: flex; flex-direction: column; z-index: 600;
+    background: var(--bg-base); border: 1px solid var(--accent-purple); border-radius: var(--radius-lg);
+    box-shadow: 0 20px 60px rgba(0,0,0,0.55); overflow: hidden; resize: both;
+    min-width: 360px; min-height: 180px;
+  }
+  .win-instance .wi-badge {
+    font-size: 9px; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 700;
+    background: var(--accent-purple); color: #fff; padding: 2px 7px; border-radius: 10px; margin-right: 8px; flex-shrink: 0;
+  }
+  .win-instance .wi-badge.wi-ro { background: var(--level-warn); color: #1A1033; }
+  .win-instance .wi-ctrls .wi-focus {
+    width: auto; padding: 0 10px; font-size: 10px; font-weight: 700; white-space: nowrap;
+    color: var(--accent-teal); border-color: var(--accent-teal);
+  }
+  .win-instance .wi-ctrls .wi-focus:hover { background: var(--accent-teal); color: #fff; }
+  .win-instance .wi-ctrls { margin-left: auto; display: flex; gap: 6px; flex-shrink: 0; }
+  .win-instance .wi-ctrls button {
+    width: 26px; height: 26px; border-radius: var(--radius-sm); border: 1px solid var(--border);
+    background: var(--bg-elevated); color: var(--text-muted); cursor: pointer; transition: all 0.12s;
+    display: inline-flex; align-items: center; justify-content: center; font-size: 13px;
+  }
+  .win-instance .wi-ctrls .wi-min:hover { border-color: var(--accent-teal); color: var(--text-primary); }
+  .win-instance .wi-ctrls .wi-close:hover { border-color: var(--level-error); color: var(--level-error); }
+  .win-instance.collapsed { height: auto !important; min-height: 0; resize: none; }
+  .win-instance.collapsed > *:not(.wi-header) { display: none !important; }
+  .win-instance.collapsed > #pcap-privacy-note, .win-instance.collapsed > #har-privacy-note { display: none !important; }
+  /* Tool windows can be resized from the corner for side-by-side comparison. */
+  #evtx-overlay, #pcap-overlay, #har-overlay, #timeline-overlay { resize: both; }
+  /* Maximised floating window — fills the viewport with a small inset. */
+  .win-maximized {
+    top: 8px !important; left: 8px !important; right: 8px !important; bottom: 8px !important;
+    width: auto !important; height: auto !important; max-width: none !important; max-height: none !important;
+    transform: none !important;
+  }
+  /* Loading veil shown while a window rebuilds from source on restore. */
+  .win-loading {
+    position: absolute; inset: 0; z-index: 50; display: flex; align-items: center; justify-content: center;
+    gap: 10px; background: var(--bg-base); color: var(--text-secondary); font-size: 13px;
+  }
+  .win-loading .wl-spin {
+    width: 16px; height: 16px; border: 2px solid var(--border); border-top-color: var(--accent-teal);
+    border-radius: 50%; animation: wl-spin 0.7s linear infinite;
+  }
+  @keyframes wl-spin { to { transform: rotate(360deg); } }
+
+  /* Window dock (taskbar) for minimised tool windows */
+  #window-dock {
+    position: fixed; z-index: 530; left: 50%; transform: translateX(-50%); bottom: 12px;
+    display: flex; gap: 8px; padding: 6px; align-items: center;
+    background: var(--bg-elevated); border: 1px solid var(--border); border-radius: var(--radius-lg);
+    box-shadow: 0 10px 30px rgba(0,0,0,0.5); max-width: 92vw; overflow-x: auto;
+  }
+  #window-dock.hidden { display: none; }
+  #window-dock .wd-chip {
+    display: inline-flex; align-items: center; gap: 7px; font-size: 12px; padding: 6px 12px;
+    background: var(--bg-surface); border: 1px solid var(--border); border-radius: 18px;
+    color: var(--text-secondary); cursor: pointer; transition: all 0.12s; white-space: nowrap;
+  }
+  #window-dock .wd-chip:hover { border-color: var(--accent-teal); color: var(--text-primary); transform: translateY(-1px); }
+  #window-dock .wd-chip .wd-label { max-width: 200px; overflow: hidden; text-overflow: ellipsis; }
+  #window-dock .wd-chip .wd-restore { font-size: 10px; color: var(--accent-teal); }
 </style>
 </head>
 <body>
@@ -3141,13 +3523,24 @@ if (typeof window !== 'undefined') window.parseHar = parseHar;
     </button>
     <div class="divider"></div>
     <div class="spacer"></div>
-    <button id="btn-github" title="View on GitHub" onclick="window.open('https://github.com/totalthyco99/log-analyser','_blank')">⭐ GitHub</button>
     <button id="btn-notes" title="Open your persistent notes &amp; pinned log entries (saved on this device, survives reloads)">🗒 Notes <span id="notes-pin-badge" class="hidden"></span></button>
-    <button id="btn-diagnostics" title="View / export diagnostics to help troubleshoot a reported issue (no log content — metadata only)">🩺 Diagnostics</button>
-    <button id="btn-feedback" title="Submit feedback" onclick="window.open('https://forms.microsoft.com/r/tpeMyjq0V4','_blank')">💬 Feedback</button>
-    <button id="btn-hard-refresh" title="Clears the cached app and reloads the very latest version from the server. Use this if you suspect you're seeing an outdated version of the tool." onclick="hardRefresh()">↻ Hard refresh</button>
-    <button id="btn-tour-replay" title="Replay guided tour">❓</button>
+    <div id="header-more-wrap" style="position:relative;display:inline-block">
+      <button id="btn-header-more" title="More tools and links" aria-haspopup="true">⋯ More</button>
+      <div id="header-more-menu" class="hidden">
+        <button data-act="github">⭐ View on GitHub</button>
+        <button data-act="diagnostics">🩺 Diagnostics</button>
+        <button data-act="feedback">💬 Feedback</button>
+        <button data-act="tour">❓ Replay guided tour</button>
+        <button data-act="hard-refresh">↻ Hard refresh</button>
+      </div>
+    </div>
     <button id="btn-theme" title="Toggle light/dark mode">🌙</button>
+    <!-- Original buttons kept (hidden) so existing handlers stay wired -->
+    <button id="btn-github" style="display:none" onclick="window.open('https://github.com/totalthyco99/log-analyser','_blank')">⭐ GitHub</button>
+    <button id="btn-diagnostics" style="display:none">🩺 Diagnostics</button>
+    <button id="btn-feedback" style="display:none" onclick="window.open('https://forms.microsoft.com/r/tpeMyjq0V4','_blank')">💬 Feedback</button>
+    <button id="btn-hard-refresh" style="display:none" onclick="hardRefresh()">↻ Hard refresh</button>
+    <button id="btn-tour-replay" style="display:none">❓</button>
   </header>
 
   <!-- BODY -->
@@ -3175,6 +3568,7 @@ if (typeof window !== 'undefined') window.parseHar = parseHar;
     </nav>
 
     <div class="resizer" id="resizer-sidebar"></div>
+    <button id="sidebar-collapse-btn" title="Collapse the sidebar to give the results and log viewer more room">&rsaquo;</button>
 
     <!-- MAIN -->
     <main id="main">
@@ -3263,33 +3657,35 @@ if (typeof window !== 'undefined') window.parseHar = parseHar;
       <div id="analyser" style="display:none">
         <div id="top-bar">
           <div class="topbar-row">
-            <button class="level-filter-btn active" data-level="ALL">ALL</button>
-            <button class="level-filter-btn" data-level="ERROR">ERROR</button>
-            <button class="level-filter-btn" data-level="CRITICAL">CRITICAL</button>
-            <button class="level-filter-btn" data-level="WARNING">WARNING</button>
-            <button class="level-filter-btn" data-level="INFO">INFO</button>
-            <button class="level-filter-btn" data-level="VERBOSE">VERBOSE</button>
-            <button class="level-filter-btn" data-level="DEBUG">DEBUG</button>
+            <button class="level-filter-btn active" data-level="ALL" title="Show all severities (reset)">ALL</button>
+            <button class="level-filter-btn active" data-level="ERROR" title="Toggle error entries">ERROR</button>
+            <button class="level-filter-btn active" data-level="CRITICAL" title="Toggle critical entries">CRITICAL</button>
+            <button class="level-filter-btn active" data-level="WARNING" title="Toggle warning entries">WARNING</button>
+            <button class="level-filter-btn active" data-level="INFO" title="Toggle informational entries">INFO</button>
+            <div id="more-levels-wrap" style="position:relative;display:inline-block">
+              <button id="btn-more-levels" title="More severities — verbose &amp; debug" aria-haspopup="true">⋯ more ▾</button>
+              <div id="more-levels-menu" class="hidden">
+                <button class="level-filter-btn active" data-level="VERBOSE" title="Toggle verbose entries">VERBOSE</button>
+                <button class="level-filter-btn active" data-level="DEBUG" title="Toggle debug entries">DEBUG</button>
+              </div>
+            </div>
             <div class="topbar-divider"></div>
             <span class="topbar-count" id="result-count">— entries</span>
-            <div class="topbar-spacer"></div>
-            <button id="btn-add-more" title="Keep the files already loaded and add more on top">+ Upload additional files</button>
-            <div id="add-formats-wrap" style="position:relative;display:inline-block">
-              <button id="btn-add-formats" title="Upload and analyse a Windows event log, network capture, or HTTP archive">➕ EVTX / PCAP / HAR ▾</button>
-              <div id="add-formats-menu" class="hidden">
+
+            <!-- Unified "Add data" menu (files + EVTX/PCAP/HAR) -->
+            <div id="add-data-wrap" style="position:relative;display:inline-block">
+              <button id="btn-add-data" title="Add more data to this analysis — extra log files, or a Windows event log / network capture / HTTP archive" aria-haspopup="true">＋ Add data ▾</button>
+              <div id="add-data-menu" class="hidden">
+                <button data-target="btn-add-more">📂 Upload additional files</button>
+                <div class="add-data-sep"></div>
                 <button data-target="btn-add-evtx">⬆ Analyse EVTX</button>
                 <button data-target="btn-add-pcap">🌐 Analyse PCAP</button>
                 <button data-target="btn-add-har">🔗 Analyse HAR</button>
               </div>
             </div>
-            <button id="btn-add-evtx" style="display:none" title="Upload a Windows Event Log (.evtx) and analyse it in a floating window">⬆ Upload &amp; analyse EVTX</button>
-            <input type="file" id="evtx-input" accept=".evtx" multiple style="display:none">
-            <button id="btn-add-pcap" style="display:none" title="Upload a network capture (.pcap/.pcapng) and view it alongside your logs">🌐 Upload &amp; analyse PCAP</button>
-            <input type="file" id="pcap-input" accept=".pcap,.pcapng,.cap,.gz" multiple style="display:none">
-            <button id="btn-add-har" style="display:none" title="Upload a browser HAR (HTTP Archive) and view requests alongside your logs">🔗 Upload &amp; analyse HAR</button>
-            <input type="file" id="har-input" accept=".har,.json" multiple style="display:none">
-          </div>
-          <div class="topbar-row topbar-row-secondary">
+
+            <div class="topbar-spacer"></div>
+
             <div id="global-time-range" title="Restrict all results and the viewer to a time range">
               <button id="btn-gtr" title="Choose a time range">⏱ <span id="gtr-label-text">All time</span> <span style="opacity:.6">▾</span></button>
               <button id="gtr-reset" class="hidden" title="Clear the time range">✕</button>
@@ -3314,10 +3710,27 @@ if (typeof window !== 'undefined') window.parseHar = parseHar;
                 </div>
               </div>
             </div>
-            <div class="topbar-spacer"></div>
-            <button id="btn-timeline" title="Merge a node's components into one chronological stream — opens on the last 24 hours of logs; move day by day and switch node from inside">🕒 Cross-component timeline</button>
-            <button id="btn-export-findings" title="Export selected entries as a PII-scrubbed support summary">📋 Export findings</button>
-            <button id="btn-tz-toggle" title="Toggle timestamp display between local time and UTC">🌍 <span id="tz-mode">Local</span></button>
+            <div class="topbar-divider"></div>
+            <div id="tools-menu-wrap" style="position:relative;display:inline-block">
+              <button id="btn-tools-menu" title="Timeline, export and display tools" aria-haspopup="true">🛠 Tools ▾</button>
+              <div id="tools-menu" class="hidden">
+                <button data-act="timeline">🕒 Cross-component timeline</button>
+                <button data-act="export">📋 Export findings</button>
+                <button data-act="tz">🌍 Timezone: <span id="tools-tz-mode">Local</span></button>
+              </div>
+            </div>
+
+            <!-- Original buttons kept (hidden) so existing handlers stay wired -->
+            <button id="btn-add-more" style="display:none" title="Keep the files already loaded and add more on top">+ Upload additional files</button>
+            <button id="btn-add-evtx" style="display:none" title="Upload a Windows Event Log (.evtx) and analyse it in a floating window">⬆ Upload &amp; analyse EVTX</button>
+            <input type="file" id="evtx-input" accept=".evtx" multiple style="display:none">
+            <button id="btn-add-pcap" style="display:none" title="Upload a network capture (.pcap/.pcapng) and view it alongside your logs">🌐 Upload &amp; analyse PCAP</button>
+            <input type="file" id="pcap-input" accept=".pcap,.pcapng,.cap,.gz" multiple style="display:none">
+            <button id="btn-add-har" style="display:none" title="Upload a browser HAR (HTTP Archive) and view requests alongside your logs">🔗 Upload &amp; analyse HAR</button>
+            <input type="file" id="har-input" accept=".har,.json" multiple style="display:none">
+            <button id="btn-timeline" style="display:none" title="Merge a node's components into one chronological stream">🕒 Cross-component timeline</button>
+            <button id="btn-export-findings" style="display:none" title="Export selected entries as a PII-scrubbed support summary">📋 Export findings</button>
+            <button id="btn-tz-toggle" style="display:none" title="Toggle timestamp display between local time and UTC">🌍 <span id="tz-mode">Local</span></button>
           </div>
         </div>
 
@@ -3392,9 +3805,26 @@ if (typeof window !== 'undefined') window.parseHar = parseHar;
                 </div>
               </div>
               <div class="topbar-divider"></div>
-              <button id="btn-highlight-similar" title="Highlight entries with same logger">Similar</button>
-              <button id="btn-recognised-errors" title="Show entries with a recognised documented error">⚠ Recognised errors</button>
+              <div id="viewer-view-wrap" style="position:relative;display:inline-block">
+                <button id="btn-viewer-view" title="View actions: highlight similar entries, recognised errors, load older logs" aria-haspopup="true">⋯ View ▾</button>
+                <div id="viewer-view-menu" class="hidden">
+                  <button data-target="btn-highlight-similar">🔆 Highlight similar (same logger)</button>
+                  <button data-target="btn-recognised-errors">⚠ Recognised errors</button>
+                  <button data-target="btn-load-older" data-optional="1">⏬ Load older logs</button>
+                </div>
+              </div>
+              <button id="btn-viewer-max" title="Maximise the log viewer (hide the sidebar and results panel). Click again to restore.">⛶ Fullscreen</button>
+              <!-- Original buttons kept (hidden) so existing handlers + active states stay wired -->
+              <button id="btn-highlight-similar" style="display:none" title="Highlight entries with same logger">Similar</button>
+              <button id="btn-recognised-errors" style="display:none" title="Show entries with a recognised documented error">⚠ Recognised errors</button>
               <button id="btn-load-older" style="display:none" title="Older rolled logs (.log.1, .log.2 …) aren't loaded yet to save memory. Click to load and merge them in.">⏬ Load older logs</button>
+            </div>
+
+            <div id="viewer-context-bar" style="display:none">
+              <span class="vcb-icon">↕</span>
+              <span id="vcb-text">Showing full context around this entry — surrounding lines are normally hidden by your level filter.</span>
+              <span class="vcb-spacer"></span>
+              <button id="btn-back-to-filtered" title="Re-apply the level filter to the viewer">Back to filtered view</button>
             </div>
 
             <div id="occurrence-bar" style="display:none">
@@ -3469,6 +3899,9 @@ if (typeof window !== 'undefined') window.parseHar = parseHar;
     </div>
     <div class="evtx-spacer"></div>
     <select id="evtx-file-switcher" title="Switch between loaded event logs" style="display:none"></select>
+    <button class="win-compare" data-compare-win="evtx-overlay" title="Open another file beside this one for comparison">＋ Compare</button>
+    <button class="win-max" data-max-win="evtx-overlay" title="Maximise / restore">⤢</button>
+    <button class="win-min" data-min-win="evtx-overlay" title="Minimise to the dock">—</button>
     <button id="btn-evtx-close" title="Close">✕</button>
   </div>
   <div id="evtx-overlay-body">
@@ -3494,6 +3927,9 @@ if (typeof window !== 'undefined') window.parseHar = parseHar;
     </div>
     <div class="evtx-spacer"></div>
     <select id="pcap-file-switcher" title="Switch between loaded captures" style="display:none"></select>
+    <button class="win-compare" data-compare-win="pcap-overlay" title="Open another file beside this one for comparison">＋ Compare</button>
+    <button class="win-max" data-max-win="pcap-overlay" title="Maximise / restore">⤢</button>
+    <button class="win-min" data-min-win="pcap-overlay" title="Minimise to the dock">—</button>
     <button id="btn-pcap-close" title="Close">✕</button>
   </div>
   <div id="pcap-tabs">
@@ -3545,6 +3981,9 @@ if (typeof window !== 'undefined') window.parseHar = parseHar;
     </div>
     <div class="evtx-spacer"></div>
     <select id="har-file-switcher" title="Switch between loaded HAR files" style="display:none"></select>
+    <button class="win-compare" data-compare-win="har-overlay" title="Open another file beside this one for comparison">＋ Compare</button>
+    <button class="win-max" data-max-win="har-overlay" title="Maximise / restore">⤢</button>
+    <button class="win-min" data-min-win="har-overlay" title="Minimise to the dock">—</button>
     <button id="btn-har-close" title="Close">✕</button>
   </div>
   <div id="har-toolbar">
@@ -3554,13 +3993,16 @@ if (typeof window !== 'undefined') window.parseHar = parseHar;
       <button class="har-sf" data-sf="slow">Slow (≥1s)</button>
     </div>
     <span class="evtx-spacer"></span>
-    <input id="har-filter" type="text" placeholder="Filter: method, status, host, path, mime…" autocomplete="off" spellcheck="false">
+    <input id="har-filter" type="text" placeholder="Filter: text, or field-term e.g. status:404 method:post type:script" autocomplete="off" spellcheck="false">
   </div>
   <div id="har-summary-bar"></div>
   <div id="har-head" class="har-row har-head-row">
-    <span class="hr-time">Time</span><span class="hr-method">Method</span>
-    <span class="hr-status">Status</span><span class="hr-url">URL</span>
-    <span class="hr-dur">Duration</span>
+    <span class="hr-time"><span class="hr-sort" data-sort="ts">Time<span class="hr-arrow">▼</span></span></span>
+    <span class="hr-method"><span class="hr-sort" data-sort="method">Method<span class="hr-arrow">▼</span></span></span>
+    <span class="hr-status"><span class="hr-sort" data-sort="status">Status<span class="hr-arrow">▼</span></span></span>
+    <span class="hr-url"><span class="hr-sort" data-sort="url">URL<span class="hr-arrow">▼</span></span></span>
+    <span class="hr-dur"><span class="hr-sort" data-sort="time">Duration<span class="hr-arrow">▼</span></span></span>
+    <span class="hr-wf-head"><span class="hr-sort" data-sort="ts">Waterfall<span class="hr-arrow">▼</span></span></span>
   </div>
   <div id="har-list"></div>
   <div id="har-privacy-note">⚠ HAR files routinely contain auth headers, cookies and tokens. This view shows method, status, URL and timing only — request/response headers are never displayed. Everything stays in your browser.</div>
@@ -3578,6 +4020,9 @@ if (typeof window !== 'undefined') window.parseHar = parseHar;
     </div>
     <label id="timeline-errors-only-wrap" title="Show only ERROR/CRITICAL lines"><input type="checkbox" id="timeline-errors-only"> Errors only</label>
     <label id="timeline-wrap-wrap" title="Wrap long lines instead of truncating them"><input type="checkbox" id="timeline-wrap"> Wrap</label>
+    <button class="win-compare" data-compare-win="timeline-overlay" title="Open another file beside this one for comparison">＋ Compare</button>
+    <button class="win-max" data-max-win="timeline-overlay" title="Maximise / restore">⤢</button>
+    <button class="win-min" data-min-win="timeline-overlay" title="Minimise to the dock">—</button>
     <button id="btn-timeline-close" title="Close">✕</button>
   </div>
   <div id="timeline-comps" title="Click a component to include/exclude it from the timeline"></div>
@@ -3960,6 +4405,11 @@ const LEVEL_NORM = {
 // ═══════════════════════════════════════════════════════════════
 //  STATE
 // ═══════════════════════════════════════════════════════════════
+// Canonical severities, in display order. The level filter is a Set drawn
+// from these; "all on" means no filtering is in effect.
+const ALL_LEVELS = ['ERROR','CRITICAL','WARNING','INFO','VERBOSE','DEBUG'];
+function levelFilterIsAll() { return ALL_LEVELS.every(l => state.levelFilter.has(l)); }
+function levelEnabled(level) { return !!level && state.levelFilter.has(level); }
 const state = {
   product: null,
   selectedComponents: new Set(),
@@ -3969,7 +4419,10 @@ const state = {
   activeFileIndex: 0,
   focusedLineNo: null,
   focusedLogger: null,
-  activeLevel: 'ALL',
+  // Multi-select level filter: a Set of the severities currently shown.
+  // Default = everything on. The "ALL" button resets to this full set.
+  levelFilter: new Set(['ERROR','CRITICAL','WARNING','INFO','VERBOSE','DEBUG']),
+  viewerContextMode: false, // when true, the viewer shows ALL lines (full context) ignoring the level filter
   timeWindow: 0, // minutes, 0=all (± preset around the focused entry)
   viewerRange: null,      // {start,end} epoch ms — custom absolute range in the viewer
   viewerRangeLabel: '',   // label for the viewer range button
@@ -3987,7 +4440,7 @@ const state = {
   sidebarView: 'tree', // 'components' | 'tree' — default to the file tree
   activeFilePath: null, // when set, results are scoped to this single file (by path) within the active component
   activeFileName: null, // display name (basename) of the scoped file, for labels
-  activeNode: null,     // when set, results are scoped to this node/engine (folder of path) within the active component; null = all nodes
+  activeNodes: new Set(), // results scoped to these node/engine folders within the active component; empty = all sources
   viewerCompId: null,   // component whose file is currently open in the viewer
   viewerFilePath: null, // path identity of the file currently open in the viewer
   resultsTerm: '',      // on-demand logger/keyword filter for the grouped results
@@ -4636,6 +5089,94 @@ function handleEvtxFile(file, path) {
 
 // ── EVTX summary overlay ──
 let evtxSelectedRecord = null;
+let _evtxSelectedRow = null;   // currently-selected .evtx-rec node (avoids re-scanning all rows on click)
+// ── EVTX event-list virtualization (extend-and-prune; mirrors HAR/PCAP/vsRender) ──
+// Only a window of rows is in the DOM (no more 1,000-event cap). EVTX has no text
+// filter, so the rendered set is ev.records in order and record index == row index.
+// Selection lives in _evtxSelIdx (model) so it survives prune/recreate + focus-swap.
+let _evtxSelIdx = -1;
+let _evtxRecords = null;
+let _evtxRenderedStart = 0, _evtxRenderedEnd = -1;
+let _evtxRaf = null;
+const EVTX_INITIAL = 200, EVTX_EXTEND = 200, EVTX_PRUNE_THRESHOLD = 2000, EVTX_MAX_ROWS = 1000, EVTX_TARGET_ROWS = 700;
+function evtxBuildRowEl(rec, idx) {
+  const row = document.createElement('div');
+  row.className = 'evtx-rec' + (idx === _evtxSelIdx ? ' selected' : '');
+  row.dataset.idx = idx;
+  const levelColour = {Error:'var(--level-error)',Warning:'var(--level-warn)',Critical:'var(--level-critical)',Information:'var(--level-info)',Verbose:'var(--level-verbose)'}[rec.level] || 'var(--text-muted)';
+  row.innerHTML = `
+      <div class="evtx-rec-meta">
+        <span class="evtx-rec-time">${fmtTime(rec.ts)}</span>
+        ${rec.eventId != null ? `<span class="evtx-eid-badge">EID ${rec.eventId}</span>` : ''}
+        ${rec.level ? `<span style="color:${levelColour}">${escHtml(rec.level)}</span>` : ''}
+        ${rec.provider ? `<span style="color:var(--text-muted);font-size:10px">${escHtml(rec.provider)}</span>` : ''}
+      </div>
+      <div class="evtx-rec-snippet">${escHtml(evtxRowSnippet(rec) || '(no event data extracted)')}</div>
+    `;
+  if (idx === _evtxSelIdx) _evtxSelectedRow = row;
+  row.addEventListener('click', () => {
+    if (_evtxSelectedRow) _evtxSelectedRow.classList.remove('selected');
+    row.classList.add('selected');
+    _evtxSelectedRow = row;
+    _evtxSelIdx = idx;
+    evtxSelectedRecord = rec;
+    showEvtxDetail(rec);
+  });
+  return row;
+}
+function evtxVsRender() {
+  const list = document.getElementById('evtx-records-list');
+  const rows = _evtxRecords;
+  if (!list || !rows || !rows.length) return;
+  const scrollTop = list.scrollTop, viewH = list.clientHeight, scrollH = list.scrollHeight;
+  const nearTop = scrollTop < scrollH * 0.1, nearBottom = scrollTop + viewH > scrollH * 0.9;
+  if (!nearTop && !nearBottom) return;
+  let changed = false, exTop = false, exBottom = false;
+  if (nearTop && _evtxRenderedStart > 0) {
+    const newStart = Math.max(0, _evtxRenderedStart - EVTX_EXTEND);
+    const frag = document.createDocumentFragment();
+    for (let i = newStart; i < _evtxRenderedStart; i++) frag.appendChild(evtxBuildRowEl(rows[i], i));
+    list.insertBefore(frag, list.firstChild);
+    _evtxRenderedStart = newStart; changed = true; exTop = true;
+  }
+  if (nearBottom && _evtxRenderedEnd < rows.length - 1) {
+    const newEnd = Math.min(rows.length - 1, _evtxRenderedEnd + EVTX_EXTEND);
+    const frag = document.createDocumentFragment();
+    for (let i = _evtxRenderedEnd + 1; i <= newEnd; i++) frag.appendChild(evtxBuildRowEl(rows[i], i));
+    list.appendChild(frag);
+    _evtxRenderedEnd = newEnd; changed = true; exBottom = true;
+  }
+  if (changed && rows.length > EVTX_PRUNE_THRESHOLD && (_evtxRenderedEnd - _evtxRenderedStart + 1) > EVTX_MAX_ROWS) {
+    if (exBottom && !exTop) {
+      const removeCount = (_evtxRenderedEnd - EVTX_TARGET_ROWS + 1) - _evtxRenderedStart;
+      for (let k = 0; k < removeCount && list.firstChild; k++) list.removeChild(list.firstChild);
+      if (removeCount > 0) _evtxRenderedStart += removeCount;
+    } else if (exTop && !exBottom) {
+      const removeCount = _evtxRenderedEnd - (_evtxRenderedStart + EVTX_TARGET_ROWS - 1);
+      for (let k = 0; k < removeCount && list.lastChild; k++) list.removeChild(list.lastChild);
+      if (removeCount > 0) _evtxRenderedEnd -= removeCount;
+    }
+  }
+}
+function evtxVsScroll() {
+  if (_evtxRaf) cancelAnimationFrame(_evtxRaf);
+  _evtxRaf = requestAnimationFrame(evtxVsRender);
+}
+function evtxEnsureScrollTop(px) {
+  const list = document.getElementById('evtx-records-list');
+  const rows = _evtxRecords;
+  if (!list || !rows) return;
+  let guard = 0;
+  while (list.scrollHeight < px + list.clientHeight && _evtxRenderedEnd < rows.length - 1 && guard++ < 2000) {
+    const newEnd = Math.min(rows.length - 1, _evtxRenderedEnd + EVTX_EXTEND);
+    const frag = document.createDocumentFragment();
+    for (let i = _evtxRenderedEnd + 1; i <= newEnd; i++) frag.appendChild(evtxBuildRowEl(rows[i], i));
+    list.appendChild(frag);
+    _evtxRenderedEnd = newEnd;
+  }
+  list.scrollTop = px;
+}
+(function attachEvtxScroll(){ const l = document.getElementById('evtx-records-list'); if (l) l.addEventListener('scroll', evtxVsScroll, { passive: true }); })();
 
 function fmtTime(ts) {
   if (!ts) return '—';
@@ -4643,7 +5184,7 @@ function fmtTime(ts) {
   return d.toISOString().replace('T',' ').replace('Z','').slice(0,19);
 }
 
-function openEvtxSummary(key) {
+function openEvtxSummary(key, full) {
   const ev = (state.loadedEvtx && state.loadedEvtx[key]) || pendingEvtx[key];
   if (!ev) return;
   evtxSelectedRecord = null;
@@ -4704,37 +5245,23 @@ function openEvtxSummary(key) {
   // Records list
   const rl = document.getElementById('evtx-records-list');
   rl.innerHTML = '';
+  _evtxSelectedRow = null;            // rows just got detached
+  _evtxSelIdx = -1;                   // selection cleared on (re)open
   const hint = document.getElementById('evtx-correlate-hint');
   const haveLogs = Object.keys(state.loadedData).length > 0;
   hint.textContent = haveLogs ? 'Click an event to correlate with your logs ▸' : '(load logs too, to enable correlation)';
 
-  ev.records.slice(0, 1000).forEach((rec, idx) => {
-    const row = document.createElement('div');
-    row.className = 'evtx-rec';
-    const levelColour = {Error:'var(--level-error)',Warning:'var(--level-warn)',Critical:'var(--level-critical)',Information:'var(--level-info)',Verbose:'var(--level-verbose)'}[rec.level] || 'var(--text-muted)';
-    row.innerHTML = `
-      <div class="evtx-rec-meta">
-        <span class="evtx-rec-time">${fmtTime(rec.ts)}</span>
-        ${rec.eventId != null ? `<span class="evtx-eid-badge">EID ${rec.eventId}</span>` : ''}
-        ${rec.level ? `<span style="color:${levelColour}">${escHtml(rec.level)}</span>` : ''}
-        ${rec.provider ? `<span style="color:var(--text-muted);font-size:10px">${escHtml(rec.provider)}</span>` : ''}
-      </div>
-      <div class="evtx-rec-snippet">${escHtml(evtxRowSnippet(rec) || '(no event data extracted)')}</div>
-    `;
-    row.addEventListener('click', (e) => {
-      document.querySelectorAll('.evtx-rec').forEach(r => r.classList.remove('selected'));
-      row.classList.add('selected');
-      evtxSelectedRecord = rec;
-      showEvtxDetail(rec);
-    });
-    rl.appendChild(row);
-  });
-  if (ev.records.length > 1000) {
-    const note = document.createElement('div');
-    note.style.cssText = 'padding:10px;text-align:center;font-size:10px;color:var(--text-muted);font-family:var(--font-mono)';
-    note.textContent = `Showing first 1,000 of ${ev.records.length.toLocaleString()} events`;
-    rl.appendChild(note);
-  }
+  // Windowed render — only EVTX_INITIAL rows up-front (full=true renders all,
+  // used to snapshot a read-only comparison clone). No more 1,000-event cap;
+  // scrolling extends the window and prunes the off-screen side on huge files.
+  _evtxRecords = ev.records;
+  const end = (full || ev.records.length <= EVTX_INITIAL) ? ev.records.length - 1 : (EVTX_INITIAL - 1);
+  const frag = document.createDocumentFragment();
+  for (let i = 0; i <= end; i++) frag.appendChild(evtxBuildRowEl(ev.records[i], i));
+  rl.appendChild(frag);
+  _evtxRenderedStart = 0;
+  _evtxRenderedEnd = end;
+  rl.scrollTop = 0;
 
   document.getElementById('evtx-overlay').classList.remove('hidden');
 }
@@ -4746,7 +5273,7 @@ document.getElementById('btn-evtx-close').addEventListener('click', () => {
 
 // Open the EVTX floating window for a given file, populating the switcher
 // with all loaded event logs so the user can flip between them.
-function openEvtxWindow(key) {
+function openEvtxWindow(key, full) {
   const switcher = document.getElementById('evtx-file-switcher');
   const keys = Object.keys(state.loadedEvtx);
   if (keys.length > 1) {
@@ -4756,7 +5283,7 @@ function openEvtxWindow(key) {
   } else {
     switcher.style.display = 'none';
   }
-  openEvtxSummary(key);
+  openEvtxSummary(key, full);
 }
 
 document.getElementById('evtx-file-switcher').addEventListener('change', (e) => {
@@ -5628,6 +6155,55 @@ async function loadOlderLogs(compId) {
   flashViewerStatus('');
 }
 
+// Load the deferred (older) files for ONE node within a component.
+async function loadOlderForNode(compId, node) {
+  const data = state.loadedData[compId];
+  if (!data) return 0;
+  const unloaded = data.files.filter(f => !f.loaded && fileLocLabel(f.path, f.name) === node);
+  if (!unloaded.length) return 0;
+  flashViewerStatus(`Loading ${unloaded.length} older log(s) for ${nodeDisplayLabel(node)}…`);
+  for (const f of unloaded) {
+    let raw = f.raw;
+    if (raw == null && f.zipEntry) { try { raw = await f.zipEntry.async('text'); } catch (e) { continue; } }
+    await new Promise((resolve) => {
+      const w = makeWorker();
+      w.onmessage = e => { w.terminate(); const p = e.data.parsed[0]; if (p) { f.lines = p.lines; f.loaded = true; } resolve(); };
+      w.onerror = () => { w.terminate(); resolve(); };
+      w.postMessage({ compId, files: [{ name: f.name, size: f.size, path: f.path, raw }] });
+    });
+  }
+  data.merged = buildMerged(data.files);
+  data.hasOlder = data.files.some(f => !f.loaded);
+  flashViewerStatus('');
+  return unloaded.length;
+}
+
+// Free the OLDER (rank>0) files of ONE node. Each node's most-recent (rank 0)
+// log stays resident, so the viewer/results never go blank — only the heavy
+// rolled history is released, keeping memory in check.
+function unloadOlderForNode(compId, node) {
+  const data = state.loadedData[compId];
+  if (!data) return 0;
+  let freed = 0;
+  data.files.forEach(f => {
+    if (fileLocLabel(f.path, f.name) === node && (f.rank || 0) > 0 && f.loaded) {
+      f.lines = []; f.loaded = false; freed++;
+    }
+  });
+  if (freed) { data.merged = buildMerged(data.files); data.hasOlder = data.files.some(f => !f.loaded); }
+  return freed;
+}
+
+// Ensure every file across every node of a component is loaded — used by the
+// all-nodes recognised-errors scan. Incremental (one file at a time) to avoid a
+// memory spike; returns true if it actually loaded anything.
+async function ensureAllNodesLoaded(compId) {
+  const data = state.loadedData[compId];
+  if (!data || !data.files.some(f => !f.loaded)) return false;
+  await loadOlderLogs(compId);
+  return true;
+}
+
 function flashViewerStatus(msg) {
   const el = document.getElementById('viewer-file-label');
   if (el && msg) el.textContent = msg;
@@ -5660,6 +6236,8 @@ function renderSidebar() {
   } else {
     renderSidebarComponents(container);
   }
+  // Re-apply any active node/engine highlight (the DOM was just rebuilt).
+  if (!nodeScopeAll()) highlightSidebarForNodes(state.activeNodes);
 }
 
 function renderSidebarComponents(container) {
@@ -5741,6 +6319,7 @@ function buildTreeDom(node, prefix) {
     Object.keys(node.children).sort().forEach(folderName => {
       const folder = document.createElement('div');
       folder.className = 'tree-folder';
+      folder.dataset.path = prefix + folderName;
       const label = document.createElement('div');
       label.className = 'tree-folder-label';
       label.innerHTML = `<span class="tf-caret">▼</span>📁 ${escHtml(folderName)}`;
@@ -5805,6 +6384,7 @@ function buildTreeDom(node, prefix) {
 function buildTreeFileEl(f) {
   const fileEl = document.createElement('div');
   fileEl.className = 'tree-file' + (f.kind === 'evtx' ? ' evtx' : '');
+  if (f.path) fileEl.dataset.fpath = f.path;
   const icon = f.kind === 'evtx' ? '🗔' : '📄';
   const countLabel = f.kind === 'evtx'
     ? (f.count ? f.count.toLocaleString() : '')
@@ -5875,7 +6455,7 @@ function activateComponent(compId, filePath) {
   state.activeFileName = filePath ? filePath.split('/').pop() : null;
   // Derive the node scope: a specific file pins us to its node; otherwise
   // start unscoped (all nodes). The chip lets the user narrow it afterwards.
-  state.activeNode = filePath ? nodeOfPath(filePath, state.activeFileName) : null;
+  state.activeNodes = filePath ? new Set([nodeOfPath(filePath, state.activeFileName)]) : new Set();
   document.querySelectorAll('.component-item').forEach(el => {
     el.classList.toggle('active', el.dataset.compId === compId);
   });
@@ -5921,10 +6501,12 @@ function updateNodeScopeChip() {
   chip.classList.toggle('show', multi && !globalSearchActive);
   if (!multi) return;
   const nameEl = chip.querySelector('.rns-name');
-  if (state.activeNode == null) {
-    nameEl.textContent = `All nodes (${nodes.length})`;
+  if (nodeScopeAll()) {
+    nameEl.textContent = `All sources (${nodes.length})`;
+  } else if (state.activeNodes.size === 1) {
+    nameEl.textContent = classifyNode([...state.activeNodes][0]).display;
   } else {
-    nameEl.textContent = nodeDisplayLabel(state.activeNode);
+    nameEl.textContent = `${state.activeNodes.size} of ${nodes.length} sources`;
   }
 }
 
@@ -5936,17 +6518,44 @@ function toggleNodeScopeMenu(anchorEl) {
   const data = state.loadedData[compId];
   const menu = document.createElement('div');
   menu.id = 'results-node-menu';
-  let html = '<div class="rnm-head">Scope results to a node / engine</div>';
-  const allActive = state.activeNode == null ? ' active' : '';
-  html += `<div class="rnm-item${allActive}" data-node="\u0000ALL"><span class="rnm-name">🗂 All nodes</span><span class="rnm-note">${(data.merged ? data.merged.filter(l=>!l.isContinuation && l.level).length : 0).toLocaleString()}</span></div>`;
-  nodes.forEach(node => {
-    const files = nodeFiles(compId, node);
-    const lineCount = files.reduce((n, f) => n + ((f.lines ? f.lines.length : f.count) || 0), 0);
-    const active = state.activeNode === node ? ' active' : '';
-    html += `<div class="rnm-item${active}" data-node="${escHtml(node)}">`
-      + `<span class="rnm-name">🖧 ${escHtml(nodeDisplayLabel(node))}</span>`
-      + `<span class="rnm-note">${files.length} file${files.length===1?'':'s'} · ${lineCount.toLocaleString()}</span></div>`;
+
+  const totalLines = data.merged ? data.merged.filter(l => !l.isContinuation && l.level).length : 0;
+  const allActive = nodeScopeAll() ? ' active' : '';
+  let html = '<div class="rnm-head">Sources — tick to include in results (multi-select), ⏬ to load older logs</div>';
+  html += `<div class="rnm-item${allActive}" data-node="\u0000ALL"><span class="rnm-check">${nodeScopeAll() ? '◉' : '○'}</span><span class="rnm-name">🗂 All sources</span><span class="rnm-note">${totalLines.toLocaleString()}</span></div>`;
+
+  // Bucket the component's sources by node / engine classification.
+  const groups = { node: [], engine: [], other: [] };
+  nodes.forEach(n => groups[classifyNode(n).kind].push(n));
+  const sortNodes = (arr) => arr.sort((a, b) => {
+    const ca = classifyNode(a), cb = classifyNode(b);
+    return ((ca.id == null ? 1e9 : ca.id) - (cb.id == null ? 1e9 : cb.id)) || a.localeCompare(b);
   });
+  const renderGroup = (label, arr) => {
+    if (!arr.length) return;
+    html += `<div class="rnm-group-head">${label}</div>`;
+    sortNodes(arr).forEach(node => {
+      const files = nodeFiles(compId, node);
+      const lineCount = files.reduce((n, f) => n + ((f.lines ? f.lines.length : f.count) || 0), 0);
+      const unloaded = files.filter(f => f.loaded === false).length;
+      const older = files.filter(f => (f.rank || 0) > 0).length;
+      const c = classifyNode(node);
+      const inScope = !nodeScopeAll() && state.activeNodes.has(node);
+      const active = inScope ? ' active' : '';
+      let toggle = '';
+      if (unloaded > 0) toggle = `<button class="rnm-load" data-load="${escHtml(node)}" title="Load ${unloaded} older log file(s) for this source">⏬ load ${unloaded}</button>`;
+      else if (older > 0) toggle = `<button class="rnm-load loaded" data-free="${escHtml(node)}" title="Free this source's older rolled logs from memory (keeps its current log)">✓ loaded</button>`;
+      html += `<div class="rnm-item${active}" data-node="${escHtml(node)}">`
+        + `<span class="rnm-check">${inScope ? '☑' : '☐'}</span>`
+        + `<span class="rnm-name">${c.icon} ${escHtml(c.display)}</span>`
+        + `<span class="rnm-note">${files.length} file${files.length === 1 ? '' : 's'} · ${lineCount.toLocaleString()}</span>`
+        + toggle + `</div>`;
+    });
+  };
+  renderGroup('Nodes', groups.node);
+  renderGroup('Distributed engines', groups.engine);
+  renderGroup('Other', groups.other);
+
   menu.innerHTML = html;
   document.body.appendChild(menu);
   const r = anchorEl.getBoundingClientRect();
@@ -5954,11 +6563,37 @@ function toggleNodeScopeMenu(anchorEl) {
   menu.style.left = Math.min(r.left, window.innerWidth - menu.offsetWidth - 12) + 'px';
   const mh = menu.offsetHeight;
   if (r.bottom + 4 + mh > window.innerHeight - 8) menu.style.top = Math.max(8, r.top - mh - 4) + 'px';
+
+  // Load / free toggles act in place — they don't change scope or close the menu.
+  menu.querySelectorAll('.rnm-load').forEach(b => {
+    b.addEventListener('click', async (e) => {
+      e.stopPropagation();
+      b.disabled = true;
+      if (b.dataset.load != null) await loadOlderForNode(compId, b.dataset.load);
+      else if (b.dataset.free != null) unloadOlderForNode(compId, b.dataset.free);
+      if (state.activeCompId === compId && state.resultsRun && !globalSearchActive) applyFilter();
+      renderSidebar();
+      closeNodeScopeMenu();
+      toggleNodeScopeMenu(anchorEl); // rebuild to reflect the new load state
+    });
+  });
+  // Item body — toggle this source in/out of the results scope (multi-select).
+  // "All sources" clears the scope. The menu stays open so you can pick several.
   menu.querySelectorAll('.rnm-item[data-node]').forEach(it => {
     it.addEventListener('click', () => {
-      const node = it.dataset.node === '\u0000ALL' ? null : it.dataset.node;
+      const raw = it.dataset.node;
+      if (raw === '\u0000ALL') {
+        state.activeNodes.clear();
+      } else {
+        if (state.activeNodes.has(raw)) state.activeNodes.delete(raw);
+        else state.activeNodes.add(raw);
+        normalizeNodeScope();
+      }
+      // A multi-source scope spans files, so drop any single-file pin.
+      state.activeFilePath = null; state.activeFileName = null;
+      applyNodeScopeChange();
       closeNodeScopeMenu();
-      scopeToNode(node);
+      toggleNodeScopeMenu(anchorEl); // rebuild in place to update the ticks
     });
   });
   setTimeout(() => document.addEventListener('click', nodeScopeMenuOutside, true), 0);
@@ -5973,10 +6608,31 @@ function closeNodeScopeMenu() {
   document.removeEventListener('click', nodeScopeMenuOutside, true);
 }
 
-// Apply a node scope to the active component. null = all nodes (whole component).
+// Re-render everything that depends on the source scope, without yanking the
+// viewer around (used by the multi-select menu toggles).
+function applyNodeScopeChange() {
+  updateNodeScopeChip();
+  populateResultsLoggers();
+  highlightSidebarForNodes(state.activeNodes);
+  if (typeof globalSearchActive !== 'undefined' && globalSearchActive && state.globalSearchTerm) {
+    runGlobalSearch(state.globalSearchTerm);
+    return;
+  }
+  if (state.recognisedOnly) {
+    if (nodeScopeAll()) ensureAllNodesLoaded(state.activeCompId).then(() => applyFilter());
+    else applyFilter();
+  } else if (state.resultsRun) {
+    applyFilter();
+  } else {
+    showResultsHint();
+  }
+}
+
+// Focus the scope on exactly one source (or all, when node == null) AND jump the
+// viewer to its newest entry. Used by the viewer's node switcher and file picks.
 function scopeToNode(node) {
   if (!state.activeCompId) return;
-  state.activeNode = node;
+  setNodeScopeSingle(node);
   // A node scope is broader than a single file, so clear the single-file pin so
   // the results span every file in the node.
   state.activeFilePath = null;
@@ -5988,6 +6644,7 @@ function scopeToNode(node) {
   if (termEl) termEl.value = '';
   updateNodeScopeChip();
   populateResultsLoggers();
+  highlightSidebarForNodes(state.activeNodes);
   // Jump the viewer to the newest entry within the chosen scope WITHOUT
   // re-pinning the results to that single file (openInViewer leaves the
   // results scope untouched; openComponentFileInViewer would narrow it).
@@ -6007,7 +6664,18 @@ function scopeToNode(node) {
       openInViewer(f.lines[f.lines.length - 1], data);
     }
   }
-  showResultsHint();
+  // Preserve the recognised-errors view across scope changes. When scoping to
+  // "All sources", every node's logs must be resident or the scan is partial,
+  // so auto-load any deferred files first (incrementally, to spare memory).
+  if (state.recognisedOnly) {
+    if (node == null) {
+      ensureAllNodesLoaded(state.activeCompId).then(() => applyFilter());
+    } else {
+      applyFilter();
+    }
+  } else {
+    showResultsHint();
+  }
 }
 
 document.getElementById('results-node-scope').addEventListener('click', (e) => {
@@ -6043,24 +6711,77 @@ document.querySelectorAll('.svt-btn').forEach(btn => {
 // ═══════════════════════════════════════════════════════════════
 //  FILTER & RESULTS
 // ═══════════════════════════════════════════════════════════════
+// Multi-select level toggles. Each level button toggles its own severity in/out
+// of state.levelFilter; the ALL button resets to every level on. The filter
+// drives both the results panel and the log viewer.
+function syncLevelButtons() {
+  const all = levelFilterIsAll();
+  document.querySelectorAll('.level-filter-btn').forEach(b => {
+    const lvl = b.dataset.level;
+    if (lvl === 'ALL') b.classList.toggle('active', all);
+    else b.classList.toggle('active', state.levelFilter.has(lvl));
+  });
+  // Flag the "more levels" button when verbose/debug have been hidden.
+  const ml = document.getElementById('btn-more-levels');
+  if (ml) ml.classList.toggle('changed', !(state.levelFilter.has('VERBOSE') && state.levelFilter.has('DEBUG')));
+}
+function updateContextBar() {
+  const bar = document.getElementById('viewer-context-bar');
+  if (!bar) return;
+  bar.style.display = (state.viewerContextMode && !levelFilterIsAll()) ? 'flex' : 'none';
+}
 document.querySelectorAll('.level-filter-btn').forEach(btn => {
   btn.addEventListener('click', () => {
-    document.querySelectorAll('.level-filter-btn').forEach(b => b.classList.remove('active'));
-    btn.classList.add('active');
-    state.activeLevel = btn.dataset.level;
-    // Changing the filter set invalidates any active occurrence navigation
+    const lvl = btn.dataset.level;
+    if (lvl === 'ALL') {
+      ALL_LEVELS.forEach(l => state.levelFilter.add(l));   // reset: everything on
+    } else if (state.levelFilter.has(lvl)) {
+      state.levelFilter.delete(lvl);
+    } else {
+      state.levelFilter.add(lvl);
+    }
+    syncLevelButtons();
+    // An explicit filter change returns the viewer to the filtered view.
+    state.viewerContextMode = false;
     const occBar = document.getElementById('occurrence-bar');
     if (occBar) occBar.style.display = 'none';
     // While a global search is active, the level buttons filter the SEARCH
-    // results (re-run with the new level), not the grouped component view.
+    // results (re-run with the new filter), not the grouped component view.
     if (typeof globalSearchActive !== 'undefined' && globalSearchActive && state.globalSearchTerm) {
       runGlobalSearch(state.globalSearchTerm);
+      rerenderViewer();
+      updateContextBar();
       return;
     }
     state.resultsRun = true; // a level click is an explicit request to see grouped results
     applyFilter();
+    rerenderViewer();
+    updateContextBar();
   });
 });
+// "More levels" popover (verbose / debug) — stays open while you toggle inside it.
+(function wireMoreLevels() {
+  const btn = document.getElementById('btn-more-levels');
+  const menu = document.getElementById('more-levels-menu');
+  if (!btn || !menu) return;
+  btn.addEventListener('click', (e) => { e.stopPropagation(); menu.classList.toggle('hidden'); });
+  menu.addEventListener('click', (e) => e.stopPropagation()); // keep open while toggling
+  document.addEventListener('click', (e) => {
+    if (menu.classList.contains('hidden')) return;
+    if (!menu.contains(e.target) && e.target !== btn) menu.classList.add('hidden');
+  });
+})();
+// "Back to filtered view" — re-apply the level filter to the viewer.
+(function wireBackToFiltered() {
+  const b = document.getElementById('btn-back-to-filtered');
+  if (!b) return;
+  b.addEventListener('click', () => {
+    state.viewerContextMode = false;
+    updateContextBar();
+    rerenderViewer();
+  });
+})();
+syncLevelButtons();
 
 // Open the viewer at the most recent entries for the current selection: the
 // bottom of the newest log (the file with the latest activity, or the chosen file).
@@ -6096,8 +6817,8 @@ function populateResultsLoggers() {
     for (const l of data.merged) {
       if (l.isContinuation || !l.level) continue;
       if (state.activeFilePath && (l._path || l._file) !== state.activeFilePath) continue;
-      else if (!state.activeFilePath && state.activeNode != null
-               && nodeOfPath(l._path || l._file, '') !== state.activeNode) continue;
+      else if (!state.activeFilePath && !nodeScopeAll()
+               && !nodeInScope(nodeOfPath(l._path || l._file, ''))) continue;
       if (l.logger) loggers.add(l.logger);
     }
   }
@@ -6116,8 +6837,8 @@ function showResultsHint() {
   if (state.activeFilePath) {
     const loc = fileLocLabel(state.activeFilePath, state.activeFileName);
     scope = loc ? `${state.activeFileName} (${loc})` : state.activeFileName;
-  } else if (state.activeNode != null) {
-    scope = `${data && data.compDef ? data.compDef.name : 'this component'} — ${nodeDisplayLabel(state.activeNode)}`;
+  } else if (!nodeScopeAll()) {
+    scope = `${data && data.compDef ? data.compDef.name : 'this component'} — ${nodeScopeLabel()}`;
   } else {
     scope = (data && data.compDef ? data.compDef.name : 'this component');
   }
@@ -6132,7 +6853,7 @@ function showResultsHint() {
   if (hintRun) hintRun.addEventListener('click', runResults);
   const label = document.getElementById('results-header-label');
   if (label) label.textContent = state.activeFileName ? 'Filtered Entries — file'
-    : (state.activeNode != null ? 'Filtered Entries — node' : 'Filtered Entries');
+    : (!nodeScopeAll() ? 'Filtered Entries — sources' : 'Filtered Entries');
   const count = document.getElementById('results-header-count');
   if (count) count.textContent = '';
 }
@@ -6154,13 +6875,12 @@ function applyFilter() {
   // Scope to a single file when one is selected (null = whole component).
   if (state.activeFilePath) {
     entries = entries.filter(l => (l._path || l._file) === state.activeFilePath);
-  } else if (state.activeNode != null) {
-    // Otherwise scope to a node/engine when one is chosen (folder of the path).
-    entries = entries.filter(l => nodeOfPath(l._path || l._file, '') === state.activeNode);
+  } else if (!nodeScopeAll()) {
+    // Otherwise scope to the selected source(s) (folder of the path).
+    entries = entries.filter(l => nodeInScope(nodeOfPath(l._path || l._file, '')));
   }
-  if (state.activeLevel !== 'ALL') {
-    const want = state.activeLevel === 'ERROR' ? ['ERROR','CRITICAL'] : [state.activeLevel];
-    entries = entries.filter(l => !l.isContinuation && want.includes(l.level));
+  if (!levelFilterIsAll()) {
+    entries = entries.filter(l => !l.isContinuation && l.level && state.levelFilter.has(l.level));
   } else {
     entries = entries.filter(l => !l.isContinuation && l.level !== null);
   }
@@ -6630,6 +7350,9 @@ function renderResultsBatch() {
 // ═══════════════════════════════════════════════════════════════
 let currentViewerLines = [];
 let currentFocusEntry  = null;
+// When set, the next openInViewer keeps this search term instead of clearing it
+// (used so switching nodes from the viewer preserves your in-file search).
+let pendingViewerSearch = null;
 
 function openInViewer(entry, data) {
   // Find the exact file. Match by PATH first so two nodes' identically-named
@@ -6654,11 +7377,26 @@ function openInViewer(entry, data) {
   state.viewerFilePath = file.path || file.name;
   updateViewerFileLabel();
 
+  // Clicking a result jumps to its real position and shows the surrounding
+  // lines in full — even ones the level filter would normally hide — so you
+  // never lose context. "Back to filtered view" re-applies the filter.
+  state.viewerContextMode = !levelFilterIsAll();
+
   renderViewerLines(file.lines, entry.lineNo, state.timeWindow);
-  document.getElementById('viewer-search').value = '';
-  state.searchMatches = [];
-  state.searchIndex   = 0;
-  updateSearchCount();
+  if (typeof updateContextBar === 'function') updateContextBar();
+  const vs = document.getElementById('viewer-search');
+  if (pendingViewerSearch != null) {
+    // Carrying a search across a node/file switch: keep the term. renderViewerLines
+    // (above) already re-ran it against the new file, so just refresh the count.
+    if (vs) vs.value = pendingViewerSearch;
+    pendingViewerSearch = null;
+    updateSearchCount();
+  } else {
+    if (vs) vs.value = '';
+    state.searchMatches = [];
+    state.searchIndex   = 0;
+    updateSearchCount();
+  }
 }
 
 // Node/engine label for a file = the folder portion of its path (everything
@@ -6721,6 +7459,70 @@ function newestFileInNode(compId, node) {
 // The node a given file path belongs to.
 function nodeOfPath(path, name) { return fileLocLabel(path, name); }
 
+// ── Multi-select source scope ──
+// state.activeNodes is a Set of node/engine folder labels; empty means "all
+// sources". These helpers keep the rest of the app agnostic to that detail.
+function nodeScopeAll() { return !state.activeNodes || state.activeNodes.size === 0; }
+function nodeInScope(node) { return nodeScopeAll() || state.activeNodes.has(node); }
+function setNodeScopeSingle(node) { state.activeNodes = new Set(node == null ? [] : [node]); }
+// Selecting every source is the same as "all" — collapse it so the chip reads cleanly.
+function normalizeNodeScope() {
+  const comp = state.activeCompId ? componentNodes(state.activeCompId) : [];
+  if (comp.length && state.activeNodes.size >= comp.length && comp.every(n => state.activeNodes.has(n))) {
+    state.activeNodes.clear();
+  }
+}
+function nodeScopeLabel() {
+  const arr = [...state.activeNodes];
+  if (arr.length === 1) return classifyNode(arr[0]).display;
+  return `${arr.length} sources`;
+}
+
+
+//   "NODE - 12/…"  → a node          "ENGINE - 3/…" → a distributed engine
+// Anything else (loose files, unconventional folders) is "other".
+function classifyNode(label) {
+  const parts = (label || '').split('/').filter(Boolean);
+  for (const seg of parts) {
+    const m = seg.match(/^\s*(NODE|ENGINE)\s*-\s*(\d+)/i);
+    if (m) {
+      const kind = m[1].toUpperCase() === 'ENGINE' ? 'engine' : 'node';
+      const id = parseInt(m[2], 10);
+      return { kind, id, name: seg.trim(),
+               display: (kind === 'engine' ? 'Engine ' : 'Node ') + id,
+               icon: kind === 'engine' ? '⚙️' : '🖧' };
+    }
+  }
+  return { kind: 'other', id: null, name: (label && label.length ? label : '(local)'),
+           display: (label && label.length ? label : '(local)'), icon: '🗂' };
+}
+
+// Highlight, in BOTH sidebar views, the folders/files and component rows that
+// belong to the given node/engine set. Empty/null clears the highlight.
+function highlightSidebarForNodes(nodes) {
+  document.querySelectorAll('.tree-folder-label.node-hl, .tree-file.node-hl, .component-item.node-hl')
+    .forEach(el => el.classList.remove('node-hl'));
+  if (!nodes || !nodes.size) return;
+  const arr = [...nodes];
+  // File-tree view: folders along each node's path, and the files inside.
+  document.querySelectorAll('#sidebar-components .tree-folder').forEach(folder => {
+    const p = folder.dataset.path || '';
+    if (p && arr.some(node => p === node || node === p || node.startsWith(p + '/'))) {
+      const lbl = folder.querySelector(':scope > .tree-folder-label');
+      if (lbl) lbl.classList.add('node-hl');
+    }
+  });
+  document.querySelectorAll('#sidebar-components .tree-file').forEach(fl => {
+    const fp = fl.dataset.fpath || '';
+    if (fp && nodes.has(fileLocLabel(fp, ''))) fl.classList.add('node-hl');
+  });
+  // Components view: rows whose component contains any selected node.
+  document.querySelectorAll('#sidebar-components .component-item').forEach(it => {
+    const cid = it.dataset.compId;
+    if (cid && componentNodes(cid).some(n => nodes.has(n))) it.classList.add('node-hl');
+  });
+}
+
 // Render the viewer's file label. When the active component has more than one
 // file (multiple nodes/engines, or rolled logs) the label becomes a dropdown
 // so it's always clear which log is open and easy to switch.
@@ -6756,8 +7558,10 @@ function updateViewerNodeLabel() {
   const data = state.loadedData[compId];
   const file = data && data.files ? data.files.find(f => (f.path || f.name) === state.viewerFilePath) : null;
   const curNode = file ? fileLocLabel(file.path, file.name) : '';
-  nodeEl.querySelector('.vnl-name').textContent = nodeDisplayLabel(curNode);
-  nodeEl.title = `Viewing node: ${nodeDisplayLabel(curNode)}\n(click to switch node / distributed engine — jumps to its latest entry)`;
+  const curC = classifyNode(curNode);
+  nodeEl.querySelector('.vnl-name').textContent = curC.display;
+  nodeEl.querySelector('.vnl-icon').textContent = curC.icon;
+  nodeEl.title = `Viewing: ${curC.display}\n(click to switch node / distributed engine — jumps to its latest entry)`;
   nodeEl.onclick = (e) => { e.stopPropagation(); toggleViewerNodeMenu(nodeEl); };
 }
 
@@ -6772,14 +7576,28 @@ function toggleViewerNodeMenu(anchorEl) {
   const menu = document.createElement('div');
   menu.id = 'viewer-node-menu';
   let html = '<div class="vnm-head">Switch node / distributed engine</div>';
-  nodes.forEach(node => {
-    const files = nodeFiles(compId, node);
-    const lineCount = files.reduce((n, f) => n + ((f.lines ? f.lines.length : f.count) || 0), 0);
-    const active = node === curNode ? ' active' : '';
-    html += `<div class="vnm-item${active}" data-node="${escHtml(node)}">`
-      + `<span class="vnm-name">🖧 ${escHtml(nodeDisplayLabel(node))}</span>`
-      + `<span class="vnm-note">${files.length} file${files.length===1?'':'s'} · ${lineCount.toLocaleString()}</span></div>`;
-  });
+  const vnmGroups = { node: [], engine: [], other: [] };
+  nodes.forEach(n => vnmGroups[classifyNode(n).kind].push(n));
+  const vnmGrp = (title, arr) => {
+    if (!arr.length) return;
+    html += `<div class="vnm-head">${title}</div>`;
+    arr.sort((a, b) => {
+      const ca = classifyNode(a), cb = classifyNode(b);
+      return ((ca.id == null ? 1e9 : ca.id) - (cb.id == null ? 1e9 : cb.id)) || a.localeCompare(b);
+    });
+    arr.forEach(node => {
+      const files = nodeFiles(compId, node);
+      const lineCount = files.reduce((n, f) => n + ((f.lines ? f.lines.length : f.count) || 0), 0);
+      const c = classifyNode(node);
+      const active = node === curNode ? ' active' : '';
+      html += `<div class="vnm-item${active}" data-node="${escHtml(node)}">`
+        + `<span class="vnm-name">${c.icon} ${escHtml(c.display)}</span>`
+        + `<span class="vnm-note">${files.length} file${files.length === 1 ? '' : 's'} · ${lineCount.toLocaleString()}</span></div>`;
+    });
+  };
+  vnmGrp('Nodes', vnmGroups.node);
+  vnmGrp('Distributed engines', vnmGroups.engine);
+  vnmGrp('Other', vnmGroups.other);
   menu.innerHTML = html;
   document.body.appendChild(menu);
   const r = anchorEl.getBoundingClientRect();
@@ -6812,6 +7630,11 @@ function closeViewerNodeMenu() {
 function switchViewerNode(node) {
   const compId = state.viewerCompId;
   if (!compId) return;
+  // Preserve the in-file search across the switch (openInViewer would otherwise
+  // clear it). renderViewerLines re-applies the term against the new node's log.
+  const vs = document.getElementById('viewer-search');
+  const term = vs && vs.value.trim() ? vs.value : null;
+  pendingViewerSearch = term;
   // Make sure the component is the active one before scoping.
   state.activeCompId = compId;
   scopeToNode(node);
@@ -6835,7 +7658,9 @@ function toggleViewerFileMenu(anchorEl) {
   menu.id = 'viewer-file-menu';
   let html = '';
   byLoc.forEach((fs, loc) => {
-    html += `<div class="vfm-group">${escHtml(loc)}</div>`;
+    const gc = classifyNode(loc === '(no folder)' ? '' : loc);
+    const glabel = (loc === '(no folder)') ? '(no folder)' : `${gc.icon} ${gc.display}`;
+    html += `<div class="vfm-group">${escHtml(glabel)}</div>`;
     fs.forEach(f => {
       const fkey = f.path || f.name;
       const active = fkey === state.viewerFilePath ? ' active' : '';
@@ -6891,7 +7716,7 @@ async function openComponentFileInViewer(compId, file) {
   state.activeFileName = file.name;
   // Keep the node scope in sync with the file just opened so the results-header
   // node chip and the viewer node selector always agree with what's shown.
-  state.activeNode = nodeOfPath(file.path || file.name, file.name);
+  state.activeNodes = new Set([nodeOfPath(file.path || file.name, file.name)]);
   document.querySelectorAll('.component-item').forEach(el =>
     el.classList.toggle('active', el.dataset.compId === compId));
   openInViewer(file.lines[file.lines.length - 1], data);
@@ -7222,18 +8047,37 @@ document.getElementById('log-content').addEventListener('scroll', vsScroll, { pa
 // Filter the open file's lines by the viewer's time scope: a custom absolute
 // range if set, otherwise a ± window around the focused entry, otherwise all.
 function filterViewerLines(allLines, focusLineNo) {
+  let lines = allLines;
   if (state.viewerRange) {
     const { start, end } = state.viewerRange;
-    return allLines.filter(l => l.ts != null && (start == null || l.ts >= start) && (end == null || l.ts <= end));
-  }
-  if (state.timeWindow > 0) {
+    lines = allLines.filter(l => l.ts != null && (start == null || l.ts >= start) && (end == null || l.ts <= end));
+  } else if (state.timeWindow > 0) {
     const focusLine = allLines.find(l => l.lineNo === focusLineNo);
     if (focusLine && focusLine.ts) {
       const delta = state.timeWindow * 60 * 1000;
-      return allLines.filter(l => l.ts !== null && Math.abs(l.ts - focusLine.ts) <= delta);
+      lines = allLines.filter(l => l.ts !== null && Math.abs(l.ts - focusLine.ts) <= delta);
     }
   }
-  return allLines;
+  // Level filter drives the viewer too — unless we're showing full context
+  // (right after a result was clicked) or every level is on.
+  if (!state.viewerContextMode && !levelFilterIsAll()) {
+    lines = filterLinesByLevel(lines);
+  }
+  return lines;
+}
+
+// Hide lines whose entry's level is filtered out. Continuation lines (stack
+// traces, wrapped messages) and blank lines follow the visibility of the entry
+// they belong to, so a hidden ERROR takes its whole stack trace with it.
+function filterLinesByLevel(lines) {
+  const lf = state.levelFilter;
+  const out = [];
+  let keep = true;
+  for (const l of lines) {
+    if (!l.isContinuation && l.level) { keep = lf.has(l.level); if (keep) out.push(l); }
+    else if (keep) out.push(l);
+  }
+  return out;
 }
 
 function renderViewerLines(allLines, focusLineNo, windowMinutes) {
@@ -7772,7 +8616,7 @@ document.addEventListener('click', (e) => {
 document.addEventListener('keydown', (e) => { if (e.key === 'Escape') hideKbPopover(); });
 
 // Recognised errors toggle — filters results to KB-matched entries only
-document.getElementById('btn-recognised-errors').addEventListener('click', () => {
+document.getElementById('btn-recognised-errors').addEventListener('click', async () => {
   state.recognisedOnly = !state.recognisedOnly;
   document.getElementById('btn-recognised-errors').classList.toggle('active', state.recognisedOnly);
   // Clear any active global search so the filter view is shown
@@ -7783,6 +8627,13 @@ document.getElementById('btn-recognised-errors').addEventListener('click', () =>
   if (!state.recognisedOnly) {
     document.getElementById('occurrence-bar').style.display = 'none';
     OCC.occurrences = [];
+  }
+  // Entering recognised mode across ALL sources: make sure every node's logs are
+  // resident, otherwise the scan only covers the currently-loaded file. Older
+  // files load incrementally to keep a lid on memory.
+  if (state.recognisedOnly && state.activeCompId
+      && state.activeFilePath == null && nodeScopeAll()) {
+    await ensureAllNodesLoaded(state.activeCompId);
   }
   state.resultsRun = true; // explicit request to view (recognised) results
   applyFilter();
@@ -7892,10 +8743,10 @@ function hideRecognisedPopup() {
   });
 })();
 
-// ── Top-bar "Add formats" dropdown (EVTX / PCAP / HAR) ──
+// ── Top-bar "Add data" dropdown (files + EVTX / PCAP / HAR) ──
 (function wireAddFormats() {
-  const btn = document.getElementById('btn-add-formats');
-  const menu = document.getElementById('add-formats-menu');
+  const btn = document.getElementById('btn-add-data');
+  const menu = document.getElementById('add-data-menu');
   if (!btn || !menu) return;
   btn.addEventListener('click', (e) => {
     e.stopPropagation();
@@ -7914,21 +8765,803 @@ function hideRecognisedPopup() {
   });
 })();
 
-// ── Transient toast notification ──
+// ── Header "More" menu, Tools menu, fullscreen viewer, and window dock ──
+// A small helper to wire a button + menu that forwards clicks to (hidden)
+// original buttons, so all existing handlers keep working unchanged.
+function wireForwardingMenu(btnId, menuId, map, after) {
+  const btn = document.getElementById(btnId);
+  const menu = document.getElementById(menuId);
+  if (!btn || !menu) return;
+  btn.addEventListener('click', (e) => { e.stopPropagation(); menu.classList.toggle('hidden'); });
+  menu.querySelectorAll('button[data-act]').forEach(item => {
+    item.addEventListener('click', () => {
+      menu.classList.add('hidden');
+      const target = document.getElementById(map[item.dataset.act]);
+      if (target) target.click();
+      if (after) after(item.dataset.act);
+    });
+  });
+  document.addEventListener('click', (e) => {
+    if (menu.classList.contains('hidden')) return;
+    if (!menu.contains(e.target) && e.target !== btn) menu.classList.add('hidden');
+  });
+}
+wireForwardingMenu('btn-header-more', 'header-more-menu', {
+  github: 'btn-github', diagnostics: 'btn-diagnostics', feedback: 'btn-feedback',
+  'hard-refresh': 'btn-hard-refresh', tour: 'btn-tour-replay',
+});
+wireForwardingMenu('btn-tools-menu', 'tools-menu', {
+  timeline: 'btn-timeline', export: 'btn-export-findings', tz: 'btn-tz-toggle',
+}, (act) => {
+  if (act === 'tz') {
+    const m = document.getElementById('tz-mode'), tm = document.getElementById('tools-tz-mode');
+    if (m && tm) tm.textContent = m.textContent;
+  }
+});
+
+// Fullscreen / maximise the log viewer (hide sidebar + results panel).
+(function () {
+  const btn = document.getElementById('btn-viewer-max');
+  if (!btn) return;
+  btn.addEventListener('click', () => {
+    const body = document.getElementById('body');
+    const on = body.classList.toggle('vmax');
+    btn.classList.toggle('active', on);
+    btn.innerHTML = on ? '⛶ Exit fullscreen' : '⛶ Fullscreen';
+    // Width changed — let virtual scrollers recompute.
+    window.dispatchEvent(new Event('resize'));
+  });
+})();
+
+// Thin sidebar collapse rail: hide the sidebar to give results + viewer room.
+(function () {
+  const btn = document.getElementById('sidebar-collapse-btn');
+  if (!btn) return;
+  const body = document.getElementById('body');
+  function apply(collapsed) {
+    body.classList.toggle('sidebar-collapsed', collapsed);
+    btn.innerHTML = collapsed ? '&lsaquo;' : '&rsaquo;';
+    btn.title = collapsed
+      ? 'Show the sidebar (file tree / components)'
+      : 'Collapse the sidebar to give the results and log viewer more room';
+    try { localStorage.setItem('sidebar-collapsed', collapsed ? '1' : '0'); } catch (_) {}
+    window.dispatchEvent(new Event('resize'));
+  }
+  btn.addEventListener('click', () => apply(!body.classList.contains('sidebar-collapsed')));
+  let init = false;
+  try { init = localStorage.getItem('sidebar-collapsed') === '1'; } catch (_) {}
+  if (init) apply(true);
+})();
+
+// ── Viewer "⋯ View" dropdown (Similar / Recognised errors / Load older) ──
+(function wireViewerView() {
+  const btn = document.getElementById('btn-viewer-view');
+  const menu = document.getElementById('viewer-view-menu');
+  if (!btn || !menu) return;
+
+  // Reflect the (hidden) source buttons' state onto the menu items + the View
+  // button, so the user can still see what's currently active / available.
+  function syncState() {
+    let anyActive = false;
+    menu.querySelectorAll('button[data-target]').forEach(item => {
+      const src = document.getElementById(item.dataset.target);
+      if (!src) return;
+      const active = src.classList.contains('active');
+      item.classList.toggle('is-active', active);
+      if (active) anyActive = true;
+      // Optional items (Load older) only show when their source button is visible.
+      if (item.dataset.optional) {
+        const available = src.style.display !== 'none';
+        item.classList.toggle('hidden', !available);
+      }
+    });
+    btn.classList.toggle('active', anyActive);
+  }
+
+  btn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    syncState();
+    menu.classList.toggle('hidden');
+  });
+  menu.querySelectorAll('button[data-target]').forEach(item => {
+    item.addEventListener('click', () => {
+      menu.classList.add('hidden');
+      const target = document.getElementById(item.dataset.target);
+      if (target) target.click();        // reuse the original handler
+      syncState();
+    });
+  });
+  document.addEventListener('click', (e) => {
+    if (menu.classList.contains('hidden')) return;
+    if (!menu.contains(e.target) && e.target !== btn) menu.classList.add('hidden');
+  });
+
+  // Keep the View button's active dot in sync when state changes elsewhere
+  // (e.g. recognised filter cleared by a node-scope change).
+  ['btn-highlight-similar', 'btn-recognised-errors', 'btn-load-older'].forEach(id => {
+    const src = document.getElementById(id);
+    if (src) new MutationObserver(syncState)
+      .observe(src, { attributes: true, attributeFilter: ['class', 'style'] });
+  });
+  syncState();
+})();
+
+// ── Window dock: minimise / maximise / restore floating tool windows ──
+// Each window can be parked in the dock as its own chip (labelled by filename),
+// so several files can sit minimised at once. Minimising frees the heavy
+// rendered rows; restoring shows a loading veil, rebuilds the view from the
+// still-resident parsed data, and reapplies the saved scroll + filter.
+const WindowDock = (function () {
+  const defs = {
+    'timeline-overlay': {
+      icon: '🕒', singleton: true,
+      key: () => 'timeline',
+      label: () => 'Cross-component timeline',
+      lists: ['#timeline-list'], scroll: '#timeline-list', search: '#tl-search',
+      reopen: () => { const o = document.getElementById('timeline-overlay'); if (o) o.classList.remove('hidden'); if (typeof renderTimeline === 'function') renderTimeline(null, 'keep'); },
+    },
+    'evtx-overlay': {
+      icon: '🗔',
+      key: () => { const sw = document.getElementById('evtx-file-switcher'); return (sw && sw.value) || Object.keys(state.loadedEvtx || {})[0] || ''; },
+      label: (k) => (state.loadedEvtx && state.loadedEvtx[k] ? state.loadedEvtx[k].name : 'Event Log'),
+      lists: ['#evtx-records-list'], scroll: '#evtx-records-list', search: null,
+      reopen: (k) => { if (typeof openEvtxWindow === 'function') openEvtxWindow(k); },
+    },
+    'pcap-overlay': {
+      icon: '🌐',
+      key: () => state.activePcap || Object.keys(state.loadedPcap || {})[0] || '',
+      label: (k) => (state.loadedPcap && state.loadedPcap[k] ? state.loadedPcap[k].name : 'Network capture'),
+      lists: ['#pcap-packets-list', '#pcap-sync-packets', '#pcap-sync-logs'], scroll: '#pcap-packets-list', search: '#pcap-filter',
+      reopen: (k) => { if (typeof openPcapWindow === 'function') openPcapWindow(k); },
+    },
+    'har-overlay': {
+      icon: '🔗',
+      key: () => state.activeHar || Object.keys(state.loadedHar || {})[0] || '',
+      label: (k) => (state.loadedHar && state.loadedHar[k] ? state.loadedHar[k].name : 'HAR'),
+      lists: ['#har-list'], scroll: '#har-list', search: '#har-filter',
+      reopen: (k) => { if (typeof openHarWindow === 'function') openHarWindow(k); },
+    },
+  };
+  const winState = {};               // "type|key" -> { scrollTop, search }
+  let restoring = false;             // suppress reopen-detection while we restore
+  const dock = () => document.getElementById('window-dock');
+  const winKey = (id, k) => id + '|' + k;
+  function sync() { const d = dock(); if (d) d.classList.toggle('hidden', d.children.length === 0); }
+  function removeChip(wk) { const d = dock(); if (!d) return; const c = d.querySelector(`[data-win="${CSS.escape(wk)}"]`); if (c) c.remove(); sync(); }
+  function freeLists(def) {
+    (def.lists || []).forEach(sel => { const el = document.querySelector(sel); if (el) el.innerHTML = ''; });
+  }
+  function captureState(def) {
+    const st = {};
+    const sc = def.scroll && document.querySelector(def.scroll);
+    if (sc) st.scrollTop = sc.scrollTop;
+    const se = def.search && document.querySelector(def.search);
+    if (se) st.search = se.value;
+    return st;
+  }
+
+  function minimise(id) {
+    const def = defs[id]; const ov = document.getElementById(id);
+    if (!def || !ov) return;
+    const k = def.key();
+    const wk = winKey(id, k);
+    winState[wk] = captureState(def);
+    freeLists(def);                  // release the heavy rendered rows
+    ov.classList.add('hidden');
+    const d = dock(); if (!d) return;
+    if (!d.querySelector(`[data-win="${CSS.escape(wk)}"]`)) {
+      const chip = document.createElement('button');
+      chip.className = 'wd-chip';
+      chip.dataset.win = wk;
+      const lbl = def.label(k);
+      chip.title = 'Restore ' + lbl;
+      chip.innerHTML = `<span>${def.icon}</span><span class="wd-label">${escHtml(lbl)}</span><span class="wd-restore">▢</span>`;
+      chip.addEventListener('click', () => restoreWin(wk));
+      d.appendChild(chip);
+    }
+    sync();
+  }
+
+  function restoreWin(wk) {
+    const sep = wk.indexOf('|');
+    const id = wk.slice(0, sep), k = wk.slice(sep + 1);
+    const def = defs[id]; const ov = document.getElementById(id);
+    if (!def || !ov) { removeChip(wk); return; }
+    ov.classList.remove('hidden');
+    // Loading veil while we rebuild from the parsed data.
+    const veil = document.createElement('div');
+    veil.className = 'win-loading';
+    veil.innerHTML = '<span class="wl-spin"></span><span>Rebuilding view…</span>';
+    ov.appendChild(veil);
+    removeChip(wk);
+    restoring = true;
+    requestAnimationFrame(() => setTimeout(() => {
+      try { def.reopen(k); } catch (e) { console.warn('window restore failed', wk, e); }
+      const st = winState[wk] || {};
+      const sc = def.scroll && document.querySelector(def.scroll);
+      const se = def.search && document.querySelector(def.search);
+      if (se && st.search != null) { se.value = st.search; se.dispatchEvent(new Event('input', { bubbles: true })); }
+      if (sc && st.scrollTop != null) sc.scrollTop = st.scrollTop;
+      delete winState[wk];
+      veil.remove();
+      restoring = false;
+    }, 30));
+  }
+
+  // Restore whichever instance of a window type is parked (used by the
+  // MutationObserver when an overlay is reopened by its normal path).
+  function dropChipsFor(id) {
+    const d = dock(); if (!d) return;
+    d.querySelectorAll(`[data-win^="${id}|"]`).forEach(c => c.remove());
+    sync();
+  }
+
+  // If a window is reopened by its normal path, drop the chip for the file that
+  // is now showing (leaving any OTHER parked files of the same type docked).
+  Object.keys(defs).forEach(id => {
+    const ov = document.getElementById(id); if (!ov) return;
+    new MutationObserver(() => {
+      if (restoring || ov.classList.contains('hidden')) return;
+      const def = defs[id];
+      removeChip(winKey(id, def.key()));
+    }).observe(ov, { attributes: true, attributeFilter: ['class'] });
+  });
+
+  // Delegated handlers for every window's minimise / maximise / close buttons.
+  document.addEventListener('click', (e) => {
+    const mn = e.target.closest('.win-min');
+    if (mn && mn.dataset.minWin) { minimise(mn.dataset.minWin); return; }
+    const mx = e.target.closest('.win-max');
+    if (mx && mx.dataset.maxWin) {
+      const o = document.getElementById(mx.dataset.maxWin);
+      if (o) {
+        const nowMax = o.classList.toggle('win-maximized');
+        if (nowMax) {
+          // Lift above any read-only comparison pane (those live at _winInstanceZ
+          // ≥ 600 and climb on focus) so a maximised window is never hidden behind
+          // one — the bug where fullscreen sat under the read-only pane.
+          if (o.dataset.prevZ === undefined) o.dataset.prevZ = o.style.zIndex || '';
+          o.style.zIndex = (++_winInstanceZ);
+        } else {
+          // Put the window's original stacking back when un-maximised.
+          o.style.zIndex = o.dataset.prevZ || '';
+          delete o.dataset.prevZ;
+        }
+      }
+      return;
+    }
+  });
+  // Closing a window frees its rendered rows (the visible file has no chip; clear
+  // any stray one for safety) and drops the maximise state.
+  const closeMap = { 'btn-evtx-close': 'evtx-overlay', 'btn-pcap-close': 'pcap-overlay', 'btn-har-close': 'har-overlay', 'btn-timeline-close': 'timeline-overlay' };
+  document.addEventListener('click', (e) => {
+    const c = e.target.closest('#btn-evtx-close,#btn-pcap-close,#btn-har-close,#btn-timeline-close');
+    if (!c) return;
+    const id = closeMap[c.id]; const def = defs[id];
+    if (def) { freeLists(def); removeChip(winKey(id, def.key())); const o = document.getElementById(id); if (o) o.classList.remove('win-maximized'); }
+  });
+
+  return { minimise, restore: (id) => restoreWin(winKey(id, (defs[id] ? defs[id].key() : ''))) };
+})();
+
+// ── Compare: open another file beside the current window ──
+// The four viewers are single-instance, so a second *live* same-type window
+// would mean re-architecting each viewer. Instead, "Compare" renders the chosen
+// file (loaded or freshly uploaded) into a read-only pane you can place beside
+// your working window. The working window stays fully live (filter/sort/etc.);
+// the comparison pane is a complete rendered view you can scroll and, for HAR,
+// expand rows in. Capped at two windows on screen (one working + one compare).
+// Key pieces below: buildComparePane (clone→read-only pane), COMPARE_ADAPTERS
+// (focus-swap state for har/pcap/evtx), focusComparePane (swap roles),
+// promoteComparePaneToLive (survivor goes live when the live window closes),
+// minimiseComparePane/disposeComparePane (dock a pane / tear it down).
+// See the GLOBAL INVARIANTS block at the top of the file for z-index, the
+// duplicate-id clone rule, and the dock-chip conventions.
+let _winInstanceZ = 600;
+let _compareWin = null; // the single read-only comparison pane currently open
+
+// Show/hide the dock based on whether it holds any chips (the WindowDock module
+// has its own private copy of this; comparison-pane chips share the same dock).
+function syncDockHidden() {
+  const d = document.getElementById('window-dock');
+  if (d) d.classList.toggle('hidden', d.children.length === 0);
+}
+
+// Minimise a read-only comparison pane to the dock as its own chip — mirroring
+// the single-window minimise, but for the detached compare clone (which isn't a
+// registered WindowDock overlay). Restoring puts it back exactly where it was.
+// Previously the pane's "—" only toggled a (broken) collapse, so it never docked.
+function minimiseComparePane(clone) {
+  if (!clone) return;
+  const dock = document.getElementById('window-dock');
+  if (!dock) return;
+  clone._restoreRect = {
+    left: clone.style.left, top: clone.style.top,
+    width: clone.style.width, height: clone.style.height,
+  };
+  clone.style.display = 'none';
+  const type = clone._cmpType;
+  const ad = COMPARE_ADAPTERS[type];
+  const icon = ({ har: '🔗', pcap: '🌐', evtx: '🗔', timeline: '🕒' })[type] || '🔗';
+  const titleEl = clone.querySelector('[id$="-title"]');
+  const label = (ad && clone._cmpKey != null) ? ad.label(clone._cmpKey)
+              : (titleEl ? titleEl.textContent.trim() : 'Comparison');
+  const chip = document.createElement('button');
+  chip.className = 'wd-chip';
+  chip.dataset.cmpChip = '1';
+  chip.title = 'Restore comparison (read-only): ' + label;
+  chip.innerHTML = `<span>${icon}</span><span class="wd-label">${escHtml(label)}</span><span class="wd-restore" title="read-only comparison">▢</span>`;
+  chip.addEventListener('click', () => {
+    chip.remove();
+    clone._dockChip = null;
+    clone.style.display = '';
+    const r = clone._restoreRect || {};
+    if (r.left) clone.style.left = r.left;
+    if (r.top) clone.style.top = r.top;
+    if (r.width) clone.style.width = r.width;
+    if (r.height) clone.style.height = r.height;
+    clone.style.zIndex = (++_winInstanceZ);
+    syncDockHidden();
+  });
+  clone._dockChip = chip;
+  dock.appendChild(chip);
+  syncDockHidden();
+}
+
+// Remove a comparison pane and any dock chip it left behind (used by close, by
+// the cap-of-2 replacement, and by the focus-swap when a pane goes live).
+function disposeComparePane(clone) {
+  if (!clone) return;
+  if (clone._dockChip) { clone._dockChip.remove(); clone._dockChip = null; }
+  clone.remove();
+  if (_compareWin === clone) _compareWin = null;
+  syncDockHidden();
+}
+
+// If the LIVE window of a compared pair is closed, hand off to the surviving
+// comparison pane: promote it to the live, editable window rather than leaving a
+// read-only pane behind. (Previously the closed file lingered as the overlay's
+// state, so "Focus controls" on the survivor would resurrect the just-closed
+// window.) Runs in a rAF so the existing close handlers — which hide the overlay
+// and free its rows — finish first; we re-show it before the next paint, so there
+// is no flicker and it doesn't depend on listener registration order.
+function promoteComparePaneToLive(pane) {
+  if (!pane) return;
+  const ad = COMPARE_ADAPTERS[pane._cmpType];
+  const overlay = ad && document.getElementById(ad.overlayId);
+  if (!ad || !overlay) { disposeComparePane(pane); return; }
+  const paneRect = (pane.style.display === 'none') ? null : rectOf(pane);
+  const key = pane._cmpKey, vs = pane._cmpVs;
+  disposeComparePane(pane);            // remove the read-only pane (+ its dock chip)
+  overlay.classList.remove('hidden');
+  ad.openLive(key, vs);                // the surviving file is now live & editable
+  if (paneRect) placeAt(overlay, paneRect);
+}
+const _CLOSE_BTN_TYPE = { 'btn-evtx-close': 'evtx', 'btn-pcap-close': 'pcap', 'btn-har-close': 'har', 'btn-timeline-close': 'timeline' };
+document.addEventListener('click', (e) => {
+  const c = e.target.closest('#btn-evtx-close,#btn-pcap-close,#btn-har-close,#btn-timeline-close');
+  if (!c || !_compareWin) return;
+  if (_compareWin._cmpType !== _CLOSE_BTN_TYPE[c.id]) return;  // only same-type pairs promote
+  const pane = _compareWin;
+  requestAnimationFrame(() => promoteComparePaneToLive(pane));
+});
+
+// Per-viewer adapters power the focus-swap and promote-on-close (capture the live
+// view, restore it on another file). All three viewers are wired: har, pcap, evtx
+// — so every comparison pane gets a working "Focus controls" button. Contract per
+// adapter: overlayId, label(key), activeKey(), captureState() → opaque view-state,
+// openLive(key, state) (must render synchronously / guard stale batches so rows
+// exist for the state to re-apply). To add a viewer, add an entry here + a render
+// branch in openCompareWindow + a Compare-picker entry in openCompareMenu.
+const COMPARE_ADAPTERS = {
+  har: {
+    overlayId: 'har-overlay',
+    label: (key) => (state.loadedHar[key] || {}).name || key,
+    activeKey: () => state.activeHar,
+    captureState() {
+      const ov = document.getElementById('har-overlay');
+      const list = ov ? ov.querySelector('#har-list') : null;
+      return {
+        filter: HAR._filter || '',
+        statusFilter: HAR._statusFilter || 'all',
+        sort: HAR._sort ? { ...HAR._sort } : { key: 'ts', dir: 1 },
+        scrollTop: list ? list.scrollTop : 0,
+        expanded: [...(HAR._open || [])]          // from the data model, not the (virtualized) DOM
+      };
+    },
+    openLive(key, st) {
+      const har = state.loadedHar[key];
+      if (!har) return;
+      openHarWindow(key);                         // title/summary/switcher for this file
+      HAR._filter = (st && st.filter) || '';
+      HAR._statusFilter = (st && st.statusFilter) || 'all';
+      HAR._sort = (st && st.sort) ? { ...st.sort } : { key: 'ts', dir: 1 };
+      const fi = document.getElementById('har-filter'); if (fi) fi.value = HAR._filter;
+      document.querySelectorAll('.har-sf').forEach(b => b.classList.toggle('active', b.dataset.sf === HAR._statusFilter));
+      renderHarList(har);                         // windowed render (this is the live working window)
+      HAR._open = new Set((st && st.expanded) || []);   // restore expand state in the model…
+      const list = document.getElementById('har-list');
+      if (list) {
+        // …then mark any currently-rendered rows; off-screen ones get it when scrolled in.
+        HAR._open.forEach(id => { const row = list.querySelector(`.har-req[data-har-id="${CSS.escape(id)}"]`); if (row) row.classList.add('har-open'); });
+        if (st && st.scrollTop) harEnsureScrollTop(st.scrollTop);
+      }
+    }
+  },
+  pcap: {
+    overlayId: 'pcap-overlay',
+    label: (key) => (state.loadedPcap[key] || {}).name || key,
+    activeKey: () => state.activePcap,
+    captureState() {
+      const ov = document.getElementById('pcap-overlay');
+      const list = ov ? ov.querySelector('#pcap-packets-list') : null;
+      const activeTab = ov ? ov.querySelector('.pcap-tab.active') : null;
+      return {
+        filter: PCAP._filter || '',
+        scrollTop: list ? list.scrollTop : 0,
+        tab: activeTab ? activeTab.dataset.tab : 'list',
+        focusIdx: (PCAP._focusIdx != null ? PCAP._focusIdx : -1),  // from the model (the row may be virtualized away)
+        syncComp: PCAP._syncComp || ''
+      };
+    },
+    openLive(key, st) {
+      const cap = state.loadedPcap[key];
+      if (!cap) return;
+      openPcapWindow(key, true);                    // windowed render; resets filter + tab + focus
+      PCAP._filter = (st && st.filter) || '';
+      const fi = document.getElementById('pcap-filter'); if (fi) fi.value = PCAP._filter;
+      renderPcapList(cap);                          // windowed re-render with the restored filter
+      PCAP._focusIdx = (st && st.focusIdx != null && st.focusIdx >= 0) ? st.focusIdx : -1;
+      if (st && st.syncComp) {                       // restore the chosen side-by-side component if still loaded
+        const sel = document.getElementById('pcap-sync-comp');
+        if (sel && [...sel.options].some(o => o.value === st.syncComp)) { sel.value = st.syncComp; PCAP._syncComp = st.syncComp; }
+      }
+      const list = document.getElementById('pcap-packets-list');
+      if (list && PCAP._focusIdx >= 0) {            // mark the focused packet if it's in the rendered window
+        const row = list.querySelector(`.pcap-pkt[data-idx="${PCAP._focusIdx}"]`);
+        if (row) { row.classList.add('pcap-focus'); _pcapFocusRow = row; }
+      }
+      switchPcapTab(st && st.tab === 'sync' ? 'sync' : 'list');     // restore the active tab (rebuilds sync view if needed)
+      if (list && st && st.scrollTop && (!st.tab || st.tab === 'list')) pcapEnsureScrollTop(st.scrollTop);
+    }
+  },
+  evtx: {
+    overlayId: 'evtx-overlay',
+    label: (key) => (state.loadedEvtx[key] || {}).name || key,
+    activeKey: () => {
+      const sw = document.getElementById('evtx-file-switcher');
+      return (sw && sw.value) || Object.keys(state.loadedEvtx || {})[0] || '';
+    },
+    captureState() {
+      const ov = document.getElementById('evtx-overlay');
+      const list = ov ? ov.querySelector('#evtx-records-list') : null;
+      return { scrollTop: list ? list.scrollTop : 0, selIdx: (_evtxSelIdx != null ? _evtxSelIdx : -1) };  // from the model (the row may be virtualized away)
+    },
+    openLive(key, st) {
+      const ev = state.loadedEvtx[key];
+      if (!ev) return;
+      openEvtxWindow(key);                          // switcher + summary + windowed records
+      _evtxSelIdx = (st && st.selIdx != null && st.selIdx >= 0) ? st.selIdx : -1;
+      const list = document.getElementById('evtx-records-list');
+      if (list && _evtxSelIdx >= 0 && ev.records && ev.records[_evtxSelIdx] != null) {
+        // The record index is the row index (EVTX has no filter); keep the record selected.
+        evtxSelectedRecord = ev.records[_evtxSelIdx];
+        const row = list.querySelector(`.evtx-rec[data-idx="${_evtxSelIdx}"]`);  // off-screen rows get marked when scrolled in
+        if (row) {
+          if (_evtxSelectedRow) _evtxSelectedRow.classList.remove('selected');
+          row.classList.add('selected');
+          _evtxSelectedRow = row;
+        }
+      }
+      if (list && st && st.scrollTop) evtxEnsureScrollTop(st.scrollTop);
+    }
+  }
+};
+function rectOf(el) { const r = el.getBoundingClientRect(); return { left: r.left, top: r.top, width: r.width, height: r.height }; }
+function placeAt(el, r) {
+  el.style.position = 'fixed'; el.style.transform = 'none'; el.classList.remove('win-maximized');
+  el.style.left = r.left + 'px'; el.style.top = r.top + 'px'; el.style.width = r.width + 'px'; el.style.height = r.height + 'px';
+}
+function showFocusSwapNote(liveLabel, roLabel) {
+  if (typeof showAppToast === 'function') {
+    showAppToast(`“${liveLabel}” is now live and editable. “${roLabel}” is read-only — its filter & sort are frozen until you click “Focus controls” on it.`, 15000, true);
+  }
+}
+
+// Clone the current rendered overlay of `type` into a read-only detached pane.
+function buildComparePane(type) {
+  const overlayId = (COMPARE_ADAPTERS[type] && COMPARE_ADAPTERS[type].overlayId) || (type + '-overlay');
+  const overlay = document.getElementById(overlayId);
+  const headerSel = overlayId === 'timeline-overlay' ? '#timeline-header' : '#' + overlayId + '-header';
+  const clone = overlay.cloneNode(true);
+  const hdr = clone.querySelector(headerSel) || clone.firstElementChild;
+  clone.querySelectorAll('.win-min, .win-max, .win-compare, button[title="Close"]').forEach(el => el.remove());
+  clone.querySelectorAll('input, select, textarea').forEach(el => { el.disabled = true; });
+  clone.classList.remove('hidden', 'win-maximized');
+  clone.classList.add('win-instance');
+  clone._cmpType = type;
+  if (hdr) {
+    hdr.classList.add('wi-header');
+    hdr.insertAdjacentHTML('afterbegin', '<span class="wi-badge wi-ro" title="Read-only — filter &amp; sort are frozen in this window. Click “Focus controls” to edit it (the other window then becomes read-only).">read-only</span>');
+    const ctrls = document.createElement('span');
+    ctrls.className = 'wi-ctrls';
+    const focusBtn = COMPARE_ADAPTERS[type]
+      ? '<button class="wi-focus" title="Make this the live, editable window (the other becomes read-only)">⊙ Focus controls</button>' : '';
+    ctrls.innerHTML = focusBtn + '<button class="wi-min" title="Minimise this comparison to the dock">—</button><button class="wi-close" title="Close comparison">✕</button>';
+    hdr.appendChild(ctrls);
+    ctrls.querySelector('.wi-close').addEventListener('click', () => disposeComparePane(clone));
+    ctrls.querySelector('.wi-min').addEventListener('click', () => minimiseComparePane(clone));
+    const fb = ctrls.querySelector('.wi-focus');
+    if (fb) fb.addEventListener('click', () => focusComparePane(clone));
+  }
+  clone.style.position = 'fixed'; clone.style.transform = 'none';
+  clone.style.top = '60px';
+  clone.style.left = Math.round(window.innerWidth * 0.5) + 'px';
+  clone.style.width = Math.round(window.innerWidth * 0.48) + 'px';
+  clone.style.height = (window.innerHeight - 72) + 'px';
+  clone.style.zIndex = (++_winInstanceZ);
+  document.body.appendChild(clone);
+  clone.addEventListener('mousedown', () => { clone.style.zIndex = (++_winInstanceZ); }, true);
+  // Keep HAR row-expand working in the read-only pane.
+  clone.addEventListener('click', (e) => {
+    const row = e.target.closest('.har-req');
+    if (!row || !clone.contains(row)) return;
+    const open = row.classList.contains('har-open');
+    clone.querySelectorAll('.har-req.har-open').forEach(x => x.classList.remove('har-open'));
+    if (!open) row.classList.add('har-open');
+  });
+  if (hdr) makeInstanceDraggable(clone, hdr);
+  return clone;
+}
+
+// Swap which window is live: the focused read-only pane goes live; the current
+// live window is snapshotted into a read-only pane in its place. Both stay open.
+function focusComparePane(paneEl) {
+  const type = paneEl._cmpType;
+  const ad = COMPARE_ADAPTERS[type];
+  if (!ad) return;
+  const overlay = document.getElementById(ad.overlayId);
+  if (!overlay) return;
+  const paneRect = rectOf(paneEl);
+  const targetKey = paneEl._cmpKey, targetVs = paneEl._cmpVs;
+
+  // CROSS-TYPE (or otherwise standalone) pane: this type has no live, visible
+  // window to swap with — the working window is a different type, so the canonical
+  // overlay of this type is hidden (openCompareWindow re-hid it after cloning).
+  // There's nothing of this type to displace, so just promote the pane to its own
+  // live, editable overlay; the other-type working window is left untouched.
+  if (overlay.classList.contains('hidden')) {
+    disposeComparePane(paneEl);
+    ad.openLive(targetKey, targetVs);             // un-hides + renders the overlay live & editable
+    placeAt(overlay, paneRect);                   // take over the pane's on-screen position
+    if (_compareWin === paneEl) _compareWin = null;
+    if (typeof showAppToast === 'function') showAppToast(`“${ad.label(targetKey)}” is now a live, editable window.`, 4000);
+    return;
+  }
+
+  // SAME-TYPE swap: snapshot the current live window into a read-only pane in its
+  // place, then re-point the live engine at the focused pane's file. Both stay open.
+  const liveRect = rectOf(overlay);
+  const liveKey = ad.activeKey();
+  const liveVs = ad.captureState();
+  const newStatic = buildComparePane(type);
+  newStatic._cmpType = type; newStatic._cmpKey = liveKey; newStatic._cmpVs = liveVs;
+  placeAt(newStatic, liveRect);
+  disposeComparePane(paneEl);
+  ad.openLive(targetKey, targetVs);
+  placeAt(overlay, paneRect);
+  _compareWin = newStatic;
+  showFocusSwapNote(ad.label(targetKey), ad.label(liveKey));
+}
+
+// Tile two windows into the left / right halves of the viewport.
+function tileSideBySide(leftEl, rightEl) {
+  const pad = 8, top = 56, gap = 8;
+  const w = Math.floor((window.innerWidth - pad * 2 - gap) / 2);
+  const h = window.innerHeight - top - pad;
+  [leftEl, rightEl].forEach((el, i) => {
+    el.style.position = 'fixed'; el.style.transform = 'none'; el.classList.remove('win-maximized');
+    el.style.top = top + 'px';
+    el.style.left = (pad + i * (w + gap)) + 'px';
+    el.style.width = w + 'px';
+    el.style.height = h + 'px';
+  });
+}
+
+// Open `key` of `kind` ('har' | 'pcap') as a read-only pane beside sourceId,
+// while preserving the working window's current view.
+function openCompareWindow(kind, key, sourceId) {
+  const overlayId = kind + '-overlay';
+  const overlay = document.getElementById(overlayId);
+  if (!overlay) return;
+  const ad = COMPARE_ADAPTERS[kind];
+  const prevKey = ad ? ad.activeKey() : (kind === 'har' ? state.activeHar : state.activePcap);
+  const prevVs = ad ? ad.captureState() : null;
+  const wasHidden = overlay.classList.contains('hidden');
+  // Render the chosen file synchronously into the canonical overlay, clone it,
+  // then restore the working window — all in one synchronous turn (no flicker).
+  if (kind === 'har') openHarWindow(key, true, true);   // full render so the read-only clone has every row
+  else if (kind === 'pcap') openPcapWindow(key, true, true);   // full render so the read-only clone has every packet
+  else if (kind === 'evtx') openEvtxWindow(key, true);   // full render so the read-only clone has every event
+  const pane = buildComparePane(kind);
+  pane._cmpType = kind; pane._cmpKey = key;
+  pane._cmpVs = { filter: '', statusFilter: 'all', sort: { key: 'ts', dir: 1 }, scrollTop: 0, expanded: [] };
+  // Restore the working window to exactly how it was (file + filter/sort/scroll).
+  if (ad && prevKey != null) ad.openLive(prevKey, prevVs);
+  else if (kind === 'pcap' && prevKey != null && prevKey !== key) openPcapWindow(prevKey);
+  if (wasHidden) overlay.classList.add('hidden');
+  // Cap = 2: keep only one comparison pane.
+  if (_compareWin && _compareWin !== pane) disposeComparePane(_compareWin);
+  _compareWin = pane;
+  const src = sourceId && document.getElementById(sourceId);
+  if (src && !src.classList.contains('hidden')) tileSideBySide(src, pane);
+}
+
+// "Compare" picker — loaded HAR / capture / event-log files plus an upload option.
+function openCompareMenu(sourceId, anchor) {
+  closeCompareMenu();
+  const menu = document.createElement('div');
+  menu.id = 'compare-menu';
+  const harKeys = Object.keys(state.loadedHar || {});
+  const pcapKeys = Object.keys(state.loadedPcap || {});
+  const evtxKeys = Object.keys(state.loadedEvtx || {});
+  let html = '';
+  if (harKeys.length) {
+    html += '<div class="cm-head">HAR files</div>';
+    harKeys.forEach(k => { html += `<div class="cm-item" data-kind="har" data-key="${escHtml(k)}">🔗 <span>${escHtml((state.loadedHar[k] || {}).name || k)}</span><span class="cm-note">${((state.loadedHar[k] || {}).entries || []).length} reqs</span></div>`; });
+  }
+  if (pcapKeys.length) {
+    html += '<div class="cm-head">Network captures</div>';
+    pcapKeys.forEach(k => { html += `<div class="cm-item" data-kind="pcap" data-key="${escHtml(k)}">🌐 <span>${escHtml((state.loadedPcap[k] || {}).name || k)}</span><span class="cm-note">${((state.loadedPcap[k] || {}).packets || []).length} pkts</span></div>`; });
+  }
+  if (evtxKeys.length) {
+    html += '<div class="cm-head">Event logs</div>';
+    evtxKeys.forEach(k => { html += `<div class="cm-item" data-kind="evtx" data-key="${escHtml(k)}">🗔 <span>${escHtml((state.loadedEvtx[k] || {}).name || k)}</span><span class="cm-note">${((state.loadedEvtx[k] || {}).records || []).length} events</span></div>`; });
+  }
+  if (!harKeys.length && !pcapKeys.length && !evtxKeys.length) html += '<div class="cm-empty">No HAR, capture or event-log files loaded yet — upload one below.</div>';
+  html += '<div class="cm-head cm-upload-head">Upload to compare</div>';
+  html += '<div class="cm-item cm-upload" data-upload="1" data-upload-kind="har">⬆ Upload a HAR file…</div>';
+  html += '<div class="cm-item cm-upload" data-upload="1" data-upload-kind="pcap">⬆ Upload a PCAP / PCAPNG…</div>';
+  html += '<div class="cm-item cm-upload" data-upload="1" data-upload-kind="evtx">⬆ Upload an EVTX file…</div>';
+  menu.innerHTML = html;
+  document.body.appendChild(menu);
+  const r = anchor.getBoundingClientRect();
+  menu.style.left = Math.max(8, Math.min(r.left, window.innerWidth - menu.offsetWidth - 10)) + 'px';
+  menu.style.top = (r.bottom + 4) + 'px';
+  menu.querySelectorAll('.cm-item').forEach(it => {
+    it.addEventListener('click', () => {
+      if (it.dataset.upload) { closeCompareMenu(); triggerCompareUpload(sourceId, it.dataset.uploadKind); return; }
+      closeCompareMenu();
+      openCompareWindow(it.dataset.kind, it.dataset.key, sourceId);
+    });
+  });
+  setTimeout(() => document.addEventListener('click', compareMenuOutside, true), 0);
+}
+function compareMenuOutside(e) {
+  const m = document.getElementById('compare-menu');
+  if (m && !m.contains(e.target) && !e.target.closest('.win-compare')) closeCompareMenu();
+}
+function closeCompareMenu() {
+  const m = document.getElementById('compare-menu');
+  if (m) m.remove();
+  document.removeEventListener('click', compareMenuOutside, true);
+}
+// Upload a file on the spot, parse it like the normal loaders do, then open it
+// as a comparison pane. Supports HAR, PCAP/PCAPNG and EVTX.
+function triggerCompareUpload(sourceId, kind) {
+  kind = kind || 'har';
+  const accept = { har: '.har,application/json', pcap: '.pcap,.pcapng,.cap,.gz', evtx: '.evtx' }[kind] || '';
+  const inp = document.createElement('input');
+  inp.type = 'file'; inp.accept = accept;
+  inp.addEventListener('change', () => {
+    const f = inp.files && inp.files[0];
+    if (!f) return;
+    const reader = new FileReader();
+    if (kind === 'har') {
+      reader.onload = () => {
+        try {
+          const parsed = parseHar(reader.result);
+          let lo = Infinity, hi = -Infinity;
+          parsed.entries.forEach(e => { if (e.ts != null) { lo = Math.min(lo, e.ts); hi = Math.max(hi, e.ts); } });
+          state.loadedHar[f.name] = { name: f.name, creator: parsed.creator, entries: parsed.entries, range: { lo: isFinite(lo) ? lo : null, hi: isFinite(hi) ? hi : null } };
+          if (typeof renderSidebar === 'function') renderSidebar();
+          openCompareWindow('har', f.name, sourceId);
+        } catch (err) {
+          if (typeof showAppToast === 'function') showAppToast('Could not parse that HAR file: ' + (err && err.message ? err.message : ''));
+        }
+      };
+      reader.readAsText(f);
+    } else if (kind === 'pcap') {
+      reader.onload = async () => {
+        try {
+          const buf = await pcapMaybeGunzip(reader.result, f.name);
+          const parsed = window.parsePcap(buf);
+          state.loadedPcap[f.name] = {
+            name: f.name, format: parsed.format, linkType: parsed.linkType,
+            packets: parsed.packets, range: pcapTimeRange(parsed.packets)
+          };
+          if (typeof renderSidebar === 'function') renderSidebar();
+          openCompareWindow('pcap', f.name, sourceId);
+        } catch (err) {
+          const msg = err && err.message === 'gzip-unsupported'
+            ? 'your browser cannot decompress .gz here — please gunzip it first.'
+            : 'it may not be a valid .pcap/.pcapng file.';
+          if (typeof showAppToast === 'function') showAppToast('Could not parse that capture: ' + msg);
+        }
+      };
+      reader.readAsArrayBuffer(f);
+    } else if (kind === 'evtx') {
+      reader.onload = async () => {
+        try {
+          const records = await parseEvtxAsync(reader.result);
+          records.sort((a, b) => (a.ts || 0) - (b.ts || 0));
+          const summary = evtxSummary(f.name, records);
+          summary.path = f.name;
+          state.loadedEvtx[f.name] = summary;
+          if (typeof renderSidebar === 'function') renderSidebar();
+          openCompareWindow('evtx', f.name, sourceId);
+        } catch (err) {
+          const msg = err && err.message === 'parser-unavailable'
+            ? 'the EVTX parser failed to load.'
+            : 'it may not be a valid .evtx file.';
+          if (typeof showAppToast === 'function') showAppToast('Could not parse that event log: ' + msg);
+        }
+      };
+      reader.readAsArrayBuffer(f);
+    }
+  });
+  inp.click();
+}
+function makeInstanceDraggable(win, handle) {
+  let drag = false, sx = 0, sy = 0, ox = 0, oy = 0;
+  handle.style.cursor = 'move';
+  handle.addEventListener('mousedown', (e) => {
+    if (e.target.closest('button, select, input, textarea')) return;
+    drag = true;
+    const r = win.getBoundingClientRect();
+    sx = e.clientX; sy = e.clientY; ox = r.left; oy = r.top;
+    win.style.zIndex = (++_winInstanceZ);
+    document.body.style.userSelect = 'none';
+    e.preventDefault();
+  });
+  document.addEventListener('mousemove', (e) => {
+    if (!drag) return;
+    win.style.left = Math.max(0, Math.min(window.innerWidth - 80, ox + e.clientX - sx)) + 'px';
+    win.style.top  = Math.max(0, Math.min(window.innerHeight - 40, oy + e.clientY - sy)) + 'px';
+  });
+  document.addEventListener('mouseup', () => { if (drag) { drag = false; document.body.style.userSelect = ''; } });
+}
+document.addEventListener('click', (e) => {
+  const b = e.target.closest('.win-compare');
+  if (b && b.dataset.compareWin) openCompareMenu(b.dataset.compareWin, b);
+});
 let _toastTimer = null;
-function showAppToast(msg, ms) {
+function hideAppToast() {
   const t = document.getElementById('app-toast');
   if (!t) return;
-  t.textContent = msg;
+  if (_toastTimer) { clearTimeout(_toastTimer); _toastTimer = null; }
+  t.classList.remove('show');
+  setTimeout(() => t.classList.add('hidden'), 220);
+}
+function showAppToast(msg, ms, dismissible) {
+  const t = document.getElementById('app-toast');
+  if (!t) return;
+  if (_toastTimer) { clearTimeout(_toastTimer); _toastTimer = null; }
+  if (dismissible) {
+    // Persistent banner with an explicit dismiss (used for the focus-swap note).
+    t.innerHTML = '<span class="toast-msg"></span><button class="toast-x" type="button" title="Dismiss" aria-label="Dismiss">✕</button>';
+    t.querySelector('.toast-msg').textContent = msg;
+    t.classList.add('dismissible');
+    t.querySelector('.toast-x').addEventListener('click', hideAppToast);
+  } else {
+    t.classList.remove('dismissible');
+    t.textContent = msg;
+  }
   t.classList.remove('hidden');
   // force reflow so the transition runs
   void t.offsetWidth;
   t.classList.add('show');
-  if (_toastTimer) clearTimeout(_toastTimer);
-  _toastTimer = setTimeout(() => {
-    t.classList.remove('show');
-    setTimeout(() => t.classList.add('hidden'), 220);
-  }, ms || 3200);
+  _toastTimer = setTimeout(hideAppToast, ms || 3200);
 }
 
 // ── Right-click "Search Yext" on any log line/result row ──
@@ -8131,9 +9764,7 @@ document.getElementById('search-older-check').addEventListener('change', () => {
 // Lines with no level (continuations etc.) are excluded from search results.
 function levelMatchesActive(level) {
   if (!level) return false;
-  if (state.activeLevel === 'ALL') return true;
-  if (state.activeLevel === 'ERROR') return level === 'ERROR' || level === 'CRITICAL';
-  return level === state.activeLevel;
+  return state.levelFilter.has(level);
 }
 
 // Escape text, then wrap each case-insensitive occurrence of the term in a
@@ -8154,7 +9785,9 @@ function renderSearchSummary(term) {
   if (txt) txt.textContent = `Searching all loaded logs for "${term}"`;
   if (!filt) return;
   const chips = [];
-  chips.push(`<span class="ssb-chip ${state.activeLevel !== 'ALL' ? 'active' : ''}">level: ${state.activeLevel}</span>`);
+  const lvlAll = levelFilterIsAll();
+  const lvlLabel = lvlAll ? 'all' : (state.levelFilter.size ? ALL_LEVELS.filter(l => state.levelFilter.has(l)).join('/') : 'none');
+  chips.push(`<span class="ssb-chip ${lvlAll ? '' : 'active'}">level: ${lvlLabel}</span>`);
   if (state.gtrStart != null || state.gtrEnd != null) {
     chips.push(`<span class="ssb-chip active">time: ${escHtml(state.gtrLabel || 'range')}</span>`);
   }
@@ -8453,7 +10086,8 @@ document.getElementById('btn-home').addEventListener('click', () => {
   state.activeCompId = null;
   state.focusedLineNo = null;
   state.focusedLogger = null;
-  state.activeLevel = 'ALL';
+  ALL_LEVELS.forEach(l => state.levelFilter.add(l));
+  state.viewerContextMode = false;
   state.timeWindow = 0;
   state.highlightSimilar = false;
   state.searchMatches = [];
@@ -8511,7 +10145,8 @@ document.getElementById('btn-home').addEventListener('click', () => {
   document.getElementById('result-count').textContent = '— entries';
   document.getElementById('results-header-count').textContent = '';
   document.getElementById('btn-scrub').disabled = true;
-  document.querySelectorAll('.level-filter-btn').forEach(b => b.classList.toggle('active', b.dataset.level === 'ALL'));
+  if (typeof syncLevelButtons === 'function') syncLevelButtons();
+  if (typeof updateContextBar === 'function') updateContextBar();
   // Reset viewer time-range tool
   state.viewerRange = null; state.viewerRangeLabel = '';
   const vs = document.getElementById('vtr-start'); if (vs) vs.value = '';
@@ -8631,16 +10266,17 @@ document.getElementById('pcap-input').addEventListener('change', (e) => {
   });
 });
 
-function openPcapWindow(key) {
+function openPcapWindow(key, sync, full) {
   const cap = state.loadedPcap[key];
   if (!cap) return;
   state.activePcap = key;
+  PCAP._syncBuiltKey = null;            // a (re)open invalidates the cached synced view
   const overlay = document.getElementById('pcap-overlay');
   overlay.classList.remove('hidden');
 
   document.getElementById('pcap-overlay-title').textContent = cap.name;
-  const tcp = cap.packets.filter(p => p.proto === 'TCP').length;
-  const udp = cap.packets.filter(p => p.proto === 'UDP').length;
+  let tcp = 0, udp = 0;
+  for (const p of cap.packets) { if (p.proto === 'TCP') tcp++; else if (p.proto === 'UDP') udp++; }
   document.getElementById('pcap-overlay-sub').textContent =
     `${cap.format} · ${cap.packets.length.toLocaleString()} packets`;
 
@@ -8664,7 +10300,7 @@ function openPcapWindow(key) {
 
   PCAP._filter = '';
   document.getElementById('pcap-filter').value = '';
-  renderPcapList(cap);
+  renderPcapList(cap, sync, full);
   populatePcapSyncComponents();
   // Default to list tab
   switchPcapTab('list');
@@ -8691,25 +10327,23 @@ function pcapFilterFn(term) {
   };
 }
 
-function renderPcapList(cap) {
+let _pcapRenderGen = 0;
+let _pcapFocusRow = null;        // currently-focused .pcap-pkt node (avoids re-scanning all rows on click)
+// ── PCAP packet-list virtualization (extend-and-prune; mirrors HAR/vsRender) ──
+// Only a window of rows is in the DOM. The focused packet lives in PCAP._focusIdx
+// (index into PCAP._rows) so it survives prune/recreate and the focus-swap.
+PCAP._focusIdx = -1;
+PCAP._INITIAL = 200;
+PCAP._EXTEND = 200;
+PCAP._PRUNE_THRESHOLD = 1500;    // captures can be huge — prune sooner than HAR
+PCAP._MAX_ROWS = 1000;
+PCAP._TARGET_ROWS = 700;
+function pcapBuildRowEl(p, idx) {
   const list = document.getElementById('pcap-packets-list');
-  list.innerHTML = '';
-  const pred = pcapFilterFn(PCAP._filter);
-  const rows = cap.packets.filter(pred);
-  if (!rows.length) {
-    list.innerHTML = '<div class="empty-state" style="padding:30px"><div>No packets match this filter</div></div>';
-    return;
-  }
-  let idx = 0;
-  const BATCH = 200;
-  const renderBatch = () => {
-    const frag = document.createDocumentFragment();
-    const end = Math.min(idx + BATCH, rows.length);
-    for (; idx < end; idx++) {
-      const p = rows[idx];
-      const row = document.createElement('div');
-      row.className = `pcap-row pcap-pkt proto-${p.proto}` + (p.flags && p.flags.includes('RST') ? ' flag-RST' : '');
-      row.innerHTML = `
+  const row = document.createElement('div');
+  row.className = `pcap-row pcap-pkt proto-${p.proto}` + (p.flags && p.flags.includes('RST') ? ' flag-RST' : '') + (idx === PCAP._focusIdx ? ' pcap-focus' : '');
+  row.dataset.idx = idx;
+  row.innerHTML = `
         <span class="pc-time">${fmtPcapTime(p.ts)}</span>
         <span class="pc-proto">${escHtml(p.proto)}</span>
         <span class="pc-src">${p.srcIp ? escHtml(p.srcIp + (p.srcPort!=null?':'+p.srcPort:'')) : '—'}</span>
@@ -8717,24 +10351,101 @@ function renderPcapList(cap) {
         <span class="pc-len">${p.length||''}</span>
         <span class="pc-info">${escHtml(p.flags || p.info || '')}</span>
       `;
-      // Clicking a packet jumps the synced view to that moment
-      row.addEventListener('click', () => {
-        document.querySelectorAll('.pcap-pkt').forEach(r => r.classList.remove('pcap-focus'));
-        row.classList.add('pcap-focus');
-        if (p.ts != null) { switchPcapTab('sync'); pcapSyncToTimestamp(p.ts); }
-      });
-      frag.appendChild(row);
-    }
+  if (idx === PCAP._focusIdx) _pcapFocusRow = row;
+  row.addEventListener('click', () => {       // jump the synced view to that moment
+    if (_pcapFocusRow) _pcapFocusRow.classList.remove('pcap-focus');
+    row.classList.add('pcap-focus');
+    _pcapFocusRow = row;
+    PCAP._focusIdx = idx;
+    if (p.ts != null) { switchPcapTab('sync'); pcapSyncToTimestamp(p.ts); }
+  });
+  return row;
+}
+function pcapVsRender() {
+  const list = document.getElementById('pcap-packets-list');
+  const rows = PCAP._rows;
+  if (!list || !rows || !rows.length) return;
+  const scrollTop = list.scrollTop, viewH = list.clientHeight, scrollH = list.scrollHeight;
+  const nearTop = scrollTop < scrollH * 0.1, nearBottom = scrollTop + viewH > scrollH * 0.9;
+  if (!nearTop && !nearBottom) return;
+  let changed = false, exTop = false, exBottom = false;
+  if (nearTop && PCAP._renderedStart > 0) {
+    const newStart = Math.max(0, PCAP._renderedStart - PCAP._EXTEND);
+    const frag = document.createDocumentFragment();
+    for (let i = newStart; i < PCAP._renderedStart; i++) frag.appendChild(pcapBuildRowEl(rows[i], i));
+    list.insertBefore(frag, list.firstChild);
+    PCAP._renderedStart = newStart; changed = true; exTop = true;
+  }
+  if (nearBottom && PCAP._renderedEnd < rows.length - 1) {
+    const newEnd = Math.min(rows.length - 1, PCAP._renderedEnd + PCAP._EXTEND);
+    const frag = document.createDocumentFragment();
+    for (let i = PCAP._renderedEnd + 1; i <= newEnd; i++) frag.appendChild(pcapBuildRowEl(rows[i], i));
     list.appendChild(frag);
-    if (idx < rows.length) requestAnimationFrame(renderBatch);
-  };
-  renderBatch();
+    PCAP._renderedEnd = newEnd; changed = true; exBottom = true;
+  }
+  if (changed && rows.length > PCAP._PRUNE_THRESHOLD && (PCAP._renderedEnd - PCAP._renderedStart + 1) > PCAP._MAX_ROWS) {
+    if (exBottom && !exTop) {
+      const removeCount = (PCAP._renderedEnd - PCAP._TARGET_ROWS + 1) - PCAP._renderedStart;
+      for (let k = 0; k < removeCount && list.firstChild; k++) list.removeChild(list.firstChild);
+      if (removeCount > 0) PCAP._renderedStart += removeCount;
+    } else if (exTop && !exBottom) {
+      const removeCount = PCAP._renderedEnd - (PCAP._renderedStart + PCAP._TARGET_ROWS - 1);
+      for (let k = 0; k < removeCount && list.lastChild; k++) list.removeChild(list.lastChild);
+      if (removeCount > 0) PCAP._renderedEnd -= removeCount;
+    }
+  }
+}
+function pcapVsScroll() {
+  if (PCAP._raf) cancelAnimationFrame(PCAP._raf);
+  PCAP._raf = requestAnimationFrame(pcapVsRender);
+}
+function pcapEnsureScrollTop(px) {
+  const list = document.getElementById('pcap-packets-list');
+  const rows = PCAP._rows;
+  if (!list || !rows) return;
+  let guard = 0;
+  while (list.scrollHeight < px + list.clientHeight && PCAP._renderedEnd < rows.length - 1 && guard++ < 2000) {
+    const newEnd = Math.min(rows.length - 1, PCAP._renderedEnd + PCAP._EXTEND);
+    const frag = document.createDocumentFragment();
+    for (let i = PCAP._renderedEnd + 1; i <= newEnd; i++) frag.appendChild(pcapBuildRowEl(rows[i], i));
+    list.appendChild(frag);
+    PCAP._renderedEnd = newEnd;
+  }
+  list.scrollTop = px;
+}
+(function attachPcapScroll(){ const l = document.getElementById('pcap-packets-list'); if (l) l.addEventListener('scroll', pcapVsScroll, { passive: true }); })();
+function renderPcapList(cap, sync, full) {
+  const list = document.getElementById('pcap-packets-list');
+  ++_pcapRenderGen;
+  list.innerHTML = '';
+  _pcapFocusRow = null;
+  PCAP._focusIdx = -1;                     // a re-render (filter) clears focus, as before
+  const pred = pcapFilterFn(PCAP._filter);
+  const rows = cap.packets.filter(pred);
+  PCAP._rows = rows;
+  if (!rows.length) {
+    list.innerHTML = '<div class="empty-state" style="padding:30px"><div>No packets match this filter</div></div>';
+    PCAP._renderedStart = 0; PCAP._renderedEnd = -1;
+    return;
+  }
+  // full=true renders every row (to snapshot a read-only comparison clone).
+  const end = (full || rows.length <= PCAP._INITIAL) ? rows.length - 1 : (PCAP._INITIAL - 1);
+  const frag = document.createDocumentFragment();
+  for (let i = 0; i <= end; i++) frag.appendChild(pcapBuildRowEl(rows[i], i));
+  list.appendChild(frag);
+  PCAP._renderedStart = 0;
+  PCAP._renderedEnd = end;
+  list.scrollTop = 0;
 }
 
+let _pcapFilterTimer = null;
 document.getElementById('pcap-filter').addEventListener('input', (e) => {
   PCAP._filter = e.target.value;
-  const cap = state.loadedPcap[state.activePcap];
-  if (cap) renderPcapList(cap);
+  if (_pcapFilterTimer) clearTimeout(_pcapFilterTimer);
+  _pcapFilterTimer = setTimeout(() => {
+    const cap = state.loadedPcap[state.activePcap];
+    if (cap) renderPcapList(cap);
+  }, 150);
 });
 
 document.getElementById('pcap-file-switcher').addEventListener('change', (e) => {
@@ -8776,6 +10487,12 @@ document.getElementById('pcap-sync-comp').addEventListener('change', (e) => {
 function buildPcapSyncView() {
   const cap = state.loadedPcap[state.activePcap];
   if (!cap) return;
+  // Cache: rebuild only when the capture or chosen component changed; otherwise
+  // reuse the existing panes (callers like pcapSyncToTimestamp just re-scroll).
+  const builtKey = state.activePcap + '|' + (PCAP._syncComp || '');
+  const existingPkt = document.getElementById('pcap-sync-packets');
+  if (PCAP._syncBuiltKey === builtKey && existingPkt && existingPkt.childElementCount) return;
+  PCAP._syncBuiltKey = builtKey;
   const pktPane = document.getElementById('pcap-sync-packets');
   const logPane = document.getElementById('pcap-sync-logs');
 
@@ -8800,45 +10517,51 @@ function buildPcapSyncView() {
     : '<div class="psr" style="color:var(--text-muted)">No timestamped log lines for this component.</div>';
 
   // Reciprocal sync: when one pane scrolls, align the other to the nearest ts.
+  // Rows are single-line (uniform height) and appended in timestamp order, so we
+  // index each pane once (ts array + row height) and use a binary search plus O(1)
+  // arithmetic per scroll tick — no per-tick full-row scans or layout reads.
+  // (baseTop + idx*rowH reproduces the old row.offsetTop exactly under uniform height.)
   let syncing = false;
-  const nearestByTs = (container, ts) => {
-    const rows = container.querySelectorAll('.psr[data-ts]');
-    let best = null, bestDiff = Infinity;
-    for (const r of rows) {
-      const t = parseFloat(r.dataset.ts);
-      const diff = Math.abs(t - ts);
-      if (diff < bestDiff) { bestDiff = diff; best = r; }
+  function indexPane(pane) {
+    const rows = pane.querySelectorAll('.psr[data-ts]');
+    const n = rows.length;
+    const ts = new Float64Array(n);
+    for (let i = 0; i < n; i++) ts[i] = parseFloat(rows[i].dataset.ts);
+    const first = rows[0];
+    return { pane, rows, ts, n, rowH: first ? first.offsetHeight : 0, baseTop: first ? first.offsetTop : 0, near: null };
+  }
+  function nearestIdx(ts, n, val) {            // closest index in an ascending ts array
+    if (n === 0) return -1;
+    if (val <= ts[0]) return 0;
+    if (val >= ts[n - 1]) return n - 1;
+    let lo = 0, hi = n - 1;
+    while (lo <= hi) {
+      const mid = (lo + hi) >> 1;
+      if (ts[mid] === val) return mid;
+      if (ts[mid] < val) lo = mid + 1; else hi = mid - 1;
     }
-    return best;
-  };
-  const topTs = (container) => {
-    const rows = container.querySelectorAll('.psr[data-ts]');
-    const top = container.scrollTop;
-    for (const r of rows) {
-      if (r.offsetTop + r.offsetHeight >= top) return parseFloat(r.dataset.ts);
-    }
-    return null;
-  };
-  const linkScroll = (from, to) => {
-    from.addEventListener('scroll', () => {
-      if (syncing) return;
-      const ts = topTs(from);
-      if (ts == null) return;
-      const target = nearestByTs(to, ts);
-      if (!target) return;
+    return (Math.abs(ts[lo] - val) < Math.abs(ts[hi] - val)) ? lo : hi;
+  }
+  function linkScroll(from, to) {
+    from.pane.addEventListener('scroll', () => {
+      if (syncing || from.n === 0 || to.n === 0 || from.rowH <= 0) return;
+      const ti = Math.max(0, Math.min(from.n - 1, Math.floor((from.pane.scrollTop - from.baseTop) / from.rowH)));
+      const j = nearestIdx(to.ts, to.n, from.ts[ti]);
+      if (j < 0) return;
       syncing = true;
-      to.scrollTop = target.offsetTop;
-      // mark nearest rows
-      to.querySelectorAll('.psr.psr-near').forEach(r => r.classList.remove('psr-near'));
-      target.classList.add('psr-near');
+      to.pane.scrollTop = to.baseTop + j * to.rowH;
+      if (to.near) to.near.classList.remove('psr-near');
+      const tr = to.rows[j];
+      if (tr) { tr.classList.add('psr-near'); to.near = tr; }
       requestAnimationFrame(() => { syncing = false; });
     }, { passive: true });
-  };
+  }
   // Remove old listeners by cloning (avoids stacking on rebuild)
   const freshPkt = pktPane.cloneNode(true); pktPane.parentNode.replaceChild(freshPkt, pktPane);
   const freshLog = logPane.cloneNode(true); logPane.parentNode.replaceChild(freshLog, logPane);
-  linkScroll(freshPkt, freshLog);
-  linkScroll(freshLog, freshPkt);
+  const pktInfo = indexPane(freshPkt), logInfo = indexPane(freshLog);
+  linkScroll(pktInfo, logInfo);
+  linkScroll(logInfo, pktInfo);
   PCAP._syncPktPane = freshPkt;
   PCAP._syncLogPane = freshLog;
 }
@@ -8893,6 +10616,99 @@ function pcapSyncToTimestamp(ts) {
 //  HAR (HTTP Archive) — request analysis (no log sync, by design)
 // ═══════════════════════════════════════════════════════════════
 const HAR = {};
+let _harRenderGen = 0;
+// ── HAR list virtualization (extend-and-prune; mirrors the log viewer's vsRender) ──
+// Only a window of rows is in the DOM at once. Expand state lives in HAR._open
+// (a Set of har-ids) so rows keep/restore their open state across prune+recreate.
+HAR._open = new Set();
+HAR._INITIAL = 200;          // rows rendered up-front
+HAR._EXTEND = 200;           // rows added per scroll-extend
+HAR._PRUNE_THRESHOLD = 2500; // only prune the DOM for very large HARs
+HAR._MAX_ROWS = 1000;        // prune when the rendered window exceeds this…
+HAR._TARGET_ROWS = 700;      // …back down to this (hysteresis)
+function harBuildRowEl(en, idx, lo, span) {
+  const list = document.getElementById('har-list');
+  const row = document.createElement('div');
+  row.className = `har-row har-req sc-${en.statusClass}` + (en.slow ? ' is-slow' : '') + (HAR._open.has(en._id) ? ' har-open' : '');
+  row.dataset.harId = en._id;
+  row.dataset.idx = idx;
+  row.innerHTML = `
+        <span class="hr-time">${en.ts != null ? fmtPcapTime(en.ts) : '—'}</span>
+        <span class="hr-method">${escHtml(en.method)}</span>
+        <span class="hr-status">${en.status || '—'}</span>
+        <span class="hr-url"><span class="hr-host">${escHtml(en.host)}</span>${escHtml(en.path)}</span>
+        <span class="hr-dur">${en.time != null ? en.time + 'ms' : '—'}</span>
+        ${harWaterfallCell(en, lo, span)}
+        <div class="har-detail">${harDetailHtml(en)}</div>
+      `;
+  row.addEventListener('click', () => {
+    const id = en._id, wasOpen = HAR._open.has(id);
+    if (HAR._open.size) {                       // single-open accordion
+      HAR._open.forEach(oid => { const r = list.querySelector(`.har-req[data-har-id="${CSS.escape(oid)}"]`); if (r) r.classList.remove('har-open'); });
+      HAR._open.clear();
+    }
+    if (!wasOpen) { HAR._open.add(id); row.classList.add('har-open'); }
+  });
+  return row;
+}
+function harVsRender() {
+  const list = document.getElementById('har-list');
+  const rows = HAR._rows;
+  if (!list || !rows || !rows.length) return;
+  const scrollTop = list.scrollTop, viewH = list.clientHeight, scrollH = list.scrollHeight;
+  const nearTop = scrollTop < scrollH * 0.1, nearBottom = scrollTop + viewH > scrollH * 0.9;
+  if (!nearTop && !nearBottom) return;
+  const lo = HAR._wfLo, span = HAR._wfSpan;
+  let changed = false, exTop = false, exBottom = false;
+  if (nearTop && HAR._renderedStart > 0) {
+    const newStart = Math.max(0, HAR._renderedStart - HAR._EXTEND);
+    const frag = document.createDocumentFragment();
+    for (let i = newStart; i < HAR._renderedStart; i++) frag.appendChild(harBuildRowEl(rows[i], i, lo, span));
+    list.insertBefore(frag, list.firstChild);
+    HAR._renderedStart = newStart; changed = true; exTop = true;
+  }
+  if (nearBottom && HAR._renderedEnd < rows.length - 1) {
+    const newEnd = Math.min(rows.length - 1, HAR._renderedEnd + HAR._EXTEND);
+    const frag = document.createDocumentFragment();
+    for (let i = HAR._renderedEnd + 1; i <= newEnd; i++) frag.appendChild(harBuildRowEl(rows[i], i, lo, span));
+    list.appendChild(frag);
+    HAR._renderedEnd = newEnd; changed = true; exBottom = true;
+  }
+  // Prune the off-screen side on very large HARs; scroll anchoring keeps the view stable.
+  if (changed && rows.length > HAR._PRUNE_THRESHOLD && (HAR._renderedEnd - HAR._renderedStart + 1) > HAR._MAX_ROWS) {
+    if (exBottom && !exTop) {
+      const removeCount = (HAR._renderedEnd - HAR._TARGET_ROWS + 1) - HAR._renderedStart;
+      for (let k = 0; k < removeCount && list.firstChild; k++) list.removeChild(list.firstChild);
+      if (removeCount > 0) HAR._renderedStart += removeCount;
+    } else if (exTop && !exBottom) {
+      const removeCount = HAR._renderedEnd - (HAR._renderedStart + HAR._TARGET_ROWS - 1);
+      for (let k = 0; k < removeCount && list.lastChild; k++) list.removeChild(list.lastChild);
+      if (removeCount > 0) HAR._renderedEnd -= removeCount;
+    }
+  }
+}
+function harVsScroll() {
+  if (HAR._raf) cancelAnimationFrame(HAR._raf);
+  HAR._raf = requestAnimationFrame(harVsRender);
+}
+// Append rows until the content is tall enough to honour a saved scroll position,
+// then apply it (used by the focus-swap restore; exact unless the top was pruned).
+function harEnsureScrollTop(px) {
+  const list = document.getElementById('har-list');
+  const rows = HAR._rows;
+  if (!list || !rows) return;
+  const lo = HAR._wfLo, span = HAR._wfSpan;
+  let guard = 0;
+  while (list.scrollHeight < px + list.clientHeight && HAR._renderedEnd < rows.length - 1 && guard++ < 2000) {
+    const newEnd = Math.min(rows.length - 1, HAR._renderedEnd + HAR._EXTEND);
+    const frag = document.createDocumentFragment();
+    for (let i = HAR._renderedEnd + 1; i <= newEnd; i++) frag.appendChild(harBuildRowEl(rows[i], i, lo, span));
+    list.appendChild(frag);
+    HAR._renderedEnd = newEnd;
+  }
+  list.scrollTop = px;
+}
+(function attachHarScroll(){ const l = document.getElementById('har-list'); if (l) l.addEventListener('scroll', harVsScroll, { passive: true }); })();
 
 document.getElementById('btn-add-har').addEventListener('click', () => {
   document.getElementById('har-input').click();
@@ -8942,7 +10758,7 @@ document.getElementById('har-input').addEventListener('change', (e) => {
   });
 });
 
-function openHarWindow(key) {
+function openHarWindow(key, sync, full) {
   const har = state.loadedHar[key];
   if (!har) return;
   state.activeHar = key;
@@ -8961,12 +10777,16 @@ function openHarWindow(key) {
 
   // Summary bar
   const counts = { '2xx':0,'3xx':0,'4xx':0,'5xx':0,'1xx':0,'err':0 };
-  let slow = 0, totalTime = 0, timed = 0;
+  let slow = 0, totalTime = 0, timed = 0, totalBytes = 0, slowest = null;
   for (const en of har.entries) {
     counts[en.statusClass] = (counts[en.statusClass]||0) + 1;
     if (en.slow) slow++;
-    if (en.time != null) { totalTime += en.time; timed++; }
+    if (en.time != null) { totalTime += en.time; timed++; if (!slowest || en.time > slowest.time) slowest = en; }
+    const b = en.recvBytes != null ? en.recvBytes : en.respSize;
+    if (typeof b === 'number') totalBytes += b;
   }
+  har._wfLo = null; // recompute the waterfall axis for this file
+  const fmtBytes = (b) => b >= 1048576 ? (b/1048576).toFixed(1)+' MB' : b >= 1024 ? (b/1024).toFixed(1)+' KB' : b+' B';
   const range = har.range;
   const span = (range.lo != null && range.hi != null) ? `${fmtPcapTime(range.lo)} → ${fmtPcapTime(range.hi)}` : '—';
   document.getElementById('har-summary-bar').innerHTML =
@@ -8977,91 +10797,196 @@ function openHarWindow(key) {
      <span style="color:var(--level-error)"><strong>${counts['5xx']+counts['err']}</strong> 5xx/failed</span>
      <span><strong>${slow}</strong> slow (≥1s)</span>
      <span>avg <strong>${timed?Math.round(totalTime/timed):0}</strong>ms</span>
+     <span>transfer <strong>${fmtBytes(totalBytes)}</strong></span>
+     ${slowest?`<span>slowest <strong>${slowest.time}ms</strong> ${escHtml(slowest.host||slowest.path||'')}</span>`:''}
      <span>Time: <strong>${span}</strong></span>`;
 
   HAR._filter = '';
   HAR._statusFilter = 'all';
   document.getElementById('har-filter').value = '';
   document.querySelectorAll('.har-sf').forEach(b => b.classList.toggle('active', b.dataset.sf === 'all'));
-  renderHarList(har);
+  renderHarList(har, sync, full);
 }
 
 function harFilterFn() {
   const term = (HAR._filter || '').trim().toLowerCase();
-  const toks = term ? term.split(/\s+/) : [];
+  const toks = term ? (term.match(/"[^"]*"|\S+/g) || []) : [];
   const sf = HAR._statusFilter || 'all';
   return (en) => {
     if (sf === 'err' && !en.isError) return false;
     if (sf === 'slow' && !en.slow) return false;
     if (!toks.length) return true;
-    const hay = `${en.method} ${en.status} ${en.statusClass} ${en.host} ${en.path} ${en.mime}`.toLowerCase();
-    return toks.every(t => hay.includes(t));
+    const hay = `${en.method} ${en.status} ${en.statusClass} ${en.host} ${en.path} ${en.mime} ${en.resourceType} ${en.protocol}`.toLowerCase();
+    return toks.every(raw => {
+      const tk = raw.replace(/^"|"$/g, '');
+      const m = tk.match(/^(method|status|url|host|path|mime|type|proto|protocol):(.*)$/);
+      if (m) {
+        const f = m[1], val = m[2];
+        if (!val) return true;
+        switch (f) {
+          case 'method':   return en.method.toLowerCase().includes(val);
+          case 'status':   return String(en.status).includes(val);
+          case 'url':      return (en.host + en.path).toLowerCase().includes(val);
+          case 'host':     return en.host.toLowerCase().includes(val);
+          case 'path':     return en.path.toLowerCase().includes(val);
+          case 'mime':     return (en.mime || '').toLowerCase().includes(val);
+          case 'type':     return (en.resourceType || '').toLowerCase().includes(val);
+          case 'proto':
+          case 'protocol': return (en.protocol || '').toLowerCase().includes(val);
+        }
+      }
+      return hay.includes(tk);
+    });
   };
 }
 
-function renderHarList(har) {
+// Sort the filtered rows by the active column.
+function harSortRows(rows) {
+  const s = HAR._sort || (HAR._sort = { key: 'ts', dir: 1 });
+  const val = (en) => {
+    switch (s.key) {
+      case 'method': return en.method || '';
+      case 'status': return en.status || 0;
+      case 'url':    return (en.host + en.path) || '';
+      case 'time':   return en.time == null ? -1 : en.time;
+      default:       return en.ts == null ? 0 : en.ts;
+    }
+  };
+  return rows.slice().sort((a, b) => {
+    const va = val(a), vb = val(b);
+    if (va < vb) return -s.dir;
+    if (va > vb) return s.dir;
+    return 0;
+  });
+}
+
+// One request's inline waterfall cell, positioned across the whole capture window.
+function harWaterfallCell(en, lo, span) {
+  const start = en.ts != null ? (en.ts - lo) : 0;
+  const dur = en.time || 0;
+  const leftPct  = span ? Math.max(0, Math.min(99, start / span * 100)) : 0;
+  const widthPct = span ? Math.max(0.6, Math.min(100 - leftPct, dur / span * 100)) : 1;
+  const t = en.timings || {};
+  const order = ['blocked', 'dns', 'connect', 'ssl', 'send', 'wait', 'receive'];
+  const segs = order.map(k => [k, t[k]]).filter(([, v]) => v != null && v > 0);
+  const segTot = segs.reduce((a, [, v]) => a + v, 0) || dur || 1;
+  const inner = segs.length
+    ? segs.map(([k, v]) => `<div class="ht-seg ht-${k}" style="width:${(v / segTot * 100).toFixed(1)}%"></div>`).join('')
+    : '<div class="ht-seg ht-wait" style="width:100%"></div>';
+  return `<div class="hr-wf"><div class="hr-wf-track"></div>`
+       + `<div class="hr-wf-bar" style="left:${leftPct.toFixed(2)}%;width:${widthPct.toFixed(2)}%" title="start +${Math.round(start)}ms · ${dur}ms">${inner}</div></div>`;
+}
+
+function renderHarList(har, sync, full) {
   const list = document.getElementById('har-list');
+  ++_harRenderGen;
   list.innerHTML = '';
-  const rows = har.entries.filter(harFilterFn());
+  HAR._open.clear();                 // a re-render (filter/sort) collapses expansions, as before
+  // Stable waterfall axis from the whole capture (not the filtered subset).
+  if (har._wfLo == null) {
+    let lo = Infinity, hi = -Infinity;
+    for (const en of har.entries) {
+      if (en.ts == null) continue;
+      lo = Math.min(lo, en.ts);
+      hi = Math.max(hi, en.ts + (en.time || 0));
+    }
+    har._wfLo = isFinite(lo) ? lo : 0;
+    har._wfHi = isFinite(hi) ? hi : (har._wfLo + 1);
+  }
+  const lo = har._wfLo, span = (har._wfHi - har._wfLo) || 1;
+  HAR._wfLo = lo; HAR._wfSpan = span;   // for the scroll-extend row builder
+  syncHarSortHeader();
+  const rows = harSortRows(har.entries.filter(harFilterFn()));
+  HAR._rows = rows;
   if (!rows.length) {
     list.innerHTML = '<div class="empty-state" style="padding:30px"><div>No requests match this filter</div></div>';
+    HAR._renderedStart = 0; HAR._renderedEnd = -1;
     return;
   }
-  let idx = 0;
-  const BATCH = 150;
-  const renderBatch = () => {
-    const frag = document.createDocumentFragment();
-    const end = Math.min(idx + BATCH, rows.length);
-    for (; idx < end; idx++) {
-      const en = rows[idx];
-      const row = document.createElement('div');
-      row.className = `har-row har-req sc-${en.statusClass}` + (en.slow ? ' is-slow' : '');
-      row.innerHTML = `
-        <span class="hr-time">${en.ts != null ? fmtPcapTime(en.ts) : '—'}</span>
-        <span class="hr-method">${escHtml(en.method)}</span>
-        <span class="hr-status">${en.status || '—'}</span>
-        <span class="hr-url"><span class="hr-host">${escHtml(en.host)}</span>${escHtml(en.path)}</span>
-        <span class="hr-dur">${en.time != null ? en.time + 'ms' : '—'}</span>
-        <div class="har-detail">${harDetailHtml(en)}</div>
-      `;
-      row.addEventListener('click', () => {
-        const open = row.classList.contains('har-open');
-        document.querySelectorAll('.har-req.har-open').forEach(r => r.classList.remove('har-open'));
-        if (!open) row.classList.add('har-open');
-      });
-      frag.appendChild(row);
-    }
-    list.appendChild(frag);
-    if (idx < rows.length) requestAnimationFrame(renderBatch);
-  };
-  renderBatch();
+  // full=true renders every row (used to snapshot a read-only comparison pane,
+  // which is a static clone of this overlay and so needs the whole list).
+  const end = (full || rows.length <= HAR._INITIAL) ? rows.length - 1 : (HAR._INITIAL - 1);
+  const frag = document.createDocumentFragment();
+  for (let i = 0; i <= end; i++) frag.appendChild(harBuildRowEl(rows[i], i, lo, span));
+  list.appendChild(frag);
+  HAR._renderedStart = 0;
+  HAR._renderedEnd = end;
+  list.scrollTop = 0;
 }
 
-// Inline detail: a waterfall-style timing bar + safe metadata (no headers/cookies)
+// Reflect the active sort column/direction in the header arrows.
+function syncHarSortHeader() {
+  const s = HAR._sort || (HAR._sort = { key: 'ts', dir: 1 });
+  document.querySelectorAll('#har-head .hr-sort').forEach(el => {
+    const on = el.dataset.sort === s.key;
+    el.classList.toggle('sorted', on);
+    const arrow = el.querySelector('.hr-arrow');
+    if (arrow) arrow.textContent = s.dir > 0 ? '▲' : '▼';
+  });
+}
+
+// Inline detail / inspector: timing waterfall, dominant phase, per-phase table,
+// sizes, protocol, type, server, redirect, and parsed query string. Header and
+// cookie *values* are deliberately never shown.
 function harDetailHtml(en) {
   const t = en.timings || {};
-  const segs = [
-    ['blocked', t.blocked], ['dns', t.dns], ['connect', t.connect], ['ssl', t.ssl],
-    ['send', t.send], ['wait', t.wait], ['receive', t.receive]
-  ].filter(([k, v]) => v != null && v > 0);
+  const order = [['blocked', t.blocked], ['dns', t.dns], ['connect', t.connect], ['ssl', t.ssl], ['send', t.send], ['wait', t.wait], ['receive', t.receive]];
+  const segs = order.filter(([, v]) => v != null && v > 0);
   const total = segs.reduce((a, [, v]) => a + v, 0) || 1;
-  const bar = segs.map(([k, v]) =>
-    `<div class="ht-seg ht-${k}" style="width:${(v/total*100).toFixed(1)}%" title="${k}: ${v}ms"></div>`).join('');
-  const legend = segs.map(([k, v]) =>
-    `<span><span class="htl-dot ht-${k}"></span>${k} ${v}ms</span>`).join('');
-  const sizeStr = en.respSize != null ? `${en.respSize.toLocaleString()} B` : '—';
+  const bar = segs.map(([k, v]) => `<div class="ht-seg ht-${k}" style="width:${(v / total * 100).toFixed(1)}%" title="${k}: ${v}ms"></div>`).join('');
+  let dom = null; segs.forEach(([k, v]) => { if (!dom || v > dom[1]) dom = [k, v]; });
+  const domLabel = { blocked: 'Blocked (queuing / proxy)', dns: 'DNS lookup', connect: 'Connecting', ssl: 'TLS handshake', send: 'Sending request', wait: 'Waiting for server (TTFB)', receive: 'Receiving response' };
+  const domHtml = dom ? `<div class="har-dom-phase">Most time in: <strong>${domLabel[dom[0]] || dom[0]}</strong> — ${dom[1]} ms of ${en.time != null ? en.time + 'ms' : total + 'ms'}</div>` : '';
+  const phaseTable = segs.length
+    ? segs.map(([k, v]) => `<div class="hpt-row"><span class="hpt-dot ht-${k}"></span>${k}<span class="hpt-val">${v} ms</span></div>`).join('')
+    : '<div class="hpt-row">No timing breakdown recorded in this HAR</div>';
+  const fmtB = (b) => b == null ? '—' : (b >= 1048576 ? (b / 1048576).toFixed(2) + ' MB' : b >= 1024 ? (b / 1024).toFixed(1) + ' KB' : b + ' B');
+  const kv = [
+    ['Status', `${en.status || '—'} ${escHtml(en.statusText || '')}`],
+    ['Protocol', escHtml(en.protocol || '—')],
+    ['Type', escHtml(en.resourceType || '—')],
+    ['MIME', escHtml(en.mime || '—')],
+    ['Sent', fmtB(en.sentBytes)],
+    ['Received', fmtB(en.recvBytes != null ? en.recvBytes : en.respSize)],
+    en.serverIp ? ['Server IP', escHtml(en.serverIp)] : null,
+    en.connection ? ['Connection', escHtml(en.connection)] : null,
+    en.fromCache ? ['Cache', 'served from cache'] : null,
+    en.redirectURL ? ['Redirect →', escHtml(en.redirectURL)] : null,
+  ].filter(Boolean).map(([k, v]) => `<span class="hkv">${k}: <b>${v}</b></span>`).join('');
+  const q = (en.query && en.query.length)
+    ? `<div class="har-query"><div class="hq-head">Query string (${en.query.length})</div>`
+      + en.query.map(p => `<div class="hq-row"><span class="hq-key">${escHtml(p.name)}</span><span class="hq-val">${escHtml(p.value)}</span></div>`).join('')
+      + `</div>`
+    : '';
   return `
     <div class="har-timings">${bar || '<div class="ht-seg ht-wait" style="width:100%"></div>'}</div>
-    <div class="har-timing-legend">${legend || '<span>no timing breakdown</span>'}</div>
+    ${domHtml}
+    <div class="har-phase-table">${phaseTable}</div>
     <div class="har-detail-meta">${escHtml(en.method)} ${escHtml(en.url)}</div>
-    <div class="har-detail-meta">status: ${en.status} ${escHtml(en.statusText)} · type: ${escHtml(en.mime || '—')} · size: ${sizeStr}${en.serverIp ? ' · server: ' + escHtml(en.serverIp) : ''}</div>
+    <div class="har-kv">${kv}</div>
+    ${q}
   `;
 }
 
+let _harFilterTimer = null;
 document.getElementById('har-filter').addEventListener('input', (e) => {
   HAR._filter = e.target.value;
-  const har = state.loadedHar[state.activeHar];
-  if (har) renderHarList(har);
+  if (_harFilterTimer) clearTimeout(_harFilterTimer);
+  _harFilterTimer = setTimeout(() => {
+    const har = state.loadedHar[state.activeHar];
+    if (har) renderHarList(har);
+  }, 150);
+});
+// Sortable column headers (default direction per column; click again to flip).
+document.querySelectorAll('#har-head .hr-sort').forEach(el => {
+  el.addEventListener('click', () => {
+    const key = el.dataset.sort;
+    const s = HAR._sort || (HAR._sort = { key: 'ts', dir: 1 });
+    if (s.key === key) { s.dir = -s.dir; }
+    else { s.key = key; s.dir = (key === 'time' || key === 'status') ? -1 : 1; }
+    const har = state.loadedHar[state.activeHar];
+    if (har) renderHarList(har);
+  });
 });
 document.querySelectorAll('.har-sf').forEach(btn => {
   btn.addEventListener('click', () => {
@@ -9480,13 +11405,27 @@ document.getElementById('tl-node-btn').addEventListener('click', (e) => {
   if (document.getElementById('tl-node-menu')) { tlCloseNodeMenu(); return; }
   const menu = document.createElement('div');
   menu.id = 'tl-node-menu';
-  let html = '<div class="tlnm-head">View one node / source</div>';
-  TL.nodes.forEach(n => {
-    const active = n.key === TL.node ? ' active' : '';
-    html += `<div class="tlnm-item${active}" data-key="${escHtml(n.key)}">`
-      + `<span class="tlnm-name">🖧 ${escHtml(n.label)}</span>`
-      + `<span class="tlnm-note">${n.comps.size} comp${n.comps.size === 1 ? '' : 's'} · ${n.lineCount.toLocaleString()}</span></div>`;
-  });
+  let html = '<div class="tlnm-head">Timeline source — pick a node / engine</div>';
+  const tlGroups = { node: [], engine: [], other: [] };
+  TL.nodes.forEach(n => tlGroups[classifyNode(n.key).kind].push(n));
+  const tlGrp = (title, arr) => {
+    if (!arr.length) return;
+    html += `<div class="tlnm-head">${title}</div>`;
+    arr.sort((a, b) => {
+      const ca = classifyNode(a.key), cb = classifyNode(b.key);
+      return ((ca.id == null ? 1e9 : ca.id) - (cb.id == null ? 1e9 : cb.id)) || a.label.localeCompare(b.label);
+    });
+    arr.forEach(n => {
+      const c = classifyNode(n.key);
+      const active = n.key === TL.node ? ' active' : '';
+      html += `<div class="tlnm-item${active}" data-key="${escHtml(n.key)}">`
+        + `<span class="tlnm-name">${c.icon} ${escHtml(c.display)}</span>`
+        + `<span class="tlnm-note">${n.comps.size} comp${n.comps.size === 1 ? '' : 's'} · ${n.lineCount.toLocaleString()}</span></div>`;
+    });
+  };
+  tlGrp('Nodes', tlGroups.node);
+  tlGrp('Distributed engines', tlGroups.engine);
+  tlGrp('Other', tlGroups.other);
   menu.innerHTML = html;
   document.body.appendChild(menu);
   const r = e.currentTarget.getBoundingClientRect();
@@ -11082,7 +13021,7 @@ const TOUR_STEPS = [
     id: 'timeline',
     title: 'Timeline, export & time zone',
     body: 'Three cross-cutting tools live here. <strong>🕒 Cross-component timeline</strong> merges every component into one colour-coded chronological stream for the current window. <strong>📋 Export findings</strong> builds a PII-scrubbed support summary (recognised errors, counts, time range) ready to paste into a ticket. <strong>🌍 Local / UTC</strong> toggles how all timestamps are displayed — handy when comparing logs against captures.',
-    target: '#btn-timeline',
+    target: '#btn-tools-menu',
     position: 'below-left',
     setup: () => tourEnsureAnalyser(),
   },
@@ -11090,7 +13029,7 @@ const TOUR_STEPS = [
     id: 'recognised',
     title: 'Recognised errors',
     body: 'The tool ships with a knowledge base of known Delinea errors. Lines that match show an amber <strong>!</strong> badge linking to the documentation. Click <strong>⚠ Recognised errors</strong> to list each distinct known error once — then step through every occurrence with ▲▼, or jump to other components that hit the same error.',
-    target: '#btn-recognised-errors',
+    target: '#btn-viewer-view',
     position: 'below',
     setup: () => tourEnsureAnalyser(),
   },
@@ -11114,7 +13053,7 @@ const TOUR_STEPS = [
     id: 'similar',
     title: 'Similar entries',
     body: 'Click <strong>Similar</strong> to open a full-screen view of every line sharing the same logger. Edit the term to broaden or narrow it, navigate with ▲▼, and use the scrollbar markers to see where every match sits.',
-    target: '#btn-highlight-similar',
+    target: '#btn-viewer-view',
     position: 'below',
     setup: () => tourEnsureAnalyser(),
   },
@@ -11146,7 +13085,7 @@ const TOUR_STEPS = [
     id: 'evtx',
     title: 'Windows Event Logs (.evtx)',
     body: 'Click <strong>⬆ Upload & analyse EVTX</strong> to add a Windows Event Log at any time. It\'s decoded in your browser — provider, event ID, level, channel and structured data, with human-readable headlines for documented event IDs — and opens in a draggable floating window with a summary and event list. Click an event and <strong>Sync logs to this event</strong> lines your other logs up around that moment. You can also analyse an EVTX on its own straight from the welcome screen — no product needed.',
-    target: '#btn-add-evtx',
+    target: '#btn-add-data',
     position: 'below',
     setup: () => tourEnsureAnalyser(),
   },
@@ -11154,7 +13093,7 @@ const TOUR_STEPS = [
     id: 'pcap',
     title: 'Network captures (.pcap / .pcapng)',
     body: 'Click <strong>🌐 Upload & analyse PCAP</strong> to open a packet capture in a floating window — each packet\'s time, protocol, source/destination, length and TCP flags (SYN, RST…). Filter by IP, port, protocol or flag, and switch to the <strong>side-by-side</strong> view to scroll packets and a component\'s logs together, lined up by timestamp — ideal for "the app logged a timeout; did we actually see a RST on the wire?" A capture can also be opened on its own from the welcome screen, with no product selected.',
-    target: '#btn-add-pcap',
+    target: '#btn-add-data',
     position: 'below',
     setup: () => tourEnsureAnalyser(),
   },
@@ -11162,7 +13101,7 @@ const TOUR_STEPS = [
     id: 'har',
     title: 'Browser HARs (.har)',
     body: 'Click <strong>🔗 Upload & analyse HAR</strong> to inspect a browser HTTP archive — every request\'s method, status (colour-coded), URL, duration and a timing waterfall. Quick-filter to <strong>errors (4xx/5xx)</strong> or <strong>slow (≥1s)</strong> requests. For safety, request and response <em>headers are never displayed</em>, since HARs routinely contain auth tokens and cookies. HAR is most often used on its own, so there\'s a shortcut for it right on the welcome screen too.',
-    target: '#btn-add-har',
+    target: '#btn-add-data',
     position: 'below',
     setup: () => tourEnsureAnalyser(),
   },
@@ -11170,7 +13109,7 @@ const TOUR_STEPS = [
     id: 'addmore',
     title: 'Add more as you go',
     body: 'Use <strong>+ Upload additional files</strong> to keep what you\'ve loaded and add more on top — handy when a customer sends extra logs mid-investigation.',
-    target: '#btn-add-more',
+    target: '#btn-add-data',
     position: 'below',
     setup: () => tourEnsureAnalyser(),
   },
@@ -11564,5 +13503,6 @@ document.getElementById('btn-tour-replay').addEventListener('click', startTour);
 // ═══════════════════════════════════════════════════════════════
 initWizard();
 </script>
+<div id="window-dock" class="hidden"></div>
 </body>
 </html>
