@@ -276,9 +276,38 @@ body.compare-view-active .win-ctl{display:inline-flex;align-items:center;justify
   padding:4px 8px;border-radius:4px;text-transform:uppercase;letter-spacing:.6px;
 }
 .sidebar-head .tabs button.active{color:var(--sidebar-fg);background:var(--list-inactive-bg);}
+/* [Pass AK] fields tab */
+.fields-list{padding:4px 0;}
+.field-row{display:flex;align-items:baseline;gap:4px;padding:3px 10px;font-size:12px;cursor:pointer;}
+.field-row:hover{background:var(--hover-bg);}
+.field-row .fk{color:var(--sidebar-title-fg);flex:0 0 auto;max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.field-row .fv{color:var(--editor-fg);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;}
+.field-row .fc{color:var(--gutter-fg);flex:0 0 auto;font-variant-numeric:tabular-nums;font-size:10.5px;}
+.field-chip{display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:11px;background:color-mix(in srgb,var(--accent) 15%,transparent);border:1px solid var(--accent);font-size:11px;margin:6px 10px 2px;cursor:pointer;}
+.field-chip .fc-key{color:var(--accent);}
+.field-chip .fc-val{color:var(--editor-fg);}
+.field-chip .fc-x{color:var(--gutter-fg);margin-left:4px;}
+.field-chip:hover .fc-x{color:var(--lvl-error);}
 .sidebar-head .tabs button:hover{color:var(--sidebar-fg);}
 .sidebar-search{padding:6px 10px;}
 .sidebar-search input{width:100%;}
+/* [Pass AG] search-panel mode — shown when actSearch is active */
+.sidebar-search-panel{display:none;flex-direction:column;flex:1;min-height:0;}
+body.sb-search .sidebar-search-panel{display:flex;}
+body.sb-search .sidebar-search-panel .sidebar-search{flex:0 0 auto;}
+body.sb-search .sidebar-search-panel .gs-panel-hint{padding:4px 12px 6px;font-size:11px;color:var(--gutter-fg);}
+body.sb-search .sidebar-search-panel .gs-clear-btn{margin:0 10px 6px;font-size:11.5px;background:transparent;border:1px solid var(--border-strong);border-radius:4px;padding:3px 8px;color:var(--editor-fg);cursor:pointer;}
+body.sb-search .sidebar-search-panel .gs-clear-btn:hover{background:var(--hover-bg);}
+body.sb-search #sidebarTabs,body.sb-search .sidebar-search:not(.in-panel),body.sb-search #nodeBar,body.sb-search .sidebar-body{display:none;}
+/* [Pass AG] Notes footer hover dropdowns */
+.nv-drop{position:relative;display:inline-flex;}
+.nv-drop-btn{font-family:inherit;font-size:12px;cursor:pointer;padding:5px 10px;border-radius:5px;border:1px solid var(--border-strong);background:transparent;color:var(--editor-fg);white-space:nowrap;display:inline-flex;align-items:center;gap:4px;}
+.nv-drop-btn:hover{background:var(--hover-bg);}
+.nv-drop-btn::after{content:"▾";font-size:10px;opacity:.7;}
+.nv-drop-menu{display:none;position:absolute;bottom:calc(100% + 3px);left:0;z-index:80;background:var(--panel-header-bg);border:1px solid var(--border-strong);border-radius:6px;padding:4px;min-width:160px;box-shadow:0 -4px 24px rgba(0,0,0,.3);flex-direction:column;gap:2px;}
+.nv-drop:hover .nv-drop-menu{display:flex;}
+.nv-drop-item{display:flex;align-items:center;background:transparent;border:0;border-radius:4px;padding:5px 10px;font-size:12px;color:var(--editor-fg);text-align:left;cursor:pointer;white-space:nowrap;font-family:inherit;}
+.nv-drop-item:hover{background:var(--hover-bg);}
 /* [Pass 5.1] node/host selector */
 .node-bar{padding:4px 10px 8px;border-bottom:1px solid var(--border);display:flex;flex-direction:column;gap:3px;}
 .node-bar[hidden]{display:none;}
@@ -493,6 +522,13 @@ body.compare-on .tabbar{display:none;}
 .tl-chip.on{opacity:1;background:var(--hover-bg);}
 .tl-chip .tl-cdot{width:9px;height:9px;border-radius:50%;flex:0 0 auto;}
 .tl-trunc{margin-top:8px;font-size:11px;color:var(--lvl-warning);}
+/* [Pass AJ] timeline histogram */
+.tl-histogram{display:block;width:100%;height:80px;cursor:crosshair;border-bottom:1px solid var(--border);}
+.tl-hist-wrap{position:relative;flex:0 0 80px;}
+.tl-brush{position:absolute;top:0;bottom:0;pointer-events:none;background:color-mix(in srgb,var(--accent) 20%,transparent);border:1px solid var(--accent);display:none;}
+.tl-hist-label{font-size:10px;color:var(--gutter-fg);padding:2px 8px;display:flex;align-items:center;border-bottom:1px solid var(--border);}
+.tl-hist-clear{font-size:11px;background:transparent;border:1px solid var(--border-strong);border-radius:4px;padding:1px 7px;color:var(--editor-fg);cursor:pointer;margin-left:8px;}
+.tl-hist-clear:hover{background:var(--hover-bg);}
 .tl-scroll{flex:1;min-height:0;overflow:auto;position:relative;}
 .tl-sizer{position:absolute;top:0;left:0;width:1px;}
 .tl-rows{position:absolute;top:0;left:0;right:0;will-change:transform;}
@@ -834,6 +870,18 @@ body.tab-hold{cursor:grab;}
 .vt-btn:hover{background:var(--hover-bg);}
 .vt-btn.active{background:var(--list-active-bg);color:var(--list-active-fg);border-color:transparent;}
 .vt-spacer{flex:1;}
+/* [Pass AF] View ▾ and Scrub ▾ hover dropdown menus in the viewer toolbar */
+.vt-drop{position:relative;display:inline-flex;}
+.vt-drop-btn{background:transparent;border:1px solid var(--border-strong);border-radius:5px;padding:4px 10px;font-size:12px;color:var(--editor-fg);white-space:nowrap;cursor:pointer;display:inline-flex;align-items:center;gap:4px;}
+.vt-drop-btn:hover{background:var(--hover-bg);}
+.vt-drop-btn.has-active{background:var(--list-active-bg);color:var(--list-active-fg);border-color:transparent;}
+.vt-drop-btn::after{content:"▾";font-size:10px;opacity:.7;}
+.vt-drop-menu{display:none;position:absolute;top:calc(100% + 3px);right:0;z-index:80;background:var(--panel-header-bg);border:1px solid var(--border-strong);border-radius:6px;padding:4px;min-width:170px;box-shadow:0 8px 24px rgba(0,0,0,.35);flex-direction:column;gap:2px;}
+.vt-drop:hover .vt-drop-menu{display:flex;}
+.vt-drop-item{display:flex;align-items:center;gap:8px;background:transparent;border:0;border-radius:4px;padding:5px 10px;font-size:12px;color:var(--editor-fg);text-align:left;cursor:pointer;white-space:nowrap;}
+.vt-drop-item:hover{background:var(--hover-bg);}
+.vt-drop-item .chk{width:14px;font-size:11px;color:var(--accent);flex-shrink:0;}
+.vt-drop-sep{height:1px;background:var(--border);margin:3px 4px;}
 
 /* [Pass 4] segmented control (Lines | Issues), findings list, notes */
 .seg{display:grid;grid-template-columns:1fr 1fr;border:1px solid var(--border-strong);border-radius:6px;overflow:hidden;}
@@ -1011,6 +1059,21 @@ input[type=text]:focus,input[type=search]:focus,select:focus{outline:none;border
 
 .product-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;}
 @media (max-width:680px){.product-grid{grid-template-columns:1fr;}}
+/* [Pass AH] recent product shortcut */
+.product-recent{grid-column:1/-1;display:flex;align-items:center;gap:12px;padding:8px 12px;border:1px solid var(--accent);border-radius:8px;background:color-mix(in srgb,var(--accent) 10%,transparent);font-size:12px;cursor:pointer;text-align:left;}
+.product-recent:hover{background:color-mix(in srgb,var(--accent) 18%,transparent);}
+.product-recent .pr-label{font-size:10px;letter-spacing:.5px;text-transform:uppercase;color:var(--accent);font-weight:600;}
+.product-recent .pr-name{font-size:13px;font-weight:500;color:var(--editor-fg);}
+.product-recent .pr-arrow{margin-left:auto;color:var(--accent);font-size:14px;}
+/* [Pass AH] exception grouping in results */
+.exc-group{border-left:3px solid var(--lvl-error);margin:3px 0;border-radius:0 4px 4px 0;background:color-mix(in srgb,var(--lvl-error) 6%,transparent);}
+.exc-group-hd{display:flex;align-items:center;gap:6px;padding:3px 8px;cursor:pointer;font-size:11.5px;}
+.exc-group-hd:hover{background:var(--hover-bg);}
+.exc-group-hd .exc-type{color:var(--lvl-error);font-weight:500;}
+.exc-group-hd .exc-count{color:var(--gutter-fg);}
+.exc-group-hd .exc-arr{color:var(--gutter-fg);font-size:10px;}
+.exc-group-body{display:none;}
+.exc-group.open .exc-group-body{display:block;}
 .product-card{
   text-align:left;background:var(--editor-bg);border:1px solid var(--border);border-radius:8px;
   padding:14px;display:flex;flex-direction:column;gap:6px;transition:border-color .12s,background .12s;
@@ -1067,6 +1130,39 @@ input[type=text]:focus,input[type=search]:focus,select:focus{outline:none;border
 
 /* toast */
 .toast-wrap{position:fixed;right:16px;bottom:34px;display:flex;flex-direction:column;gap:8px;z-index:1200;}
+/* [Pass AL] triage code modal */
+.triage-scrim{position:fixed;inset:0;background:var(--overlay-scrim);z-index:2700;display:flex;align-items:center;justify-content:center;}
+.triage-modal{background:var(--panel-bg);border:1px solid var(--border-strong);border-radius:10px;padding:22px 26px;width:min(520px,92vw);box-shadow:0 16px 48px rgba(0,0,0,.5);}
+.triage-modal h2{margin:0 0 12px;font-size:15px;font-weight:500;}
+.triage-modal .tm-code{font-family:var(--font-mono);font-size:12px;background:var(--editor-bg);border:1px solid var(--border-strong);border-radius:6px;padding:10px 12px;word-break:break-all;margin:10px 0;max-height:120px;overflow:auto;}
+.triage-modal .tm-opts{display:flex;flex-direction:column;gap:8px;margin:12px 0;}
+.triage-modal .tm-opts label{display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer;}
+.triage-modal .tm-footer{display:flex;gap:10px;justify-content:flex-end;margin-top:16px;}
+/* [Pass AL] KB suppression management modal */
+.supp-modal h2{margin:0 0 10px;font-size:15px;font-weight:500;}
+.supp-list{max-height:340px;overflow:auto;border:1px solid var(--border-strong);border-radius:6px;margin:10px 0;}
+.supp-item{display:flex;align-items:flex-start;gap:10px;padding:8px 12px;border-bottom:1px solid var(--border);}
+.supp-item:last-child{border-bottom:0;}
+.supp-item .si-info{flex:1;min-width:0;}
+.supp-item .si-title{font-size:12px;font-weight:500;}
+.supp-item .si-meta{font-size:11px;color:var(--gutter-fg);margin-top:2px;}
+.supp-item button{flex:0 0 auto;font-size:11.5px;padding:3px 8px;border:1px solid var(--border-strong);border-radius:4px;background:transparent;color:var(--accent);cursor:pointer;}
+.supp-item button:hover{background:var(--hover-bg);}
+/* [Pass AL] session events table */
+.sess-wrap{padding:16px;}
+.sess-table{width:100%;border-collapse:collapse;font-size:12px;}
+.sess-table th{text-align:left;padding:5px 10px;border-bottom:2px solid var(--border-strong);color:var(--sidebar-title-fg);font-size:10.5px;letter-spacing:.5px;text-transform:uppercase;font-weight:500;}
+.sess-table td{padding:5px 10px;border-bottom:1px solid var(--border);vertical-align:top;}
+.sess-table tr:hover td{background:var(--hover-bg);}
+.sess-table .sc-fail td{color:var(--lvl-error);}
+.sess-table .sc-ok td{color:var(--lvl-info);}
+.sess-bar{display:flex;align-items:center;justify-content:space-between;padding:6px 10px;border-bottom:1px solid var(--border);background:var(--panel-header-bg);}
+.sess-bar h3{margin:0;font-size:12px;font-weight:500;}
+.sess-toggle{font-size:11.5px;background:transparent;border:1px solid var(--border-strong);border-radius:4px;padding:2px 8px;color:var(--editor-fg);cursor:pointer;}
+.sess-toggle.active{background:var(--accent);color:var(--accent-fg);border-color:transparent;}
+.sess-toggle:hover:not(.active){background:var(--hover-bg);}
+#sessPanel{border-top:2px solid var(--border-strong);}
+#sessPanel[hidden]{display:none;}
 .toast{
   background:var(--titlebar-bg);color:var(--titlebar-fg);border:1px solid var(--border-strong);
   border-left:3px solid var(--accent);border-radius:6px;padding:10px 14px;font-size:12.5px;
@@ -1096,12 +1192,23 @@ input[type=text]:focus,input[type=search]:focus,select:focus{outline:none;border
           <button data-act="new" role="menuitem">New session / load logs…</button>
           <button data-act="add" role="menuitem">Add log files to session…</button>
           <button data-act="spec" role="menuitem">Open capture or event log…</button>
+          <hr style="border:0;border-top:1px solid var(--border);margin:4px 0;">
+          <button data-act="export-session" role="menuitem">Export session (.txt)</button>
+          <button data-act="export-report" role="menuitem">Export report (.md)</button>
+          <hr style="border:0;border-top:1px solid var(--border);margin:4px 0;">
+          <button data-act="triage-copy" role="menuitem">🔗 Copy triage code…</button>
+          <button data-act="triage-open" role="menuitem">📋 Open triage code…</button>
         </div>
       </span>
       <span class="menu-wrap">
         <button id="menuView">View</button>
         <div class="menu-pop" id="menuViewPop" hidden role="menu">
           <button id="miCompare" data-act="compare" role="menuitem">Compare side-by-side</button>
+          <button id="miFull" data-act="fullscreen" role="menuitem">Fullscreen</button>
+          <hr style="border:0;border-top:1px solid var(--border);margin:4px 0;">
+          <button id="miWrap" data-act="wrap" role="menuitem">✓ Wrap lines</button>
+          <button id="miRelTime" data-act="reltime" role="menuitem">&nbsp;&nbsp;Relative time (Δt)</button>
+          <button id="miKbHints" data-act="kbhints" role="menuitem">✓ KB hints inline</button>
         </div>
       </span>
       <span class="menu-wrap">
@@ -1112,6 +1219,8 @@ input[type=text]:focus,input[type=search]:focus,select:focus{outline:none;border
           <button data-act="diag" role="menuitem">🩺 Diagnostics…</button>
           <button data-act="feedback" role="menuitem">💬 Send feedback…</button>
           <button data-act="hard-refresh" role="menuitem">↻ Hard refresh…</button>
+          <hr style="border:0;border-top:1px solid var(--border);margin:4px 0;">
+          <button data-act="manage-suppress" role="menuitem">🔇 Manage suppressed KB hints…</button>   <!-- [Pass AL] -->
         </div>
       </span>
     </nav>
@@ -1165,10 +1274,20 @@ input[type=text]:focus,input[type=search]:focus,select:focus{outline:none;border
         <div class="tabs" id="sidebarTabs">
           <button class="active" data-view="tree">Files</button>
           <button data-view="components">Components</button>
+          <button data-view="fields" title="Extracted key=value fields from the current file">Fields</button>
         </div>
       </div>
+      <!-- [Pass AG] search panel — shown when actSearch is active; hides tree/tabs/nodeBar -->
+      <div class="sidebar-search-panel" id="sbSearchPanel">
+        <div class="sidebar-search in-panel">
+          <input type="search" id="sidebarSearch" placeholder="Search all logs (substring)" disabled title="Search log entries across every host (newest file per component)">
+        </div>
+        <div class="gs-panel-hint" id="gsPanelHint">Type to search across all loaded logs</div>
+        <button class="gs-clear-btn" id="gsClearBtn" hidden>Clear search</button>
+      </div>
+      <!-- file tree area (hidden while search panel is open) -->
       <div class="sidebar-search">
-        <input type="search" id="sidebarSearch" placeholder="Search all logs (substring)" disabled title="Search log entries across every host (newest file per component)">
+        <!-- [Pass AG] the search input moved into #sbSearchPanel above; this keeps the layout gap -->
       </div>
       <!-- [Pass 5.1] node/host selector — switching loads the newest file per component for that host -->
       <div class="node-bar" id="nodeBar" hidden>
@@ -1266,15 +1385,34 @@ input[type=text]:focus,input[type=search]:focus,select:focus{outline:none;border
               <button class="vt-icon" id="btnPrevProblem" title="Previous problem (Shift+N) — steps through the selected levels, or errors + criticals when 'All' is on">&#x25B2;</button>
               <button class="vt-icon" id="btnNextProblem" title="Next problem (N)">&#x25BC;</button>
             </div>
-            <button class="vt-btn vt-group" id="btnScrub" title="Toggle the whole view between clear and PII-redacted (emails, IPs, GUIDs, tokens, user paths). Affects the view and exports." aria-pressed="false">Clear View</button>
-            <button class="vt-btn vt-group" id="btnScrubCopy" title="Tick lines in the viewer, then copy them with PII redacted" aria-pressed="false">Copy scrubbed…</button>
-            <button class="vt-btn vt-group active" id="btnWrap" title="Toggle line wrapping (w)" aria-pressed="true">Wrap</button>
-            <button class="vt-btn vt-group" id="btnRelTime" title="Toggle a relative-time column (Δ from the focused line, or the first entry)" aria-pressed="false">Δt</button>
-            <button class="vt-btn vt-group" id="btnHighlightSimilar" title="Highlight lines sharing the focused line's logger">Highlight similar</button>
-            <button class="vt-btn vt-group" id="btnPin" title="Pin the focused line (click a line first). Pins show in the Pins pane and on the Timeline." aria-pressed="false">Pin line</button>
-            <button class="vt-btn vt-group active" id="btnKbHints" title="Show KB hints inline on log lines that match a known Delinea signature" aria-pressed="true">KB hints</button>
+            <!-- [Pass AF] View ▾ hover dropdown (replaces standalone Wrap / Δt / KB hints buttons) -->
+            <div class="vt-drop vt-group" id="viewDrop">
+              <button class="vt-drop-btn" id="btnViewDrop" title="View options — wrap, relative time, KB hints">View</button>
+              <div class="vt-drop-menu" id="viewDropMenu">
+                <button class="vt-drop-item" id="btnWrap" data-act="wrap" aria-pressed="true" title="Toggle line wrapping (w)"><span class="chk" id="chkWrap">✓</span>Wrap lines</button>
+                <button class="vt-drop-item" id="btnRelTime" data-act="reltime" aria-pressed="false" title="Toggle a relative-time column (Δ from the focused line, or the first entry)"><span class="chk" id="chkRelTime"></span>Relative time (Δt)</button>
+                <button class="vt-drop-item" id="btnKbHints" data-act="kbhints" aria-pressed="true" title="Show KB hints inline on log lines that match a known Delinea signature"><span class="chk" id="chkKbHints">✓</span>KB hints inline</button>
+                <div class="vt-drop-sep"></div>
+                <button class="vt-drop-item" id="btnHighlightSimilar" data-act="highlight" title="Highlight lines sharing the focused line's logger"><span class="chk" id="chkHighlight"></span>Highlight similar</button>
+                <button class="vt-drop-item" id="btnPin" data-act="pin" aria-pressed="false" title="Pin the focused line (click a line first). Pins show in the Pins pane and on the Timeline."><span class="chk" id="chkPin"></span>Pin focused line</button>
+              </div>
+            </div>
+            <!-- [Pass AF] Scrub ▾ hover dropdown (replaces standalone Clear View / Copy scrubbed… buttons) -->
+            <div class="vt-drop vt-group" id="scrubDrop">
+              <button class="vt-drop-btn" id="btnScrubDrop" title="PII scrub options">Scrub</button>
+              <div class="vt-drop-menu" id="scrubDropMenu">
+                <button class="vt-drop-item" id="btnScrub" data-act="scrub" aria-pressed="false" title="Toggle the whole view between clear and PII-redacted"><span class="chk" id="chkScrub"></span><span id="scrubLabel">Clear View</span></button>
+                <button class="vt-drop-item" id="btnScrubCopy" data-act="scrubcopy" aria-pressed="false" title="Tick lines in the viewer, then copy them with PII redacted"><span class="chk" id="chkScrubCopy"></span>Copy scrubbed…</button>
+                <button class="vt-drop-item" id="btnScrubPins" data-act="scrubpins" title="Preview this session's pinned entries with PII redacted, then copy"><span class="chk"></span>Scrub &amp; copy pins</button>
+              </div>
+            </div>
             <button class="vt-icon vt-group" id="btnCompare" title="Compare two files side-by-side" aria-label="Compare side-by-side" aria-pressed="false">&#x2398;</button>
             <button class="vt-icon vt-group" id="btnFullscreen" title="Fullscreen (hide side panels)" aria-label="Fullscreen">&#x26F6;</button>
+          </div>
+          <!-- [Pass AL] session events panel (for CM, SRWSR, SC logs) -->
+          <div id="sessPanel" hidden>
+            <div class="sess-bar"><h3 id="sessPanelTitle">Session Events</h3><button class="sess-toggle active" id="sessPanelToggle" title="Toggle session events panel">Sessions ▲</button></div>
+            <div id="sessPanelBody"></div>
           </div>
           <div class="stats-panel" id="statsPanel">
             <button class="stats-head" id="statsHead" aria-expanded="false"><span class="stats-caret" id="statsCaret">&#x25B8;</span><span class="stats-title">Overview</span><span class="stats-hint" id="statsHint"></span></button>
@@ -1303,12 +1441,24 @@ input[type=text]:focus,input[type=search]:focus,select:focus{outline:none;border
         <div class="nv-actions">
           <button class="btn secondary" id="notesAddLine" title="Append the line you last clicked in the viewer">＋ Add focused line</button>
           <button class="btn secondary" id="notesClear">Clear notes</button>
-          <button class="btn secondary" id="notesTicket" title="Set or change this session's ticket number">Set ticket…</button>
-          <button class="btn secondary" id="notesHistory" title="Previous sessions (notes + pins)">History</button>
-          <button class="btn secondary" id="notesScrubPins" title="Preview this session's pinned entries with PII redacted, then copy">Scrub &amp; copy pins</button>
+          <!-- [Pass AG] Session ▾ hover dropdown (Set ticket + History) -->
+          <div class="nv-drop">
+            <button class="nv-drop-btn" id="notesSessionDrop" title="Session management">Session</button>
+            <div class="nv-drop-menu">
+              <button class="nv-drop-item" id="notesTicket" title="Set or change this session's ticket number">Set ticket…</button>
+              <button class="nv-drop-item" id="notesHistory" title="Previous sessions (notes + pins)">History</button>
+            </div>
+          </div>
+          <button class="btn secondary" id="notesTriage" title="Copy a triage code to share with a colleague">🔗 Triage code…</button>   <!-- [Pass AL] -->
           <span class="grow" style="flex:1"></span>
-          <button class="btn secondary" id="notesReport" title="Export the full analysis as a Markdown report">Export report (.md)</button>
-          <button class="btn" id="notesExport">Export session (.txt)</button>
+          <!-- [Pass AG] Export ▾ hover dropdown (Export report + Export session) -->
+          <div class="nv-drop">
+            <button class="nv-drop-btn" id="notesExportDrop" title="Export options">Export</button>
+            <div class="nv-drop-menu">
+              <button class="nv-drop-item" id="notesReport" title="Export the full analysis as a Markdown report">Export report (.md)</button>
+              <button class="nv-drop-item" id="notesExport" title="Export session notes and pins as a .txt file">Export session (.txt)</button>
+            </div>
+          </div>
         </div>
         <div class="nv-history" id="notesHistoryPanel" hidden><h2>Previous sessions</h2><div id="notesHistoryList"></div></div>
       </div>
@@ -1414,7 +1564,7 @@ input[type=text]:focus,input[type=search]:focus,select:focus{outline:none;border
    Matching is by filename substring; longest pattern wins; a single-component
    product matches anything. Typical paths feed the (i) tooltip.
    ═══════════════════════════════════════════════════════════════════════════ */
-const APP_VERSION = "2026.06.11o"; // [Pass 1.4] build (…k:131 signatures · l:Pass 5.0 specialist host (evtx/pcap/har detection, tabs, File menu, landing) · m:Pass 5.1 — node/host awareness: per-host grouping from "Node/Engine Logs - ID # - HOSTNAME" segments (zip names, in-zip folders, folder uploads), node selector, load-newest-per-component-per-host with release-on-switch (bounded memory), node-scoped sidebar/viewer/findings/captures) · n:fix — jump-to-line (results/Issues click) now converges to the exact line on the FIRST click instead of landing a few lines short on variable-height/wrapped rows · o:Lines list shows one date header per date with full timestamp on hover and normalised message text (level shown by colour); distinct CRITICAL colour per theme (magenta/violet, no longer near ERROR red); Issues view grouped by component (label once) then by issue · p:Pass 5.2 — cross-component Timeline (node-scoped): merges timestamped leveled lines onto one axis via a capped typed-array index (no line-object copies), component toggle menu, fixed-height virtual scroller, click-to-jump to the source line; pinned Timeline tab · q:Pass 5.5a — compare/side-by-side foundation: pure split state-model (refKey/refEq/splitEnter/Exit/Assign/SetActive/ActiveRef/OnRefRemoved, 28 unit tests), 50/50 split host (#compareView) with per-half tab strips, Compare toggle in View menu + toolbar icon, Esc/✕-half to exit; pcap/evtx/har render live in panes (host-scoped async guard via dataset.want replaces global activeView check); log/timeline panes show interim card pending the viewer-instancing refactor (5.5b); no floating windows · r:Pass 5.5b — viewer-instancing refactor: the log viewer is now an instance (free fns vInit/vBuild/vRender/vRowHtml/vToggleTrace/vScrollToRow/vScrollToBottom/vJumpToLine over a view V; primaryView aliases the global single-view state so every existing call site is unchanged; secondary views via makeView). computeViewer gains an explicit day arg (panes scope to tab.day; single view still uses state.viewDay). LIVE log panes in compare with a compact per-pane header (independent day-nav + wrap + find), independent scroll/search/focus; pcap/evtx still live; timeline-in-pane deferred (still a singleton). 14 viewer-instancing + 28 split-model unit tests pass · s:Pass 5.5c — drag-a-tab-to-the-edge → snap into a split (Windows-style): pointer-drag from the tab bar with a 6px threshold (click vs drag), a fixed translucent #snapOverlay previews the left/right half, drop snaps the dragged tab into that half (other half = current view or next available); suppressTabClick swallows the trailing click; narrow-width guard (COMPARE_MIN_W=720) disables snap and auto-collapses a split on resize below it · t:Pass 5.5d — Timeline removed from compare entirely (single-view only): dropped from availableRefs, Timeline tab no longer draggable into a split, currentViewRef returns null on timeline, openTimeline exits compare first; only logs and captures are compare-able · u:Pass 5.6 — EVTX human-readable messages: embedded EVTX_MESSAGE_TEMPLATES (documented (Provider|EventID)/EventID → msg + named fields / positional labels) + ported application logic (evtxParseDataFields/evtxLookupTemplate/evtxRenderFields/evtxSnippetFrom). Event rows now show a readable headline + key values instead of raw name=value; expanding a record shows the message, a labelled field table, then the raw Event XML. Untemplated/undecoded events fall back gracefully. 21 evtx-template unit tests pass · v:Pass 5.7 — PCAP Follow TCP/UDP stream: when following a conversation, "⬓ Follow stream" reassembles its payloads into a transcript overlay (pcapStreamSegments/pcapReassemble/pcapBytesToText). TCP seq-ordered per direction with overlap+retransmit trimming; UDP capture-order; directions interleaved by time and colour-coded (a→b / b→a) with a Both/per-direction toggle and byte totals. Byte ranges into P.bytes (no copies), capped at PCAP_STREAM_CAP=1MB. Note: encrypted (TLS) payloads show as non-printable; plaintext (LDAP/RADIUS/HTTP/DNS/SMTP) reads clearly. 9 pcap-stream unit tests pass · w:Pass 5.8 — Global search (the real \"Search all logs\" box + magnifying-glass): searches log entries across ALL nodes, newest file per component only, plain substring, live preview while typing (no Enter). Memory-safe lazily-built capped index (GSEARCH; active node referenced in place, other nodes read→parse→compact→released; GLOBAL_IDX_CAP=500k lines / 64MB). Persistent \"Search results\" pane added beside Lines/Issues — survives result clicks, clears only when the box is emptied (reverts to the prior pane). Cross-node result click switches host via loadNode then jumps. Pure gsSearch() factored + 8 unit tests pass · x:Pass 5.9 — results-pane overhaul: \"Lines\"→\"Entries\", \"Issues\"→\"Recognised issues\"; the recognised-issues badge now counts DISTINCT issues (state.findings.length) not total occurrences. KB entries without a public URL now show an explanation (search-Support hint) instead of nothing. Per-issue \"Don't suggest again\" button suppresses that signature across all logs and persists in localStorage (GSUPPRESS); a \"N suppressed — Reset all\" footer restores them; scanFindings honours the suppression set. The Entries breadcrumb is now Node › Component › File with a changeable node dropdown (drives switchNode). Audit also found: HAR analyser still a placeholder (queued 5.10), actSearch tooltip de-staled, split.sync flag still inert (synced-scroll queued 5.13) · y:Pass 5.10 — HAR analyser (was a placeholder since \"Pass 5.2\"): .har files now parse into a real request viewer (parseHar → capped compact records, raw JSON released, bodies trimmed to HAR_BODY_CAP=64KB). Request list (time/method/status/URL/size/time) with status-class filter chips (1xx–5xx), virtual scroller; click a row for General, a timings waterfall (blocked/dns/connect/ssl/send/wait/receive), query string, request/response headers and body previews. Renders live in compare panes too. Mirrors the EVTX/PCAP panel shell. 15 har unit tests pass · z:Pass 5.11 — drag hold-to-grab: holding a tab ~200ms (HOLD_MS) arms it — the cursor becomes an open grab hand and the tab lifts (.tab-armed); dragging then shows a closed grabbing hand and a floating ghost clone (.tab-drag-ghost) that follows the cursor, with the snap preview as before (quick move-past-threshold drags still work). Drop still snaps to a half (the drop model is reworked in 5.12). Forward-compatible pickup for the compare rework. · A:Pass 5.12a — compare reworked into a windowed, tabbed view: the split now lives behind its own "ITEM 1 | ITEM 2" tab (like Timeline) and is decoupled from visibility (activeView==="compare"). A chrome bar adds minimise (park → switch to a single view, tab persists), maximise (full screen — also hides the sidebar via body.compare-max, remembered across parks), and close (exit). Opening a file/specialist now parks compare instead of hijacking a pane (change panes via the per-pane strips; prompt-to-change lands in 5.12b). 28 split-model tests still pass. · B:Pass 5.12b — prompt-to-compare: dragging any tab (or clicking the Compare button) now opens a picker of every loaded log file (grouped by component) + every capture, and on choice enters compare with the dragged item as ITEM 1 and the pick as ITEM 2 (replaces the 5.11 edge-snap drop; snap fns now inert). The chrome ITEM 1 / ITEM 2 labels are clickable to swap either side via the same picker (changeCompareSlot). Picked refs are ensured as tabs so pane strips stay consistent. Pure comparePickerItems() + 9 unit tests pass. · C:Pass 5.13 — compare time-sync: a ⇅ toggle in the chrome (uses the long-inert split.sync) synchronises the two halves by the timestamp each entry cites — scrolling one pane aligns the other to the nearest-in-time entry (binary search over a forward-filled, cached per-pane ts array; works for log + pcap/evtx/har scrollers), and log rows within ±5 min of the other side’s anchor are highlighted (.in-window), ideal for lining a log up against an EVTX/PCAP/HAR capture. Pure tsNearestIdx/tsWindowBounds (SYNC_HALF_MS=5min) + 13 unit tests pass. Caches released + handlers detached when sync is off / compare closes. Completes the feedback batch. · D:Pass 5.14 — fixes from testing: (1) time-sync now actually drives the other pane live — rewrote with an ignore-the-echo guard (no feedback loop) and always-attached scroll listeners gated by the flag, so scrolling one half scrolls the other to the nearest timestamp in real time. (2) Removed the duplicated per-pane tab strips; each chrome ITEM is now a NODE/HOST › Component › File dropdown (+ captures) to pick that half — far less clutter. (3) Default opened file fixed: pickDefaultLog chose loadedData insertion order because it tested the PRODUCT id "ss" against COMPONENT keys (ss-main/ss-bssr/…); now it picks the product’s main component by definition order → Secret Server opens Main App / SS.log. 4 new defaultlog unit tests; 121 total pass. · E:Pass 5.15 — HAR quick-filter presets (recreate-list item): two one-tap toggles under the status chips — "Errors (4xx/5xx)" (sets the class filter to 4xx+5xx, toggles back to all) and "Slow (≥1s)" (HAR_SLOW_MS=1000, a new slowOnly dimension in harApplyFilter combined with the class filter). Clean reimplementation, not copied. 4 new har tests (errors/slow/combined/identity); 125 total pass. · F:Pass 5.16 — Pins / bookmarks (recreate-list item): pin the focused log line (Pin-line toolbar toggle) or a recognised issue (📌 in its actions); a new "Pins" pane lists them with click-to-jump, remove, and Clear all; pinned rows are marked in the viewer and on the Timeline (📌). Persisted in localStorage la-pins (survives reload; a pin that no longer resolves reports it on jump). Pure pinKey/pinsToggle + 9 unit tests; 134 total pass. · G:Pass 5.16a — pins made durable + usable as external pointers: line-pins now key on node+component+file PATH+line (not the load-order index), store the real path/name, and resolve by path→name at jump time (recomputing the row index from the durable lineNo). A pin to logs that aren’t currently loaded is no longer an error — it shows greyed in the pane with its full path, and clicking/Copy (⧉) copies "path : line (host)" so it points to the spot outside the tool; reload the right files and it lights up + jumps again. Cross-host pins switch host then jump after the async load. Viewer/Timeline markers updated to the path key. pins tests 9→11; 136 total pass. · H:Pass 5.17a — sessions: loading a new dataset now prompts for a ticket number (modal) which names the session; each session keeps its OWN notes + pinned entries, persisted in la-sessions (bounded to 12, la-current tracks the active one, restored on boot for crash-safety). Notes + pins are now session-scoped (replaces global la-notes/la-pins). Notes panel shows the ticket and a Set-ticket… (rename) button; "Export session (.txt)" writes <ticket>.txt containing the notes and the pinned entries (PII-scrub honoured). 7 new session round-trip/cap tests; 143 total pass. · I:Pass 5.17 — right-click context menu on log lines (recreate-list item): right-clicking a row (main viewer OR a compare pane) focuses it and opens an action hub — Pin/Unpin, Add to notes, Highlight similar (same logger), Copy line text, Copy location (path : line). Wired to the existing pins/notes/session + highlight machinery via a per-view oncontextmenu on .vs-rows; dismiss on outside-click/Esc/scroll. linePinForView builds a path-keyed pin for any view. 10 new ctxmenu tests; 153 total pass. · J:Pass 5.18 — Whole-file search (recreate-list item): a "Whole file" toggle by the Find box searches the open file AND its older rolled versions for the current component on this host. Toggling on shows an explicit message naming the component+host and auto-loads the deferred older logs (loadOlder, budget-gated) silently beyond that message, then searches the full history. Matches (capped 5000) step across files/days via the ▴▾/Enter nav (reusing jumpToFinding); kept in their own state.wsearch so swapping files mid-nav does not clear the term (openActiveFile guarded), and whole-mode turns off when you switch component. Pure wholeFileMatches + 6 tests; 159 total pass. · K:Pass 5.19 — Inline KB + preview (recreate-list item): curated KB signatures now badge matching log lines (a small "KB" pill) in the viewer; clicking it opens a preview popover with the title, severity, category, the KB link or search-Support explanation, and per-signature actions — Pin issue, Open in Recognised issues (jumps to that group), and Don't suggest again (reuses GSUPPRESS, persisted, and immediately drops the badge everywhere). On by default with a "KB hints" toolbar toggle (persisted la-kb-inline). Cheap cached per-line match (kbFirstMatch over the active product's signatures; generation-invalidated on suppress/product/toggle) — no per-match storage, memory-safe. Complements (not duplicates) the Recognised-issues pane. Pure kbFirstMatch + 6 tests; 165 total pass. · L:Pass 5.20 — layout + sessions/notes fixes (feedback batch 1 of 2): (1) Results segment (.seg) wraps so "Pinned entries" is always visible. (2) Find bar is now a bordered group enclosing the term, count, ▴▾ and the Whole-file button (moved inside) so it reads as one control. (3) Title-bar min/max/✕ (.win-ctl) are hidden except in comparison mode (body.compare-view-active) and now actually drive the comparison window (minimise/maximise/close). (4) Notes converted from a modal+toolbar-pencil into its own pinned TAB beside Timeline (showView "notes" → #notesView; pencil button removed; declutters the toolbar) with live autosave. (5) Adding files to an existing session no longer re-prompts/resets — beginSession only prompts when there is no active session; resetSession (New session) clears the session id (persisting the outgoing one) so a genuine new session still prompts. (6) Notes History button lists previous sessions (Open to load their notes+pins); session persistence bumped 12→20. Sessions cap test updated; 165 total pass. · M:Pass 5.21 — Scrub PII overhaul (feedback batch 2 of 2): (1) the existing Scrub button is now a labelled whole-view toggle "Clear View" ⇄ "Scrubbed View" (the view already scrubbed via hlText; relabelled + clearer). (2) New "Copy scrubbed…" mode: tick lines in the viewer (checkboxes appear by each row), a bottom dock shows the count, and "Preview & copy" opens a PII-redacted preview you click (or Copy) to put on the clipboard. (3) A "Scrub & copy pins" button in the Notes view previews this session's pinned entries redacted, for copy. (4) Fixed the over-zealous IPv6 rule (now requires ≥4 hextets) so HH:MM:SS(,mmm)/(.mmm) timestamps are never mistaken for IPv6, while real IPv6/IPv4/emails/GUIDs still redact. Selection is per-file and clears on file switch; reusable showScrubPreview overlay (Esc/outside/Close). 9 new scrub tests; 174 total pass. · N:Pass 5.22 — Diagnostics panel + Help menu (recreate-list item): Help is now a real menu (Diagnostics… / Send feedback…). Diagnostics opens a modal with an auto-generated report (version, browser/OS, screen, theme, product+hosts, memory, ticket, counts, and the tail of the DIAG event log), one-click Copy and Download .txt; after Copy it reveals the MS Form feedback link (https://forms.microsoft.com/r/tpeMyjq0V4). Crash-safety: each launch is a run (DIAG_RUN) whose snapshot persists (debounced + on hide/beforeunload) to la-diag-runs, keeping the last 5 runs; the modal has a run selector so a previous launch's log survives a crash. Send feedback opens the same MS Form. Pure buildDiagReport + 9 tests; 183 total pass. · O:Pass 5.23 — Install + Hard refresh under Help (recreate-list item; deploys on GitHub Pages so https/PWA is real, but per request these are instructional): Help → Install… opens a modal with a browser picker (Chrome/Edge/Firefox desktop, Safari macOS, Safari iPhone/iPad, Chrome Android, Other) that shows the exact per-browser steps to install it as an app; pre-selects the user's browser via pure guessBrowser(ua). Help → Hard refresh… explains what it does and warns the current view/loaded logs are lost (saved notes/pins persist) behind a Cancel/confirm; confirm flushes diagnostics then reloads cache-busted (location.pathname+?cb=). Pure guessBrowser + 8 tests; 191 total pass. · P:Pass 5.24 — Guided tour (final recreate-list item): a spotlight overlay (dims the page, rings the target, tooltip with Back/Skip/Next) auto-runs once on first visit (la-tour-seen) and replays from Help → Guided tour. Two tiers: a short core of the main features (sidebar, viewer, level filter, find/whole-file, recognised issues, notes/sessions) then a fork ("Continue full tour →" / Finish) into an extended walk of every button (new session, File menu, pins, right-click, KB hints, highlight, Timeline, Compare, Scrub view+copy, export, themes, Help). Uses the user's data if logs are open; otherwise loads a small synthetic Secret Server dataset (two components, a recognised-issue line, a stack trace, varied levels — built as real File units through buildNodes→loadNode) and clears it (resetSession) on finish. Pure tourSteps structure + 16 tests; 207 total pass. (Recreate-list complete.) · Q:Pass 5.25 — feedback polish: (1) Results segment is now a 2×2 grid (Entries | Recognised issues / Search results | Pins) and .pane-head grows (min-height) so the count badges are no longer clipped. (2) Log level is shown as a theme-aware background tint on the row (color-mix of the level colour into --editor-bg → dark tint on dark themes, light on light) instead of the left line; state backgrounds (focused/selected/pinned/in-window/similar) re-ordered after the tint so they still win. (3) Tour Pin step now references the Notes tab (not Timeline). (4) Continuous compare scroll-sync retired; the ⇅ chrome button is now a one-shot "Sync other file" (syncOtherOnce) that scrolls the inactive pane to the closest timestamp at the top of the active pane (reuses paneTsArray/tsNearestIdx/paneScrollToRow). (5) Markdown report export moved off the viewer toolbar into the Notes tab ("Export report (.md)"); tour export step retargeted. 207 total pass. · R:Pass 5.26 — feedback polish 2: (1) level row tints made more prominent (ERROR 25%/CRITICAL 32%/WARNING 22%/INFO 11%/VERBOSE+DEBUG 9% mixed into --editor-bg) so errors stand out while staying readable under white-on-dark / black-on-light; state backgrounds bumped to match (in-window/sel-on 22%, pinned 30%). (2) Removed the redundant sidebar title label (Explorer/Components) and tightened .sidebar-head padding so the Files | Components toggle is never clipped when the sidebar is narrowed. (3) Added a draggable resizer (#resultsResizer) between the results pane and the log viewer (220px..editor-360px), mirroring the sidebar resizer and hidden in viewer-max. 207 total pass. · S:Pass 5.27 — fix: Verbose/Debug level filters did nothing. The "More" submenu (Verbose/Debug) is nested inside #lvlBar, so a click was handled by BOTH the #lvlMoreMenu listener and the bubbling #lvlBar listener → setLevelFilter ran twice, toggling the level on then straight back off. Removed the redundant #lvlMoreMenu click listener (the #lvlBar delegate already catches the bubbled menu clicks); Verbose/Debug now toggle once like the others. 207 total pass. · T:Pass 5.28 (audit Pass A — correctness) — (A1) level detection rewritten to be PREFIX-ONLY: the level is read from the field at the start of the line (after the timestamp and one optional [thread]/(category) group, incl. a leading [LEVEL]), never from a level word in the message body — so "…connection error" on an INFO line stays INFO and an unlabelled line no longer glows red. Removed the old whole-line LVL regex. (A2) no time-zone change (Secret Server logs are UTC and already round-trip). (A3) the single "Apply to file" toggle is replaced by TWO clearly-labelled scope toggles flanking the level buttons: "Filter Entries" (left, on by default → gates the Entries list) and "Filter File" (right → gates this file's viewer), each an outlined pill that fills with the accent when active; .lvlbar now flex-wraps so labels never clip. New state.filterEntries; computeResults gated on it; refreshFilterUI reflects both. New t-parse.js (15 tests) locks the level-detection behaviour. Dead-code prune (toggleSync/continuous-sync path/snapOverlay) deferred to a dedicated cleanup. 222 total pass. · U:Pass 5.29 (audit Pass B — navigation & overview) — (B1) jump to next/previous problem: ▲/▼ toolbar buttons + n / Shift+N keys step through the currently-selected levels, or errors+criticals when the filter is on "All" (jumpProblem/problemLevels/curViewerRow, focuses + centres the row). (B2) error-density strip (#errStrip canvas) down the right edge of the viewer showing red/critical marks for the whole file; click to jump to that position (drawErrStrip, redrawn on (re)build, resize and theme change; viewer body wrapped in #viewerBodyWrap). (B3) collapsible Overview panel atop the viewer (#statsPanel): a one-line hint (lines · problems · time span) always visible, expanding to cards for level counts (click a level to filter), time span/elapsed, top loggers, and top recognised issues (click → Issues pane). (B4) timeline brush — skipped per request. (B5) inline gap/restart banners in the viewer: a ⏱ "N gap in logging" banner when consecutive entries are ≥2 min apart (GAP_MIN_MS) and a ↻ "service start / restart" banner on start/stop lines (RESTART_RE), rendered inside the row so the variable-height virtual scroller measures them. New t-nav.js (15) + t-parse.js (15). 237 total pass. · V:Pass 5.30 (audit Pass C — search & rules) — (C1) Find box upgraded: plain mode now treats space-separated words as AND, plus a regex toggle (.*) and case toggle (Aa); new compileQuery/curQuery and a range-based hlText that escapes per-segment so multi-word/regex highlighting is correct; wholeFileMatches takes an optional matcher; bad regex shows "bad regex". (C2) saved searches & filter presets, per product (la-saved-<product>) and persisted: a ☆ Saved popover lists/saves/deletes searches (term+regex+case) and filter presets (levels+scope toggles+day), max 30 each. (C3) correlation/trace-ID grouping: explicitly-labelled IDs (CorrelationId/RequestId/TraceId/SessionId/…) become clickable in the viewer; clicking focuses the viewer + Entries on that ID (state.traceFilter, applied in computeViewer/computeResults) and shows a chip with the in-file line count, how many of the host's components contain it, "Search across components" (drives global search) and Clear. New t-search.js (16). 253 total pass. · W:Pass 5.31 (audit Pass D — QoL & export) — (D1) relative-time column toggle (Δt button; per-row Δ from the focused line, else the first visible entry; base cached, recomputed only on focus change), go-to-line box (g key → nearest visible line), and keyboard shortcuts: n/Shift+N next/prev problem, / focus Find, w toggle wrap, g go-to-line (wrap toggle already existed). (D2) "Copy as ticket" in the scrub dock: selected lines + ±2 lines context + folded continuations, PII-scrubbed, in a markdown code block, followed by the recognised issues found on the selected lines (kbFirstMatch); shown via the scrub preview to copy. (D3) compare "Sync other file" now flashes the matched row in the other pane (flashPaneRow + flashRow keyframes). New t-nav.js/t-parse.js/t-search.js plus t-ticket.js (9). 262 total pass. · X:Pass 5.32 — dead-code prune: removed the retired continuous compare scroll-sync (toggleSync, syncFrom, syncRefresh, syncDetach, _syncHandlers/_syncRaf, _ignoreScroll, applyPaneWindow) and its call sites in showView/exitCompare/changeCompareSlot/drag-compare, plus the unreachable .in-window row highlight (vRowHtml simWindow check + CSS) and the never-called edge-snap (snapZoneAt, showSnapOverlay, #snapOverlay div + CSS). Kept the one-shot Sync-other-file (syncOtherOnce) and its helpers (paneTsArray/tsNearestIdx/tsWindowBounds/paneScrollToRow/SYNC_HALF_MS) and the drag-to-compare picker. No behaviour change; 262 total pass. · Y:Pass 5.33 — fixes: (1) Overview panel would not collapse on a second click — .stats-body had display:grid which overrode the [hidden] attribute (author rule beats the UA [hidden]{display:none}); added .stats-body[hidden]{display:none}. (2) The Filter Entries / Filter File scope toggles are independent in code but read as a radio pair because both used the same solid-accent active fill as the level buttons; restyled them as explicit checkboxes (☐/☑ via ::before, accent tint + border when on) so it is obvious each is its own on/off switch and both can be on at once. CSS only; 262 total pass. · Z:Pass 5.34 — corrected scope toggles to be MUTUALLY EXCLUSIVE per request: the level filter targets the Entries list OR the file viewer, never both. Now driven by the single state.filterEntries (true→Entries filtered & viewer full; false→viewer filtered & Entries full); computeViewer gates useLevel on !filterEntries (dropped per-tab tab.applyFilter and removed toggleApplyToFile); clicking either scope SETS it (idempotent radio); applyFilter recomputes both result + viewer sets and only rebuilds/resets the viewer scroll when its set actually changed. Indicators changed from checkboxes to radio dots (○/●). Saved presets store/restore the single scope flag (fe; legacy af honoured on read). 262 total pass. Audit passes A–D complete; dead-code prune (toggleSync/continuous-sync path/snapOverlay) now removed (Pass 5.32 cleanup). · AA:Pass 5.35 — "Remove PII & export" on the landing screen (next to Analyse, enabled once files are staged): scrubs PII from every TEXT file and downloads a ZIP that preserves the folder structure, working for loose files, folder uploads (webkitRelativePath) and .zip uploads (walked via openZip/extractEntry, entries nested under the zip name). Labels are CONSISTENT across all files via per-category maps (value→n): the same value is the same label everywhere, e.g. [IP_1]. Categories: TOKEN(jwt), GUID, EMAIL, MAC, IP6, IP, USER (Windows/Unix usernames, path prefix kept), HOST (best-effort: UNC \\host, URLs, explicit machine/host-name fields only — dotted code namespaces left intact), SECRET (password=/token=… values). Non-text files (pcap/evtx/gz/images/…) are omitted and listed in a bundled README-scrubbed.txt. ZIP writer: makeZip (local headers + central dir + EOCD, UTF-8 flag, CRC32 via crc32, deflate via CompressionStream("deflate-raw") with STORE fallback). The label→original MAPPING is offered as a SEPARATE private download via a notice modal that warns it contains real PII and must not be shared with the archive. New t-scrubexport.js (17). 279 total pass. · AB:Pass 5.36 — guided tour expanded to cover everything we shipped. Enriched core steps: viewer (trace-ID click + ⏱ gap / ↻ restart banners), level (Filter Entries vs Filter File scope), Find (regex .* / case Aa / space=AND). New extended steps: Jump to problems (#problemNav, n/Shift+N), Error map (#errStrip), Overview (#statsHead), Relative time (#btnRelTime), Saved searches & filters (#btnSaved), plus center steps Keyboard shortcuts and Remove PII & export. Updated Compare wording (one-shot Sync other file + flash) and Scrub-copy (Copy as ticket). t-tour.js asserts the 5 new targets; tour 16→21. 284 total pass. · AC:Pass 5.36a — fix: the "download the reverse mapping" notice (.pii-scrim) opened BEHIND the upload wizard (.scrim z-index:1000) when Remove PII & export was run from the landing screen, so it was only visible after clicking Analyse. Lifted .pii-scrim to z-index:2600 (above the wizard and the progress bar, below the tour overlay) so it appears on top immediately. CSS only; 284 total pass. · AD:Pass 5.36b — fix: opening a log file while the Notes tab was showing left BOTH the Notes view and the log view (results pane + viewer) on screen, the Notes half cutting off the layout. Cause: openActiveFile (and three sibling "reveal the log view" spots — closeLog empty-state, resetSession reset, loadNode captures-only) restore #editorSplit and hide #specialistView/#timelineView/#compareView but predated the Notes view (5.20) and never hid #notesView; going via Timeline worked because showView() does hide Notes. All four spots now also hide #notesView (and #timelineView where missing). 284 total pass. · AE:Pass 5.37 — the level filter now applies to global "Search all logs" results, recycling the Entries-scope toggle per request. Each global-search index record now carries its level; gsSearch takes an optional level Set and filters by it; gsLevels() supplies state.levelFilter only when the Entries scope is selected (state.filterEntries) — so picking Error/Warning/etc narrows the search results exactly as it narrows Entries. New gsRefilter() re-runs the live search whenever the filter or scope changes (hooked at the top of applyFilter), and the #lvlScopeEntries toggle dynamically relabels to "Filter results" (with matching tooltip) while a search is active, reverting to "Filter Entries" on clear (gsOnInput/gsClear call refreshFilterUI). t-gsearch 8→14. 290 total pass.
+const APP_VERSION = "2026.06.12a"; // [Pass 1.4] build (…k:131 signatures · l:Pass 5.0 specialist host (evtx/pcap/har detection, tabs, File menu, landing) · m:Pass 5.1 — node/host awareness: per-host grouping from "Node/Engine Logs - ID # - HOSTNAME" segments (zip names, in-zip folders, folder uploads), node selector, load-newest-per-component-per-host with release-on-switch (bounded memory), node-scoped sidebar/viewer/findings/captures) · n:fix — jump-to-line (results/Issues click) now converges to the exact line on the FIRST click instead of landing a few lines short on variable-height/wrapped rows · o:Lines list shows one date header per date with full timestamp on hover and normalised message text (level shown by colour); distinct CRITICAL colour per theme (magenta/violet, no longer near ERROR red); Issues view grouped by component (label once) then by issue · p:Pass 5.2 — cross-component Timeline (node-scoped): merges timestamped leveled lines onto one axis via a capped typed-array index (no line-object copies), component toggle menu, fixed-height virtual scroller, click-to-jump to the source line; pinned Timeline tab · q:Pass 5.5a — compare/side-by-side foundation: pure split state-model (refKey/refEq/splitEnter/Exit/Assign/SetActive/ActiveRef/OnRefRemoved, 28 unit tests), 50/50 split host (#compareView) with per-half tab strips, Compare toggle in View menu + toolbar icon, Esc/✕-half to exit; pcap/evtx/har render live in panes (host-scoped async guard via dataset.want replaces global activeView check); log/timeline panes show interim card pending the viewer-instancing refactor (5.5b); no floating windows · r:Pass 5.5b — viewer-instancing refactor: the log viewer is now an instance (free fns vInit/vBuild/vRender/vRowHtml/vToggleTrace/vScrollToRow/vScrollToBottom/vJumpToLine over a view V; primaryView aliases the global single-view state so every existing call site is unchanged; secondary views via makeView). computeViewer gains an explicit day arg (panes scope to tab.day; single view still uses state.viewDay). LIVE log panes in compare with a compact per-pane header (independent day-nav + wrap + find), independent scroll/search/focus; pcap/evtx still live; timeline-in-pane deferred (still a singleton). 14 viewer-instancing + 28 split-model unit tests pass · s:Pass 5.5c — drag-a-tab-to-the-edge → snap into a split (Windows-style): pointer-drag from the tab bar with a 6px threshold (click vs drag), a fixed translucent #snapOverlay previews the left/right half, drop snaps the dragged tab into that half (other half = current view or next available); suppressTabClick swallows the trailing click; narrow-width guard (COMPARE_MIN_W=720) disables snap and auto-collapses a split on resize below it · t:Pass 5.5d — Timeline removed from compare entirely (single-view only): dropped from availableRefs, Timeline tab no longer draggable into a split, currentViewRef returns null on timeline, openTimeline exits compare first; only logs and captures are compare-able · u:Pass 5.6 — EVTX human-readable messages: embedded EVTX_MESSAGE_TEMPLATES (documented (Provider|EventID)/EventID → msg + named fields / positional labels) + ported application logic (evtxParseDataFields/evtxLookupTemplate/evtxRenderFields/evtxSnippetFrom). Event rows now show a readable headline + key values instead of raw name=value; expanding a record shows the message, a labelled field table, then the raw Event XML. Untemplated/undecoded events fall back gracefully. 21 evtx-template unit tests pass · v:Pass 5.7 — PCAP Follow TCP/UDP stream: when following a conversation, "⬓ Follow stream" reassembles its payloads into a transcript overlay (pcapStreamSegments/pcapReassemble/pcapBytesToText). TCP seq-ordered per direction with overlap+retransmit trimming; UDP capture-order; directions interleaved by time and colour-coded (a→b / b→a) with a Both/per-direction toggle and byte totals. Byte ranges into P.bytes (no copies), capped at PCAP_STREAM_CAP=1MB. Note: encrypted (TLS) payloads show as non-printable; plaintext (LDAP/RADIUS/HTTP/DNS/SMTP) reads clearly. 9 pcap-stream unit tests pass · w:Pass 5.8 — Global search (the real \"Search all logs\" box + magnifying-glass): searches log entries across ALL nodes, newest file per component only, plain substring, live preview while typing (no Enter). Memory-safe lazily-built capped index (GSEARCH; active node referenced in place, other nodes read→parse→compact→released; GLOBAL_IDX_CAP=500k lines / 64MB). Persistent \"Search results\" pane added beside Lines/Issues — survives result clicks, clears only when the box is emptied (reverts to the prior pane). Cross-node result click switches host via loadNode then jumps. Pure gsSearch() factored + 8 unit tests pass · x:Pass 5.9 — results-pane overhaul: \"Lines\"→\"Entries\", \"Issues\"→\"Recognised issues\"; the recognised-issues badge now counts DISTINCT issues (state.findings.length) not total occurrences. KB entries without a public URL now show an explanation (search-Support hint) instead of nothing. Per-issue \"Don't suggest again\" button suppresses that signature across all logs and persists in localStorage (GSUPPRESS); a \"N suppressed — Reset all\" footer restores them; scanFindings honours the suppression set. The Entries breadcrumb is now Node › Component › File with a changeable node dropdown (drives switchNode). Audit also found: HAR analyser still a placeholder (queued 5.10), actSearch tooltip de-staled, split.sync flag still inert (synced-scroll queued 5.13) · y:Pass 5.10 — HAR analyser (was a placeholder since \"Pass 5.2\"): .har files now parse into a real request viewer (parseHar → capped compact records, raw JSON released, bodies trimmed to HAR_BODY_CAP=64KB). Request list (time/method/status/URL/size/time) with status-class filter chips (1xx–5xx), virtual scroller; click a row for General, a timings waterfall (blocked/dns/connect/ssl/send/wait/receive), query string, request/response headers and body previews. Renders live in compare panes too. Mirrors the EVTX/PCAP panel shell. 15 har unit tests pass · z:Pass 5.11 — drag hold-to-grab: holding a tab ~200ms (HOLD_MS) arms it — the cursor becomes an open grab hand and the tab lifts (.tab-armed); dragging then shows a closed grabbing hand and a floating ghost clone (.tab-drag-ghost) that follows the cursor, with the snap preview as before (quick move-past-threshold drags still work). Drop still snaps to a half (the drop model is reworked in 5.12). Forward-compatible pickup for the compare rework. · A:Pass 5.12a — compare reworked into a windowed, tabbed view: the split now lives behind its own "ITEM 1 | ITEM 2" tab (like Timeline) and is decoupled from visibility (activeView==="compare"). A chrome bar adds minimise (park → switch to a single view, tab persists), maximise (full screen — also hides the sidebar via body.compare-max, remembered across parks), and close (exit). Opening a file/specialist now parks compare instead of hijacking a pane (change panes via the per-pane strips; prompt-to-change lands in 5.12b). 28 split-model tests still pass. · B:Pass 5.12b — prompt-to-compare: dragging any tab (or clicking the Compare button) now opens a picker of every loaded log file (grouped by component) + every capture, and on choice enters compare with the dragged item as ITEM 1 and the pick as ITEM 2 (replaces the 5.11 edge-snap drop; snap fns now inert). The chrome ITEM 1 / ITEM 2 labels are clickable to swap either side via the same picker (changeCompareSlot). Picked refs are ensured as tabs so pane strips stay consistent. Pure comparePickerItems() + 9 unit tests pass. · C:Pass 5.13 — compare time-sync: a ⇅ toggle in the chrome (uses the long-inert split.sync) synchronises the two halves by the timestamp each entry cites — scrolling one pane aligns the other to the nearest-in-time entry (binary search over a forward-filled, cached per-pane ts array; works for log + pcap/evtx/har scrollers), and log rows within ±5 min of the other side’s anchor are highlighted (.in-window), ideal for lining a log up against an EVTX/PCAP/HAR capture. Pure tsNearestIdx/tsWindowBounds (SYNC_HALF_MS=5min) + 13 unit tests pass. Caches released + handlers detached when sync is off / compare closes. Completes the feedback batch. · D:Pass 5.14 — fixes from testing: (1) time-sync now actually drives the other pane live — rewrote with an ignore-the-echo guard (no feedback loop) and always-attached scroll listeners gated by the flag, so scrolling one half scrolls the other to the nearest timestamp in real time. (2) Removed the duplicated per-pane tab strips; each chrome ITEM is now a NODE/HOST › Component › File dropdown (+ captures) to pick that half — far less clutter. (3) Default opened file fixed: pickDefaultLog chose loadedData insertion order because it tested the PRODUCT id "ss" against COMPONENT keys (ss-main/ss-bssr/…); now it picks the product’s main component by definition order → Secret Server opens Main App / SS.log. 4 new defaultlog unit tests; 121 total pass. · E:Pass 5.15 — HAR quick-filter presets (recreate-list item): two one-tap toggles under the status chips — "Errors (4xx/5xx)" (sets the class filter to 4xx+5xx, toggles back to all) and "Slow (≥1s)" (HAR_SLOW_MS=1000, a new slowOnly dimension in harApplyFilter combined with the class filter). Clean reimplementation, not copied. 4 new har tests (errors/slow/combined/identity); 125 total pass. · F:Pass 5.16 — Pins / bookmarks (recreate-list item): pin the focused log line (Pin-line toolbar toggle) or a recognised issue (📌 in its actions); a new "Pins" pane lists them with click-to-jump, remove, and Clear all; pinned rows are marked in the viewer and on the Timeline (📌). Persisted in localStorage la-pins (survives reload; a pin that no longer resolves reports it on jump). Pure pinKey/pinsToggle + 9 unit tests; 134 total pass. · G:Pass 5.16a — pins made durable + usable as external pointers: line-pins now key on node+component+file PATH+line (not the load-order index), store the real path/name, and resolve by path→name at jump time (recomputing the row index from the durable lineNo). A pin to logs that aren’t currently loaded is no longer an error — it shows greyed in the pane with its full path, and clicking/Copy (⧉) copies "path : line (host)" so it points to the spot outside the tool; reload the right files and it lights up + jumps again. Cross-host pins switch host then jump after the async load. Viewer/Timeline markers updated to the path key. pins tests 9→11; 136 total pass. · H:Pass 5.17a — sessions: loading a new dataset now prompts for a ticket number (modal) which names the session; each session keeps its OWN notes + pinned entries, persisted in la-sessions (bounded to 12, la-current tracks the active one, restored on boot for crash-safety). Notes + pins are now session-scoped (replaces global la-notes/la-pins). Notes panel shows the ticket and a Set-ticket… (rename) button; "Export session (.txt)" writes <ticket>.txt containing the notes and the pinned entries (PII-scrub honoured). 7 new session round-trip/cap tests; 143 total pass. · I:Pass 5.17 — right-click context menu on log lines (recreate-list item): right-clicking a row (main viewer OR a compare pane) focuses it and opens an action hub — Pin/Unpin, Add to notes, Highlight similar (same logger), Copy line text, Copy location (path : line). Wired to the existing pins/notes/session + highlight machinery via a per-view oncontextmenu on .vs-rows; dismiss on outside-click/Esc/scroll. linePinForView builds a path-keyed pin for any view. 10 new ctxmenu tests; 153 total pass. · J:Pass 5.18 — Whole-file search (recreate-list item): a "Whole file" toggle by the Find box searches the open file AND its older rolled versions for the current component on this host. Toggling on shows an explicit message naming the component+host and auto-loads the deferred older logs (loadOlder, budget-gated) silently beyond that message, then searches the full history. Matches (capped 5000) step across files/days via the ▴▾/Enter nav (reusing jumpToFinding); kept in their own state.wsearch so swapping files mid-nav does not clear the term (openActiveFile guarded), and whole-mode turns off when you switch component. Pure wholeFileMatches + 6 tests; 159 total pass. · K:Pass 5.19 — Inline KB + preview (recreate-list item): curated KB signatures now badge matching log lines (a small "KB" pill) in the viewer; clicking it opens a preview popover with the title, severity, category, the KB link or search-Support explanation, and per-signature actions — Pin issue, Open in Recognised issues (jumps to that group), and Don't suggest again (reuses GSUPPRESS, persisted, and immediately drops the badge everywhere). On by default with a "KB hints" toolbar toggle (persisted la-kb-inline). Cheap cached per-line match (kbFirstMatch over the active product's signatures; generation-invalidated on suppress/product/toggle) — no per-match storage, memory-safe. Complements (not duplicates) the Recognised-issues pane. Pure kbFirstMatch + 6 tests; 165 total pass. · L:Pass 5.20 — layout + sessions/notes fixes (feedback batch 1 of 2): (1) Results segment (.seg) wraps so "Pinned entries" is always visible. (2) Find bar is now a bordered group enclosing the term, count, ▴▾ and the Whole-file button (moved inside) so it reads as one control. (3) Title-bar min/max/✕ (.win-ctl) are hidden except in comparison mode (body.compare-view-active) and now actually drive the comparison window (minimise/maximise/close). (4) Notes converted from a modal+toolbar-pencil into its own pinned TAB beside Timeline (showView "notes" → #notesView; pencil button removed; declutters the toolbar) with live autosave. (5) Adding files to an existing session no longer re-prompts/resets — beginSession only prompts when there is no active session; resetSession (New session) clears the session id (persisting the outgoing one) so a genuine new session still prompts. (6) Notes History button lists previous sessions (Open to load their notes+pins); session persistence bumped 12→20. Sessions cap test updated; 165 total pass. · M:Pass 5.21 — Scrub PII overhaul (feedback batch 2 of 2): (1) the existing Scrub button is now a labelled whole-view toggle "Clear View" ⇄ "Scrubbed View" (the view already scrubbed via hlText; relabelled + clearer). (2) New "Copy scrubbed…" mode: tick lines in the viewer (checkboxes appear by each row), a bottom dock shows the count, and "Preview & copy" opens a PII-redacted preview you click (or Copy) to put on the clipboard. (3) A "Scrub & copy pins" button in the Notes view previews this session's pinned entries redacted, for copy. (4) Fixed the over-zealous IPv6 rule (now requires ≥4 hextets) so HH:MM:SS(,mmm)/(.mmm) timestamps are never mistaken for IPv6, while real IPv6/IPv4/emails/GUIDs still redact. Selection is per-file and clears on file switch; reusable showScrubPreview overlay (Esc/outside/Close). 9 new scrub tests; 174 total pass. · N:Pass 5.22 — Diagnostics panel + Help menu (recreate-list item): Help is now a real menu (Diagnostics… / Send feedback…). Diagnostics opens a modal with an auto-generated report (version, browser/OS, screen, theme, product+hosts, memory, ticket, counts, and the tail of the DIAG event log), one-click Copy and Download .txt; after Copy it reveals the MS Form feedback link (https://forms.microsoft.com/r/tpeMyjq0V4). Crash-safety: each launch is a run (DIAG_RUN) whose snapshot persists (debounced + on hide/beforeunload) to la-diag-runs, keeping the last 5 runs; the modal has a run selector so a previous launch's log survives a crash. Send feedback opens the same MS Form. Pure buildDiagReport + 9 tests; 183 total pass. · O:Pass 5.23 — Install + Hard refresh under Help (recreate-list item; deploys on GitHub Pages so https/PWA is real, but per request these are instructional): Help → Install… opens a modal with a browser picker (Chrome/Edge/Firefox desktop, Safari macOS, Safari iPhone/iPad, Chrome Android, Other) that shows the exact per-browser steps to install it as an app; pre-selects the user's browser via pure guessBrowser(ua). Help → Hard refresh… explains what it does and warns the current view/loaded logs are lost (saved notes/pins persist) behind a Cancel/confirm; confirm flushes diagnostics then reloads cache-busted (location.pathname+?cb=). Pure guessBrowser + 8 tests; 191 total pass. · P:Pass 5.24 — Guided tour (final recreate-list item): a spotlight overlay (dims the page, rings the target, tooltip with Back/Skip/Next) auto-runs once on first visit (la-tour-seen) and replays from Help → Guided tour. Two tiers: a short core of the main features (sidebar, viewer, level filter, find/whole-file, recognised issues, notes/sessions) then a fork ("Continue full tour →" / Finish) into an extended walk of every button (new session, File menu, pins, right-click, KB hints, highlight, Timeline, Compare, Scrub view+copy, export, themes, Help). Uses the user's data if logs are open; otherwise loads a small synthetic Secret Server dataset (two components, a recognised-issue line, a stack trace, varied levels — built as real File units through buildNodes→loadNode) and clears it (resetSession) on finish. Pure tourSteps structure + 16 tests; 207 total pass. (Recreate-list complete.) · Q:Pass 5.25 — feedback polish: (1) Results segment is now a 2×2 grid (Entries | Recognised issues / Search results | Pins) and .pane-head grows (min-height) so the count badges are no longer clipped. (2) Log level is shown as a theme-aware background tint on the row (color-mix of the level colour into --editor-bg → dark tint on dark themes, light on light) instead of the left line; state backgrounds (focused/selected/pinned/in-window/similar) re-ordered after the tint so they still win. (3) Tour Pin step now references the Notes tab (not Timeline). (4) Continuous compare scroll-sync retired; the ⇅ chrome button is now a one-shot "Sync other file" (syncOtherOnce) that scrolls the inactive pane to the closest timestamp at the top of the active pane (reuses paneTsArray/tsNearestIdx/paneScrollToRow). (5) Markdown report export moved off the viewer toolbar into the Notes tab ("Export report (.md)"); tour export step retargeted. 207 total pass. · R:Pass 5.26 — feedback polish 2: (1) level row tints made more prominent (ERROR 25%/CRITICAL 32%/WARNING 22%/INFO 11%/VERBOSE+DEBUG 9% mixed into --editor-bg) so errors stand out while staying readable under white-on-dark / black-on-light; state backgrounds bumped to match (in-window/sel-on 22%, pinned 30%). (2) Removed the redundant sidebar title label (Explorer/Components) and tightened .sidebar-head padding so the Files | Components toggle is never clipped when the sidebar is narrowed. (3) Added a draggable resizer (#resultsResizer) between the results pane and the log viewer (220px..editor-360px), mirroring the sidebar resizer and hidden in viewer-max. 207 total pass. · S:Pass 5.27 — fix: Verbose/Debug level filters did nothing. The "More" submenu (Verbose/Debug) is nested inside #lvlBar, so a click was handled by BOTH the #lvlMoreMenu listener and the bubbling #lvlBar listener → setLevelFilter ran twice, toggling the level on then straight back off. Removed the redundant #lvlMoreMenu click listener (the #lvlBar delegate already catches the bubbled menu clicks); Verbose/Debug now toggle once like the others. 207 total pass. · T:Pass 5.28 (audit Pass A — correctness) — (A1) level detection rewritten to be PREFIX-ONLY: the level is read from the field at the start of the line (after the timestamp and one optional [thread]/(category) group, incl. a leading [LEVEL]), never from a level word in the message body — so "…connection error" on an INFO line stays INFO and an unlabelled line no longer glows red. Removed the old whole-line LVL regex. (A2) no time-zone change (Secret Server logs are UTC and already round-trip). (A3) the single "Apply to file" toggle is replaced by TWO clearly-labelled scope toggles flanking the level buttons: "Filter Entries" (left, on by default → gates the Entries list) and "Filter File" (right → gates this file's viewer), each an outlined pill that fills with the accent when active; .lvlbar now flex-wraps so labels never clip. New state.filterEntries; computeResults gated on it; refreshFilterUI reflects both. New t-parse.js (15 tests) locks the level-detection behaviour. Dead-code prune (toggleSync/continuous-sync path/snapOverlay) deferred to a dedicated cleanup. 222 total pass. · U:Pass 5.29 (audit Pass B — navigation & overview) — (B1) jump to next/previous problem: ▲/▼ toolbar buttons + n / Shift+N keys step through the currently-selected levels, or errors+criticals when the filter is on "All" (jumpProblem/problemLevels/curViewerRow, focuses + centres the row). (B2) error-density strip (#errStrip canvas) down the right edge of the viewer showing red/critical marks for the whole file; click to jump to that position (drawErrStrip, redrawn on (re)build, resize and theme change; viewer body wrapped in #viewerBodyWrap). (B3) collapsible Overview panel atop the viewer (#statsPanel): a one-line hint (lines · problems · time span) always visible, expanding to cards for level counts (click a level to filter), time span/elapsed, top loggers, and top recognised issues (click → Issues pane). (B4) timeline brush — skipped per request. (B5) inline gap/restart banners in the viewer: a ⏱ "N gap in logging" banner when consecutive entries are ≥2 min apart (GAP_MIN_MS) and a ↻ "service start / restart" banner on start/stop lines (RESTART_RE), rendered inside the row so the variable-height virtual scroller measures them. New t-nav.js (15) + t-parse.js (15). 237 total pass. · V:Pass 5.30 (audit Pass C — search & rules) — (C1) Find box upgraded: plain mode now treats space-separated words as AND, plus a regex toggle (.*) and case toggle (Aa); new compileQuery/curQuery and a range-based hlText that escapes per-segment so multi-word/regex highlighting is correct; wholeFileMatches takes an optional matcher; bad regex shows "bad regex". (C2) saved searches & filter presets, per product (la-saved-<product>) and persisted: a ☆ Saved popover lists/saves/deletes searches (term+regex+case) and filter presets (levels+scope toggles+day), max 30 each. (C3) correlation/trace-ID grouping: explicitly-labelled IDs (CorrelationId/RequestId/TraceId/SessionId/…) become clickable in the viewer; clicking focuses the viewer + Entries on that ID (state.traceFilter, applied in computeViewer/computeResults) and shows a chip with the in-file line count, how many of the host's components contain it, "Search across components" (drives global search) and Clear. New t-search.js (16). 253 total pass. · W:Pass 5.31 (audit Pass D — QoL & export) — (D1) relative-time column toggle (Δt button; per-row Δ from the focused line, else the first visible entry; base cached, recomputed only on focus change), go-to-line box (g key → nearest visible line), and keyboard shortcuts: n/Shift+N next/prev problem, / focus Find, w toggle wrap, g go-to-line (wrap toggle already existed). (D2) "Copy as ticket" in the scrub dock: selected lines + ±2 lines context + folded continuations, PII-scrubbed, in a markdown code block, followed by the recognised issues found on the selected lines (kbFirstMatch); shown via the scrub preview to copy. (D3) compare "Sync other file" now flashes the matched row in the other pane (flashPaneRow + flashRow keyframes). New t-nav.js/t-parse.js/t-search.js plus t-ticket.js (9). 262 total pass. · X:Pass 5.32 — dead-code prune: removed the retired continuous compare scroll-sync (toggleSync, syncFrom, syncRefresh, syncDetach, _syncHandlers/_syncRaf, _ignoreScroll, applyPaneWindow) and its call sites in showView/exitCompare/changeCompareSlot/drag-compare, plus the unreachable .in-window row highlight (vRowHtml simWindow check + CSS) and the never-called edge-snap (snapZoneAt, showSnapOverlay, #snapOverlay div + CSS). Kept the one-shot Sync-other-file (syncOtherOnce) and its helpers (paneTsArray/tsNearestIdx/tsWindowBounds/paneScrollToRow/SYNC_HALF_MS) and the drag-to-compare picker. No behaviour change; 262 total pass. · Y:Pass 5.33 — fixes: (1) Overview panel would not collapse on a second click — .stats-body had display:grid which overrode the [hidden] attribute (author rule beats the UA [hidden]{display:none}); added .stats-body[hidden]{display:none}. (2) The Filter Entries / Filter File scope toggles are independent in code but read as a radio pair because both used the same solid-accent active fill as the level buttons; restyled them as explicit checkboxes (☐/☑ via ::before, accent tint + border when on) so it is obvious each is its own on/off switch and both can be on at once. CSS only; 262 total pass. · Z:Pass 5.34 — corrected scope toggles to be MUTUALLY EXCLUSIVE per request: the level filter targets the Entries list OR the file viewer, never both. Now driven by the single state.filterEntries (true→Entries filtered & viewer full; false→viewer filtered & Entries full); computeViewer gates useLevel on !filterEntries (dropped per-tab tab.applyFilter and removed toggleApplyToFile); clicking either scope SETS it (idempotent radio); applyFilter recomputes both result + viewer sets and only rebuilds/resets the viewer scroll when its set actually changed. Indicators changed from checkboxes to radio dots (○/●). Saved presets store/restore the single scope flag (fe; legacy af honoured on read). 262 total pass. Audit passes A–D complete; dead-code prune (toggleSync/continuous-sync path/snapOverlay) now removed (Pass 5.32 cleanup). · AA:Pass 5.35 — "Remove PII & export" on the landing screen (next to Analyse, enabled once files are staged): scrubs PII from every TEXT file and downloads a ZIP that preserves the folder structure, working for loose files, folder uploads (webkitRelativePath) and .zip uploads (walked via openZip/extractEntry, entries nested under the zip name). Labels are CONSISTENT across all files via per-category maps (value→n): the same value is the same label everywhere, e.g. [IP_1]. Categories: TOKEN(jwt), GUID, EMAIL, MAC, IP6, IP, USER (Windows/Unix usernames, path prefix kept), HOST (best-effort: UNC \\host, URLs, explicit machine/host-name fields only — dotted code namespaces left intact), SECRET (password=/token=… values). Non-text files (pcap/evtx/gz/images/…) are omitted and listed in a bundled README-scrubbed.txt. ZIP writer: makeZip (local headers + central dir + EOCD, UTF-8 flag, CRC32 via crc32, deflate via CompressionStream("deflate-raw") with STORE fallback). The label→original MAPPING is offered as a SEPARATE private download via a notice modal that warns it contains real PII and must not be shared with the archive. New t-scrubexport.js (17). 279 total pass. · AB:Pass 5.36 — guided tour expanded to cover everything we shipped. Enriched core steps: viewer (trace-ID click + ⏱ gap / ↻ restart banners), level (Filter Entries vs Filter File scope), Find (regex .* / case Aa / space=AND). New extended steps: Jump to problems (#problemNav, n/Shift+N), Error map (#errStrip), Overview (#statsHead), Relative time (#btnRelTime), Saved searches & filters (#btnSaved), plus center steps Keyboard shortcuts and Remove PII & export. Updated Compare wording (one-shot Sync other file + flash) and Scrub-copy (Copy as ticket). t-tour.js asserts the 5 new targets; tour 16→21. 284 total pass. · AC:Pass 5.36a — fix: the "download the reverse mapping" notice (.pii-scrim) opened BEHIND the upload wizard (.scrim z-index:1000) when Remove PII & export was run from the landing screen, so it was only visible after clicking Analyse. Lifted .pii-scrim to z-index:2600 (above the wizard and the progress bar, below the tour overlay) so it appears on top immediately. CSS only; 284 total pass. · AD:Pass 5.36b — fix: opening a log file while the Notes tab was showing left BOTH the Notes view and the log view (results pane + viewer) on screen, the Notes half cutting off the layout. Cause: openActiveFile (and three sibling "reveal the log view" spots — closeLog empty-state, resetSession reset, loadNode captures-only) restore #editorSplit and hide #specialistView/#timelineView/#compareView but predated the Notes view (5.20) and never hid #notesView; going via Timeline worked because showView() does hide Notes. All four spots now also hide #notesView (and #timelineView where missing). 284 total pass. · AE:Pass 5.37 — the level filter now applies to global "Search all logs" results, recycling the Entries-scope toggle per request. Each global-search index record now carries its level; gsSearch takes an optional level Set and filters by it; gsLevels() supplies state.levelFilter only when the Entries scope is selected (state.filterEntries) — so picking Error/Warning/etc narrows the search results exactly as it narrows Entries. New gsRefilter() re-runs the live search whenever the filter or scope changes (hooked at the top of applyFilter), and the #lvlScopeEntries toggle dynamically relabels to "Filter results" (with matching tooltip) while a search is active, reverting to "Filter Entries" on clear (gsOnInput/gsClear call refreshFilterUI). t-gsearch 8→14. 290 total pass. · AF:Pass AF — toolbar rationalisation: standalone Wrap/Δt/KB hints/Scrub/Pin/Highlight buttons replaced by View ▾ + Scrub ▾ hover dropdowns; refreshViewMenuChecks() syncs all checkmarks; View menu gains toggles + Fullscreen; File menu gains Export session + Export report shortcuts. 290 total pass. · AP:Pass AP — 9 new KB signatures from internal Delinea KB research: (rpc-connection-error-10060) TCP error 10060 RPC/heartbeat timeout; (cannot-connect-to-bus) worker roles disabled / RabbitMQ unreachable; (de-failed-to-bring-up) DE fails to start due to load balancer session affinity; (sql-fulltext-not-installed) SQL Full-Text Search feature missing causing secret search failures; (azure-ad-mfa-rpc-block) AADSTS50076 MFA blocking RPC of Azure AD accounts; (session-connector-token-400) Session Connector HTTP 400 / Login failed getting auth token; (avblocks-unlicensed) AVBlocks Unlicensed feature causing session recording disconnections; (installer-generator-failed) DE installer generation failed due to antivirus locking temp files; (ad-auth-blocking-call-timed-out) AD authentication Blocking call timed out (>30s). 25 new tests; 527 total pass. · AO+:README + modal companion-file update — buildScrubReadme now derives its categories line dynamically from whatever maps were populated (so TOKEN-2/HASH/MAC-2/IP6-2/USER-IIS etc. appear automatically rather than a hardcoded list); HOST coverage note updated to list CEF fields, log4net machineName, and FQDNs; USER coverage note added (IIS APPPOOL, NetBIOS, WMI, SS audit anchors); modal updated to show category count and reference README for details. No test changes; 502 total pass. · AO:Pass AO — pre-existing scrub rule improvements based on SS log format research: (TOKEN-2) opaque OAuth bearer tokens (non-JWT) caught when context-anchored to Bearer/access_token=/refresh_token= field markers; (HASH) SHA1 40-char and SHA256 64-char hex strings caught in thumbprint=/fingerprint=/hash=/checksum= key=value contexts; (MAC-2) dot-separated MAC address format added (Cisco/network equipment); (IP6-2) compressed IPv6 with :: notation caught (::1, fe80::1, 2001:db8::1) — tightened to require :: or 3-4-hex groups to avoid collision with colon-MAC addresses; (USER-IIS) IIS APPPOOL\AppPoolName identity pattern added; (HOST-CEF) SS CEF syslog fields dhost= shost= fname= and camelCase machineName from log4net JSON added to HOST keyword rule; (SECRET-2) extended credential keyword list: thumbprint, connectionString, accessToken, refreshToken, idToken, clientSecret, privateKey, passphrase, apiSecret and their snake_case variants. 39 new tests; 502 total pass. · AN:Pass AN — PII scrub rule improvements informed by SS log format research: (8a) forward-slash separator added to IP\user rule ([IP_N]/user and ⟨ip⟩/user now caught); (8b) Firstname.Lastname fully context-anchored to SS audit field markers (By User:, suser=, UserName, Created/Modified/Edited/Deleted/Viewed/Checked Out/Approved/Actioned By, and sentence-final "by") — .NET namespaces System.Data.SqlClient etc. now provably safe; (8c) group-change names extended to "Added/Removed from group:" detail line variant; (8d) WMI User= format extended to cover "User = " (Windows event native format) alongside "user:"; (8e) NetBIOS DOMAIN\user minimum 3 chars mixed-case, dot removed from right-side char class to prevent file-path false positives (log\SS.log safe); (8f) FQDN labels minimum 3 chars to exclude SS.log-style two-char abbreviations; (8h) User ID= / UID= connection-string fields added to both rule sets. 39 new tests; 463 total pass. · AM:Pass AM — PII scrub expanded based on audit report findings. Both LABEL_RULES (export) and PII_RULES (viewer) extended with 10 new rules: (8a) [IP_N]\username / ⟨ip⟩\username — post-IP-mask username still exposed in secret-name fields; (8b) Firstname.Lastname in SS audit contexts with (?!\.[A-Z]) guard to avoid .NET namespace chains (System.Data.X safe); (8c) Firstname Lastname in ADDED/REMOVED USERS group-change messages via lookbehind; (8d) user: domain\account WMI scan failure pattern; (8e) NetBIOS DOMAIN\username (all-caps domain, not preceded by \\); (8f) FQDNs and bare domain names (2-5 dot-separated labels, known TLD); (8g) Delinea/Thycotic 5×5 and 3×5 licence key formats; (8h) ADO.NET/JDBC connection string Data Source= / Server= / Initial Catalog= / Database= values. 28 new tests; 424 total pass. · AL:Pass AL — three features: (1) Shareable triage code: triageEncode/triageDecode encode product+comp+file+lineNo+ticket as base64; modal with checkboxes for including notes+pins; accessible from context menu (🔗 Copy triage code), Notes footer (Triage code…), File menu (Copy triage code / Open triage code); (2) KB suppression management: openSuppressModal lists every suppressed signature with title, severity, cat and per-item Restore button; accessible from Help menu (Manage suppressed KB hints…) and Recognised Issues find-hidden footer (Manage… link); (3) CM/SRWSR/SC session event extractor: SESS_RE patterns for Connection Manager, Session Recording Worker, Session Connector; extractSessionEvents parses lifecycle events; renderSessionPanel renders a sortable table (time, user, target, protocol, duration, outcome); sessPanel shown automatically when cm-main/ss-srwsr/ss-sc files are opened via updateSessionPanel; CM Sessions tab appears in tabbar when cm-main logs are loaded; SS-SRWSR/SS-SC use an inline toggle panel (sessPanel) rather than a dedicated specialist tab. 18 new tests; 396 total pass. · AK:Pass AK — field extraction (extractFields parses key=value pairs and inline JSON fragments from log lines; buildFieldIndex aggregates across visible lines; Fields tab in sidebar shows top fields+values with click-to-filter; _fieldFilter applied in computeViewer+computeResults); error strip spike indicator (2× median density threshold, spike pixels coloured --lvl-warning vs normal --lvl-error, dashed median line, 2-line legend at strip bottom). 21 new tests; 378 total pass. · AJ:Pass AJ — Timeline histogram with brush/range-select: tlBucketSize() auto-computes round bucket size to give ≤60 bars from any span; tlBuildHistogram() stacks ERROR/WARNING/INFO counts per bucket into typed arrays; canvas drawn above event list, click single bar or drag a range to brush-filter the tlView (tlApplyFilter now gates on _tlBrushFilter); clear button resets; theme CSS vars used for bar colours; resize redraws. 16 new tests; 357 total pass. · AI:Pass AI — Overview panel enrichment: linePattern() tokenises timestamps/IPs/GUIDs/numbers to skeleton; topPatterns() finds top-N repeated patterns in current filtered lines (shown as a Patterns card in Overview); topGaps() + silenceThreshold() (adaptive: max(GAP_MIN_MS, 3×median inter-line interval)) find top 3 longest silences (shown as Silence card in Overview and promoted to Recognised Issues as pseudo-findings). 17 new tests; 341 total pass. · AH:Pass AH — wizard recent product (last-used shown as one-click shortcut at top of product grid, auto-advances to upload step, persisted in la-recent-product); exception grouping in Entries list (consecutive same-exception-type ERROR/CRITICAL results collapsed into ×N collapsible group; EXCEPT_RE + excType + buildExcGroups; 17 new tests). 307 total pass. · AG:Pass AG — sidebar & notes cleanup: global search promoted to VS Code-style activity-bar search panel (actSearch switches sidebar into dedicated search mode with hint + clear; actExplorer restores tree); Notes footer collapsed from 7 to 4 buttons — Session ▾ hover dropdown (Set ticket, History) and Export ▾ hover dropdown (Export report, Export session); Scrub & copy pins moved from Notes footer to Scrub ▾ toolbar dropdown. 290 total pass.
 
 const PRODUCTS = {
   ss: {
@@ -1856,8 +2006,17 @@ function matchComponent(filename, productId){ // [Pass 1.10]
 /* ═══════════════════════════════════════════════════════════════════════════
    「WIZARD」  product picker + upload staging (parsing deferred to Pass 2).
    ═══════════════════════════════════════════════════════════════════════════ */
-function renderProductGrid(){ // [Pass 1.11]
+function renderProductGrid(){ // [Pass 1.11] [Pass AH] recent product shortcut
   const grid=$("#productGrid"); grid.innerHTML="";
+  const recent=getRecentProduct();
+  if(recent && PRODUCTS[recent] && !state.product){
+    const p=PRODUCTS[recent];
+    const rc=document.createElement("button");
+    rc.className="product-recent"; rc.type="button";
+    rc.innerHTML=`<span><span class="pr-label">Recent</span><br><span class="pr-name">${escapeHtml(p.name)}</span></span><span class="pr-arrow">→</span>`;
+    rc.addEventListener("click",()=>{ selectProduct(recent); $("#uploadStep").classList.remove("disabled"); });
+    grid.appendChild(rc);
+  }
   for(const key of Object.keys(PRODUCTS)){
     const p=PRODUCTS[key];
     const card=document.createElement("button");
@@ -1872,8 +2031,11 @@ function renderProductGrid(){ // [Pass 1.11]
     grid.appendChild(card);
   }
 }
-function selectProduct(key){ // [Pass 1.12]
+function getRecentProduct(){ try{ return localStorage.getItem("la-recent-product")||null; }catch(e){ return null; } }   // [Pass AH]
+function setRecentProduct(k){ try{ localStorage.setItem("la-recent-product",k); }catch(e){} }                           // [Pass AH]
+function selectProduct(key){ // [Pass 1.12] [Pass AH] persist recent
   state.product=key;
+  setRecentProduct(key);   // [Pass AH] remember for next session
   // re-match anything already staged against the new product
   state.pending.forEach(f=>f.compId=matchComponent(f.name,key));
   renderProductGrid();
@@ -1962,11 +2124,45 @@ $("#winMin").addEventListener("click",()=>{ if(state.activeView==="compare") com
 $("#winMax").addEventListener("click",()=>{ if(state.activeView==="compare") compareToggleMax(); });
 $("#winClose").addEventListener("click",()=>{ if(state.split.on) exitCompare(); });
 $("#actSettings").addEventListener("click",()=>toast("Settings panel: a later pass."));
-$("#actSearch").addEventListener("click",()=>{ const i=$("#sidebarSearch"); if(i&&!i.disabled){ i.focus(); i.select(); } else toast("Load some logs first, then search across all hosts."); });
+/* [Pass AG] actSearch toggles sidebar into dedicated search panel */
+function openSearchPanel(){
+  document.body.classList.add("sb-search");
+  const act=$("#actSearch"); if(act) act.classList.add("active");
+  const exp=$("#actExplorer"); if(exp) exp.classList.remove("active");
+  const inp=$("#sidebarSearch"); if(inp&&!inp.disabled){ inp.focus(); inp.select(); }
+  else if(inp){ inp.focus(); }
+  updateGsPanelHint();
+}
+function closeSearchPanel(){
+  document.body.classList.remove("sb-search");
+  const act=$("#actSearch"); if(act) act.classList.remove("active");
+  const exp=$("#actExplorer"); if(exp) exp.classList.add("active");
+}
+function updateGsPanelHint(){
+  const hint=$("#gsPanelHint"); const clr=$("#gsClearBtn"); if(!hint) return;
+  const n=GSEARCH.total||0; const term=($("#sidebarSearch")||{}).value||"";
+  if(term){
+    hint.textContent=n?`${n} result${n===1?"":"s"} across all logs`:"No matches";
+    if(clr) clr.hidden=false;
+  } else {
+    hint.textContent="Type to search across all loaded logs";
+    if(clr) clr.hidden=true;
+  }
+}
+$("#actSearch").addEventListener("click",()=>{ openSearchPanel(); });
+$("#actExplorer").addEventListener("click",()=>{ closeSearchPanel(); });
+$("#gsClearBtn").addEventListener("click",()=>{ const inp=$("#sidebarSearch"); if(inp){ inp.value=""; } gsClear(); updateGsPanelHint(); });
 $("#sidebarSearch").addEventListener("input", gsOnInput);
 $("#sidebarSearch").addEventListener("keydown",e=>{ if(e.key==="Escape"){ $("#sidebarSearch").value=""; gsClear(); } });
 $("#menuView").addEventListener("click",e=>{ e.stopPropagation(); const p=$("#menuViewPop"); if(p) p.hidden=!p.hidden; const fp=$("#menuFilePop"); if(fp) fp.hidden=true; });
-$("#menuViewPop").addEventListener("click",e=>{ const b=e.target.closest("button[data-act]"); if(!b) return; $("#menuViewPop").hidden=true; if(b.dataset.act==="compare") toggleCompare(); });
+$("#menuViewPop").addEventListener("click",e=>{ const b=e.target.closest("button[data-act]"); if(!b) return; $("#menuViewPop").hidden=true;  // [Pass AF] enriched View menu
+  const a=b.dataset.act;
+  if(a==="compare")   toggleCompare();
+  else if(a==="fullscreen"){ document.body.classList.toggle("viewer-max"); requestAnimationFrame(vsRender); }
+  else if(a==="wrap")     doToggleWrap();
+  else if(a==="reltime")  doToggleRelTime();
+  else if(a==="kbhints")  doToggleKbHints();
+});
 $("#btnCompare").addEventListener("click",e=>{ e.stopPropagation(); toggleCompare(); });
 document.addEventListener("keydown",e=>{ if(e.key==="Escape" && state.split.on){ exitCompare(); } });
 $("#menuHelp").addEventListener("click",()=>toast("Unofficial, offline Delinea log triage tool · "+APP_VERSION));
@@ -2069,12 +2265,14 @@ function computeViewer(f, tab, day){ // [Pass 5.4x] LOG VIEWER set: full file (d
   const useLevel = (!state.filterEntries) && state.levelFilter.size>0;   // [Pass 5.33] viewer filters only in File scope
   const lf=state.levelFilter, exp=(tab&&tab.vexp)||EMPTY_SET, tc=traceChildren(f);
   const tv=state.traceFilter?state.traceFilter.value.toLowerCase():null;   // [Pass 5.30] trace-ID focus
+  const ff=typeof _fieldFilter!=="undefined"?_fieldFilter:null;   // [Pass AK] field filter
   const vis=[];
   for(let i=0;i<f.lines.length;i++){ const ln=f.lines[i];
     if(ln.isContinuation && ln.parentLineNo!=null) continue;        // folded under its parent
     if(inDay && !inDay(ln)) continue;
     if(useLevel && !(ln.level && lf.has(ln.level))) continue;
     if(tv && !(ln.text && ln.text.toLowerCase().includes(tv))) continue;
+    if(ff){ const flds=extractFields(ln.text||""); if(flds.get(ff.key)!==ff.value) continue; }  // [Pass AK]
     vis.push(i);
     const kids=tc.get(i);
     if(kids && exp.has(ln.lineNo)){ for(const k of kids){ if(!inDay || inDay(f.lines[k])) vis.push(k); } }
@@ -2091,6 +2289,7 @@ function computeResults(f){ // [Pass 5.4x] LINES results set: always level-filte
     if(inDay && !inDay(ln)) continue;
     if(useLevel && !(ln.level && lf.has(ln.level))) continue;
     if(tv && !(ln.text && ln.text.toLowerCase().includes(tv))) continue;
+    if(typeof _fieldFilter!=="undefined"&&_fieldFilter){ const flds=extractFields(ln.text||""); if(flds.get(_fieldFilter.key)!==_fieldFilter.value) continue; }  // [Pass AK]
     vis.push(i);
   }
   return vis;
@@ -2285,7 +2484,7 @@ function shownText(ln){ return state.scrub?scrubPII(ln.text):ln.text; }  // [Pas
 function toggleScrubSelect(on){ const want=(on===undefined)?!state.scrubSelect:on;
   state.scrubSelect=want; if(!want) state.scrubSel.clear();
   const b=$("#btnScrubCopy"); if(b){ b.classList.toggle("active",want); b.setAttribute("aria-pressed",String(want)); }
-  const d=$("#scrubDock"); if(d) d.hidden=!want; updateScrubDock(); vsRender();
+  const d=$("#scrubDock"); if(d) d.hidden=!want; updateScrubDock(); refreshViewMenuChecks(); vsRender();   // [Pass AF]
   if(want) toast("Tick the lines you want, then Preview & copy — the copy is PII-redacted.");
 }
 function updateScrubDock(){ const n=state.scrubSel.size; const el=$("#scrubDockN"); if(el) el.textContent=n+" line"+(n===1?"":"s")+" selected"; const c=$("#scrubDockCopy"); if(c) c.disabled=!n; const tk=$("#scrubDockTicket"); if(tk) tk.disabled=!n; }
@@ -2429,6 +2628,27 @@ function populateLoggerDropdown(f){
   sel.innerHTML=`<option value="">All loggers (${state.results.length.toLocaleString()})</option>`+arr.map(([lg,c])=>`<option value="${escapeHtml(lg)}">${escapeHtml(lg)} (${c})</option>`).join("");
   if([...sel.options].some(o=>o.value===cur)) sel.value=cur;
 }
+/* [Pass AH] exception grouping helpers */
+const EXCEPT_RE=/^([A-Za-z][A-Za-z0-9_]*(?:\.[A-Za-z][A-Za-z0-9_]*)*Exception)[:( ]/;
+function excType(text){ const m=EXCEPT_RE.exec(text||""); return m?m[1]:null; }
+function buildExcGroups(rawItems){
+  // rawItems: [{html, excKey}] — wrap consecutive same-key error items in a collapsible group
+  const out=[]; let i=0;
+  while(i<rawItems.length){
+    const it=rawItems[i];
+    if(!it.excKey){ out.push(it.html); i++; continue; }
+    // collect run of same exception type
+    let j=i+1;
+    while(j<rawItems.length && rawItems[j].excKey===it.excKey) j++;
+    const run=rawItems.slice(i,j); i=j;
+    if(run.length===1){ out.push(run[0].html); continue; }
+    const gid="eg-"+it.excKey.replace(/[^a-z0-9]/gi,"-")+"-"+i;
+    const hd=`<div class="exc-group-hd" data-gid="${gid}"><span class="exc-arr">▸</span><span class="exc-type">${escapeHtml(it.excKey)}</span><span class="exc-count">×${run.length}</span></div>`;
+    const body=`<div class="exc-group-body">${run.map(r=>r.html).join("")}</div>`;
+    out.push(`<div class="exc-group" id="${gid}">${hd}${body}</div>`);
+  }
+  return out;
+}
 function renderResults(){ // [Pass 3.7 / 4 / 5.4x / 5.8] lines view (parents only; continuations fold under their parent)
   if(state.paneMode==="issues"){ renderFindings(); return; }
   if(state.paneMode==="search"){ renderGsearch(); return; }
@@ -2449,7 +2669,7 @@ function renderResults(){ // [Pass 3.7 / 4 / 5.4x / 5.8] lines view (parents onl
   populateLoggerDropdown(f);
   const lg=$("#resLogger").value, term=($("#resTerm").value||"").trim().toLowerCase();
   const tc=traceChildren(f);
-  const body=$("#resultsBody"); const items=[]; let total=0, shown=0, lastDate=null;
+  const body=$("#resultsBody"); const items=[]; let total=0, shown=0, lastDate=null;   // items = [{html,excKey}] [Pass AH]
   for(let k=state.results.length-1; k>=0; k--){            // [Pass 5.2x] most recent first
     const li=state.results[k]; const ln=f.lines[li];
     if(lg && ln.logger!==lg) continue;
@@ -2464,18 +2684,24 @@ function renderResults(){ // [Pass 3.7 / 4 / 5.4x / 5.8] lines view (parents onl
       const tip=fmtStamp(ln.ts)+(ln.logger?" · "+ln.logger:"");  // full date+time (and logger) on hover
       const kids=tc.get(li); const hasKids=!!(kids&&kids.length); const open=state.resExpanded.has(ln.lineNo);
       const fold=hasKids?`<span class="res-fold" data-rfold="${ln.lineNo}" title="${open?"Collapse":"Expand"} stack trace">${open?"▾":`▸ +${kids.length}`}</span>`:"";
-      items.push(`<div class="result-item${hasKids?" has-trace":""}" data-li="${li}" title="${escapeHtml(tip)}"><span class="rl" style="color:${col}" title="${escapeHtml(lv)}">${lv?lv.slice(0,4):"·"}</span><span class="rln">${ln.lineNo}</span><span class="rtx">${escapeHtml(norm)}</span>${fold}</div>`);
+      const itemHtml=`<div class="result-item${hasKids?" has-trace":""}" data-li="${li}" title="${escapeHtml(tip)}"><span class="rl" style="color:${col}" title="${escapeHtml(lv)}">${lv?lv.slice(0,4):"·"}</span><span class="rln">${ln.lineNo}</span><span class="rtx">${escapeHtml(norm)}</span>${fold}</div>`;
+      let contHtml="";
       if(hasKids && open){ for(const ci of kids){ const cl=f.lines[ci]; const ctx=(state.scrub?scrubPII(cl.text):cl.text).replace(/\s+$/,"");
-        items.push(`<div class="result-cont" data-li="${ci}"><span class="rln">${cl.lineNo}</span><span class="rtx">${escapeHtml(ctx)||" "}</span></div>`); } }
+        contHtml+=`<div class="result-cont" data-li="${ci}"><span class="rln">${cl.lineNo}</span><span class="rtx">${escapeHtml(ctx)||" "}</span></div>`; } }
+      const ek=(lv==="ERROR"||lv==="CRITICAL")?excType(norm):null;   // [Pass AH] exception key for grouping
+      items.push({html:itemHtml+contHtml, excKey:ek});
       shown++;
     }
   }
+  const groupedItems=buildExcGroups(items);   // [Pass AH] collapse repeated exception types
   body.innerHTML = !total
     ? `<div class="results-cap">No lines match the current filter.</div>`
-    : items.join("") + (total>RES_CAP?`<div class="results-cap">Showing the most recent ${RES_CAP.toLocaleString()} of ${total.toLocaleString()} — narrow with a logger or term.</div>`:"");
+    : groupedItems.join("") + (total>RES_CAP?`<div class="results-cap">Showing the most recent ${RES_CAP.toLocaleString()} of ${total.toLocaleString()} — narrow with a logger or term.</div>`:"");
   body.onclick=e=>{
     const rf=e.target.closest(".res-fold");
     if(rf){ e.stopPropagation(); const no=+rf.dataset.rfold; state.resExpanded.has(no)?state.resExpanded.delete(no):state.resExpanded.add(no); renderResults(); return; }
+    const gh=e.target.closest(".exc-group-hd");   // [Pass AH] exception group toggle
+    if(gh){ e.stopPropagation(); const g=body.querySelector("#"+gh.dataset.gid); if(g){ const op=g.classList.toggle("open"); gh.querySelector(".exc-arr").textContent=op?"▾":"▸"; } return; }
     const it=e.target.closest(".result-item,.result-cont"); if(it) openResult(state.activeCompId, state.activeFileIndex, +it.dataset.li);
   };
 }
@@ -2568,14 +2794,14 @@ function gsOnInput(){
     if(state.paneMode!=="search"){ GSEARCH.prevPane=state.paneMode||"lines"; setPaneMode("search"); } else renderGsearch();
     await p;
     const cur=($("#sidebarSearch").value||"").trim(); if(!cur){ gsClear(); return; }   // emptied during indexing
-    GSEARCH.term=cur; refreshFilterUI();                    // [Pass 5.37] label the Entries-scope toggle as "Filter results"
+    GSEARCH.term=cur; refreshFilterUI(); if(typeof updateGsPanelHint==="function") updateGsPanelHint();  // [Pass AG] update search panel count
     const {results,total}=gsSearch(GSEARCH.index||[], cur, GSEARCH_RES_CAP, gsLevels());
-    GSEARCH.results=results; GSEARCH.total=total; updateGsCount();
+    GSEARCH.results=results; GSEARCH.total=total; updateGsCount(); if(typeof updateGsPanelHint==="function") updateGsPanelHint();   // [Pass AG]
     if(state.paneMode!=="search") setPaneMode("search"); else renderGsearch();
   },150);
 }
 function gsClear(){
-  GSEARCH.term=""; GSEARCH.results=[]; GSEARCH.total=0; updateGsCount(); refreshFilterUI();   // [Pass 5.37] revert the toggle label
+  GSEARCH.term=""; GSEARCH.results=[]; GSEARCH.total=0; updateGsCount(); refreshFilterUI(); if(typeof updateGsPanelHint==="function") updateGsPanelHint();   // [Pass 5.37] revert the toggle label
   if(state.paneMode==="search"){ setPaneMode(GSEARCH.prevPane||"lines"); GSEARCH.prevPane=null; }
 }
 async function gsJump(r){ // cross-node aware: switch host if needed, then open the file and jump to the line
@@ -2650,6 +2876,17 @@ function closeLog(cid,fi){ // [Pass 5.2x] close a log tab; fall back to a neighb
   }
   renderTabs();
 }
+function updateSessionPanel(){  // [Pass AL] show/hide sessions panel for CM/SRWSR/SC files
+  const cid=state.activeCompId; const sp=$("#sessPanel"); if(!sp) return;
+  const sessionComps=["cm-main","ss-srwsr","ss-sc"];
+  if(sessionComps.includes(cid)){
+    const f=activeFile(); if(f){
+      const tb=$("#sessPanelTitle"); if(tb) tb.textContent=(cid==="cm-main"?"Connection Manager":cid==="ss-srwsr"?"Session Recording Worker":"Session Connector")+" — Sessions";
+      const body=$("#sessPanelBody"); if(body) renderSessionPanel(body,f,cid);
+      sp.hidden=false;
+    }
+  } else { sp.hidden=true; }
+}
 function openActiveFile(){ // [Pass 3.8]
   const d=state.loadedData[state.activeCompId]; if(!d) return;
   const f=d.files[state.activeFileIndex]; if(!f) return;
@@ -2699,12 +2936,180 @@ function jumpProblem(dir){ const V=primaryView, f=V.file();
   toast(dir>0?"No more problems below.":"No more problems above."); }
 
 // ── at-a-glance stats ──
+/* [Pass AI] strip variable tokens from a log line to produce a pattern skeleton */
+function linePattern(text){
+  return (text||"")
+    .replace(/\b\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}:\d{2}(?:[.,]\d+)?(?:Z|[+-]\d{2}:?\d{2})?\b/g,"{ts}")
+    .replace(/\b(?:\d{1,3}\.){3}\d{1,3}\b/g,"{ip}")
+    .replace(/\b[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\b/gi,"{guid}")
+    .replace(/\b\d{6,}\b/g,"{n}")
+    .replace(/\b\d+\.\d+\b/g,"{f}")
+    .replace(/\\[A-Za-z0-9][A-Za-z0-9._-]*/g,"{host}")
+    .replace(/https?:\/\/[^\s"]+/g,"{url}")
+    .replace(/"[^"]{0,80}"/g,'"{s}"')
+    .replace(/\s+/g," ").trim();
+}
+/* [Pass AI] top N most-frequent patterns from a set of result line indices */
+function topPatterns(f, resultIndices, n){
+  const m=new Map(); const MAX=5000;
+  const src=resultIndices.length>MAX?resultIndices.slice(-MAX):resultIndices;
+  for(const li of src){ const ln=f.lines[li]; if(!ln||ln.isContinuation) continue;
+    const p=linePattern(normLine(ln)); m.set(p,(m.get(p)||0)+1); }
+  return [...m.entries()].filter(e=>e[1]>1).sort((a,b)=>b[1]-a[1]).slice(0,n);
+}
+/* [Pass AI] top 3 longest gaps between consecutive timestamped lines in the file */
+function topGaps(f, n){
+  const gaps=[]; let prevTs=null, prevLn=null;
+  for(const ln of f.lines){ if(ln.isContinuation||ln.ts==null) continue;
+    if(prevTs!=null){ const d=ln.ts-prevTs; if(d>0) gaps.push({dur:d,ts:prevTs,ln:prevLn}); }
+    prevTs=ln.ts; prevLn=ln; }
+  return gaps.sort((a,b)=>b.dur-a.dur).slice(0,n);
+}
+/* [Pass AI] adaptive silence threshold: gap must be > max(GAP_MIN_MS, 3× median inter-line interval) */
+function silenceThreshold(f){
+  const diffs=[]; let prev=null;
+  for(const ln of f.lines){ if(ln.isContinuation||ln.ts==null) continue;
+    if(prev!=null){ const d=ln.ts-prev; if(d>0) diffs.push(d); } prev=ln.ts; }
+  if(!diffs.length) return GAP_MIN_MS;
+  diffs.sort((a,b)=>a-b);
+  const median=diffs[Math.floor(diffs.length/2)];
+  return Math.max(GAP_MIN_MS, median*3);
+}
 function statsCompute(f){ const c={}; let first=null,last=null,total=0; const loggers=new Map();
   for(const ln of f.lines){ if(ln.isContinuation) continue; total++;
     if(ln.level) c[ln.level]=(c[ln.level]||0)+1;
     if(ln.ts!=null){ if(first==null||ln.ts<first)first=ln.ts; if(last==null||ln.ts>last)last=ln.ts; }
     if(ln.logger) loggers.set(ln.logger,(loggers.get(ln.logger)||0)+1); }
   return {c,first,last,total,topLoggers:[...loggers.entries()].sort((a,b)=>b[1]-a[1]).slice(0,5)}; }
+/* [Pass AK] field extraction — parse key=value pairs and JSON fragments from a log line */
+function extractFields(text){
+  const fields=new Map();
+  // key=value (bare, quoted, bracketed) — \b word boundary
+  const kvRe=/\b([\w.-]{2,40})\s*=\s*(?:"([^"]{0,200})"|'([^']{0,200})'|\[([^\]]{0,200})\]|([^\s,;]{1,200}))/g;
+  let m;
+  while((m=kvRe.exec(text))!==null){
+    const k=m[1], v=m[2]??m[3]??m[4]??m[5]??"";
+    if(k&&v&&v.length>0&&v.length<200&&!/^(http|https|ftp)$/.test(k)) fields.set(k,v);
+  }
+  // inline JSON fragments
+  const jsonRe=/\{[^{}]{2,500}\}/g;
+  while((m=jsonRe.exec(text))!==null){
+    try{
+      const obj=JSON.parse(m[0]);
+      if(obj&&typeof obj==="object"&&!Array.isArray(obj)){
+        for(const [k,v] of Object.entries(obj)){
+          if(k&&typeof v!=="object"&&String(v).length<200) fields.set(k,String(v));
+        }
+      }
+    }catch(e){}
+  }
+  return fields;
+}
+/* [Pass AK] build aggregate field→{values,count} map from the current file's visible lines */
+function buildFieldIndex(f, visibleIndices){
+  const idx=new Map();  // key → Map(value → count)
+  const MAX_LINES=2000;
+  const src=visibleIndices.length>MAX_LINES?visibleIndices.slice(-MAX_LINES):visibleIndices;
+  for(const li of src){
+    const ln=f.lines[li]; if(!ln||ln.isContinuation) continue;
+    const fields=extractFields(ln.text||"");
+    for(const [k,v] of fields){
+      if(!idx.has(k)) idx.set(k,new Map());
+      const vm=idx.get(k); vm.set(v,(vm.get(v)||0)+1);
+    }
+  }
+  return idx;
+}
+/* [Pass AK] state for the active field filter */
+let _fieldFilter=null;  // {key,value} or null
+function setFieldFilter(key,value){
+  _fieldFilter=(key&&value)?{key,value}:null;
+  renderFieldChip();
+  applyFilter();
+}
+function renderFieldChip(){
+  const body=$("#sidebarBody"); if(!body) return;
+  const existing=body.querySelector(".field-chip");
+  if(existing) existing.remove();
+  if(_fieldFilter){
+    const chip=document.createElement("div"); chip.className="field-chip";
+    chip.innerHTML=`<span class="fc-key">${escapeHtml(_fieldFilter.key)}</span>=<span class="fc-val">${escapeHtml(_fieldFilter.value)}</span><span class="fc-x" title="Clear field filter">✕</span>`;
+    chip.onclick=e=>{ if(e.target.classList.contains("fc-x")){ setFieldFilter(null,null); renderFieldsTab(); } };
+    body.prepend(chip);
+  }
+}
+function renderFieldsTab(){
+  const body=$("#sidebarBody"); if(!body) return;
+  const f=activeFile(); if(!f){ body.innerHTML=`<div class="tree-empty">No file open.</div>`; return; }
+  const src=state.results&&state.results.length?state.results:(state.visible||[]);
+  const idx=buildFieldIndex(f,src);
+  if(!idx.size){ body.innerHTML=`<div class="tree-empty">No key=value fields detected in the current view.<br>Fields are extracted from visible lines.</div>`; renderFieldChip(); return; }
+  const rows=[];
+  for(const [k,vm] of [...idx.entries()].sort((a,b)=>b[1].size-a[1].size).slice(0,50)){
+    const topVals=[...vm.entries()].sort((a,b)=>b[1]-a[1]).slice(0,3);
+    for(const [v,ct] of topVals){
+      const active=_fieldFilter&&_fieldFilter.key===k&&_fieldFilter.value===v;
+      rows.push(`<div class="field-row${active?" focused":""}" data-fk="${escapeHtml(k)}" data-fv="${escapeHtml(v)}" title="${escapeHtml(k)}=${escapeHtml(v)} (${ct} occurrences)"><span class="fk">${escapeHtml(k)}</span><span class="fv">${escapeHtml(v)}</span><span class="fc">${ct}</span></div>`);
+    }
+  }
+  body.innerHTML=`<div class="fields-list">${rows.join("")}</div>`;
+  renderFieldChip();
+  body.querySelector(".fields-list").onclick=e=>{
+    const r=e.target.closest(".field-row"); if(!r) return;
+    setFieldFilter(r.dataset.fk, r.dataset.fv);
+    renderFieldsTab();
+  };
+}
+/* [Pass AL] Session event extractor — pure functions */
+// Patterns for CM, SRWSR, SC session lifecycle events
+const SESS_RE={
+  cm: /(?:session|connection)\s+(?:established|started|opened|created|connected|disconnected|closed|terminated|failed|error)\b/i,
+  srwsr: /(?:session\s+recording\s+(?:started|stopped|failed|completed)|recording\s+(?:start|stop|fail))\b/i,
+  sc: /(?:session\s+(?:authorized|not\s+authorized|created|terminated|connected|disconnected|proxy|launched)|launcher)\b/i,
+};
+const SESS_OUTCOME_RE=/\b(fail|error|refused|denied|unauthorized|timeout|reset|abort)\b/i;
+
+function extractSessionEvents(f, compId){
+  if(!f||!f.lines) return [];
+  const kind=compId==="cm-main"?"cm":compId==="ss-srwsr"?"srwsr":compId==="ss-sc"?"sc":null;
+  if(!kind) return [];
+  const events=[]; let prevTs=null;
+  for(let i=0;i<f.lines.length;i++){
+    const ln=f.lines[i]; if(ln.isContinuation) continue;
+    const text=ln.text||""; const re=SESS_RE[kind];
+    if(!re.test(text)) continue;
+    const ts=ln.ts; const failed=SESS_OUTCOME_RE.test(text);
+    const fields=extractFields(text);
+    const user=fields.get("user")||fields.get("User")||fields.get("username")||"—";
+    const target=fields.get("target")||fields.get("host")||fields.get("server")||fields.get("remoteHost")||"—";
+    const proto=fields.get("protocol")||fields.get("type")||"";
+    const dur=(prevTs&&ts&&!failed)?Math.round((ts-prevTs)/1000):null;
+    events.push({li:i, ts, user, target, proto, failed, dur, text:normLine(ln)});
+    prevTs=failed?null:ts;
+  }
+  return events;
+}
+function renderSessionPanel(host, f, compId){
+  const events=extractSessionEvents(f,compId);
+  if(!events.length){ host.innerHTML=`<div class="sess-wrap"><p style="color:var(--gutter-fg);font-size:12px">No session lifecycle events detected in this file.</p></div>`; return; }
+  const rows=events.map(e=>{
+    const tStr=e.ts?fmtStamp(e.ts).slice(11,19):"—";
+    const dur=e.dur!=null?e.dur+"s":"—";
+    return `<tr class="${e.failed?"sc-fail":"sc-ok"}" data-li="${e.li}">
+      <td>${escapeHtml(tStr)}</td>
+      <td>${escapeHtml(e.user)}</td>
+      <td>${escapeHtml(e.target)}</td>
+      <td>${escapeHtml(e.proto)}</td>
+      <td>${dur}</td>
+      <td>${e.failed?"✗ Failed":"✓ OK"}</td>
+    </tr>`;
+  }).join("");
+  host.innerHTML=`<div class="sess-wrap"><table class="sess-table"><thead><tr><th>Time</th><th>User</th><th>Target</th><th>Protocol</th><th>Duration</th><th>Outcome</th></tr></thead><tbody>${rows}</tbody></table></div>`;
+  host.querySelector("tbody").onclick=e=>{
+    const tr=e.target.closest("tr[data-li]"); if(!tr) return;
+    const li=+tr.dataset.li; openResult(state.activeCompId, state.activeFileIndex, li);
+  };
+}
 function renderStats(){ const panel=$("#statsPanel"); if(!panel) return;
   const hint=$("#statsHint"), body=$("#statsBody"); const f=activeFile();
   if(!f){ if(hint)hint.textContent=""; if(body)body.innerHTML=""; return; }
@@ -2731,7 +3136,21 @@ function renderStats(){ const panel=$("#statsPanel"); if(!panel) return;
     if(finds.length>5) is+=`<div class="stats-row link" data-issues="1"><span class="nm" style="opacity:.7">+${finds.length-5} more…</span></div>`; }
   else is+=`<div class="stats-row"><span class="nm" style="opacity:.6">none</span></div>`;
   is+=`</div>`;
-  body.innerHTML=lv+tm+lg+is;
+  /* [Pass AI] Patterns card — top patterns from currently filtered lines */
+  let pt=`<div class="stats-card"><h4>Top patterns <span style="font-size:10px;opacity:.6;font-weight:400">(filtered lines)</span></h4>`;
+  const patSrc=state.results&&state.results.length?state.results:(state.visible||[]);
+  const pats=topPatterns(f,patSrc,5);
+  if(pats.length){ for(const [p,n] of pats) pt+=`<div class="stats-row" title="${esc(p)}"><span class="nm">${esc(p.length>60?p.slice(0,58)+"…":p)}</span><span class="sv">×${n}</span></div>`; }
+  else pt+=`<div class="stats-row"><span class="nm" style="opacity:.6">no repeated patterns</span></div>`;
+  pt+=`</div>`;
+  /* [Pass AI] Silence card — top 3 longest logging gaps */
+  const thresh=silenceThreshold(f);
+  const gaps=topGaps(f,3).filter(g=>g.dur>=thresh);
+  let sl=`<div class="stats-card"><h4>Longest silences</h4>`;
+  if(gaps.length){ for(const g of gaps) sl+=`<div class="stats-row"><span class="nm">${esc(fmtDur(g.dur))} at ${esc(fmtStamp(g.ts).slice(11))}</span></div>`; }
+  else sl+=`<div class="stats-row"><span class="nm" style="opacity:.6">no unusual silences</span></div>`;
+  sl+=`</div>`;
+  body.innerHTML=lv+tm+lg+is+pt+sl;
 }
 function toggleStats(){ const p=$("#statsPanel"); if(!p) return; const open=p.classList.toggle("open");
   const b=$("#statsBody"); if(b) b.hidden=!open; const h=$("#statsHead"); if(h) h.setAttribute("aria-expanded",open?"true":"false");
@@ -2773,8 +3192,40 @@ function drawErrStrip(V){ const cv=$("#errStrip"); if(!cv) return; if(!V||!V.pri
   const bins=new Uint8Array(h);
   for(let r=0;r<n;r++){ const lv=f.lines[V.visible[r]].level; if(lv==="ERROR"||lv==="CRITICAL"){ const y=Math.min(h-1,(r/n*h)|0); if(lv==="CRITICAL"||!bins[y]) bins[y]=lv==="CRITICAL"?2:1; } }
   const cs=getComputedStyle(document.documentElement);
-  const cErr=(cs.getPropertyValue("--lvl-error")||"#e06c75").trim(), cCrit=(cs.getPropertyValue("--lvl-critical")||"#c678dd").trim();
-  for(let y=0;y<h;y++){ if(bins[y]){ ctx.fillStyle=bins[y]===2?cCrit:cErr; ctx.fillRect(0,y,w,2); } } }
+  const cErr=(cs.getPropertyValue("--lvl-error")||"#e06c75").trim();
+  const cCrit=(cs.getPropertyValue("--lvl-critical")||"#c678dd").trim();
+  const cWarn=(cs.getPropertyValue("--lvl-warning")||"#e2c08d").trim();  // [Pass AK] spike colour
+  // [Pass AK] compute median bucket density for spike detection
+  const LEGEND_H=28; const stripH=Math.max(1,h-LEGEND_H);
+  const BUCKET_PX=4; const nBuckets=Math.ceil(stripH/BUCKET_PX);
+  const bucketCt=new Uint16Array(nBuckets);
+  for(let y=0;y<stripH;y++){ if(bins[y]) bucketCt[Math.floor(y/BUCKET_PX)]++; }
+  const nonZero=Array.from(bucketCt).filter(c=>c>0).sort((a,b)=>a-b);
+  const median=nonZero.length?nonZero[Math.floor(nonZero.length/2)]:0;
+  const spikeThresh=median*2;
+  // draw marks
+  for(let y=0;y<stripH;y++){
+    if(!bins[y]) continue;
+    const bk=Math.floor(y/BUCKET_PX);
+    const isSpike=spikeThresh>0&&bucketCt[bk]>spikeThresh;
+    ctx.fillStyle=isSpike?cWarn:(bins[y]===2?cCrit:cErr);
+    ctx.fillRect(0,y,w,2);
+  }
+  // [Pass AK] median line (dashed)
+  if(median>0){
+    let medY=-1;
+    for(let y=stripH-1;y>=0;y--){ if(bucketCt[Math.floor(y/BUCKET_PX)]>=median){ medY=y; break; } }
+    if(medY>0){ ctx.strokeStyle="rgba(128,128,128,0.4)"; ctx.setLineDash([2,3]); ctx.lineWidth=0.5; ctx.beginPath(); ctx.moveTo(0,medY); ctx.lineTo(w,medY); ctx.stroke(); ctx.setLineDash([]); }
+  }
+  // [Pass AK] 2-line legend at bottom (normal / spike)
+  const legY=h-LEGEND_H;
+  ctx.fillStyle="color-mix(in srgb,var(--editor-bg,#1e1e1e) 50%,transparent)";
+  ctx.fillRect(0,legY,w,LEGEND_H);
+  ctx.fillStyle=cErr; ctx.fillRect(1,legY+4,w-2,3);
+  ctx.fillStyle=cWarn; ctx.fillRect(1,legY+13,w-2,3);
+  // tooltip is set on the element title
+  cv.title="Error density — click to jump
+▬ normal  ▬ spike (>2× median)"; }
 
 $("#lvlBar").addEventListener("click",e=>{ const b=e.target.closest(".lvl-btn"); if(!b) return;
   if(b.id==="lvlScopeFile"){ if(state.filterEntries){ state.filterEntries=false; refreshFilterUI(); applyFilter(); } return; }
@@ -2793,10 +3244,10 @@ document.addEventListener("keydown",e=>{ if(e.defaultPrevented) return; const t=
   if(e.ctrlKey||e.metaKey||e.altKey) return;
   if(e.key==="n"||e.key==="N"){ e.preventDefault(); jumpProblem(e.shiftKey?-1:1); }
   else if(e.key==="/"){ e.preventDefault(); const i=$("#inFileSearch"); if(i){ i.focus(); i.select(); } }
-  else if(e.key==="w"||e.key==="W"){ e.preventDefault(); $("#btnWrap").click(); }
+  else if(e.key==="w"||e.key==="W"){ e.preventDefault(); doToggleWrap(); }
   else if(e.key==="g"||e.key==="G"){ e.preventDefault(); openGoto(); } });
-window.addEventListener("resize",()=>{ if(state.activeView==="log") drawErrStrip(primaryView); });
-$("#btnRelTime").addEventListener("click",()=>{ state.relTime=!state.relTime; const b=$("#btnRelTime"); b.classList.toggle("active",state.relTime); b.setAttribute("aria-pressed",String(state.relTime)); vsRender(); });
+window.addEventListener("resize",()=>{ if(state.activeView==="log") drawErrStrip(primaryView); if(state.activeView==="timeline") tlDrawHistogram(); });  // [Pass AJ]
+// [Pass AF] doToggleRelTime defined below
 $("#scrubDockTicket").addEventListener("click",copyAsTicket);
 $("#gotoInput").addEventListener("keydown",e=>{ if(e.key==="Enter"){ const n=parseInt($("#gotoInput").value,10); closeGoto(); if(!isNaN(n)) gotoLine(n); } else if(e.key==="Escape"){ e.stopPropagation(); closeGoto(); } });
 $("#gotoInput").addEventListener("blur",()=>setTimeout(closeGoto,150));
@@ -2835,36 +3286,68 @@ $("#traceBar").addEventListener("click",e=>{ if(e.target.closest("#tbClear")){ c
   if(e.target.closest("#tbAcross")){ const v=state.traceFilter&&state.traceFilter.value; if(!v) return; const i=$("#sidebarSearch"); if(i&&!i.disabled){ i.value=v; gsOnInput(); i.focus(); } else toast("Load logs first."); } });
 $("#resLogger").addEventListener("change",renderResults);
 let _resT=null; $("#resTerm").addEventListener("input",()=>{ clearTimeout(_resT); _resT=setTimeout(renderResults,180); });
-$("#btnHighlightSimilar").addEventListener("click",()=>{
+/* [Pass AF] helpers for View ▾ / Scrub ▾ dropdowns + View menu checkmarks */
+function refreshViewMenuChecks(){
+  if($("#miWrap"))    $("#miWrap").textContent   =(state.wrap    ?"✓ ":"  ")+"Wrap lines";
+  if($("#miRelTime")) $("#miRelTime").textContent=(state.relTime ?"✓ ":"  ")+"Relative time (Δt)";
+  if($("#miKbHints")) $("#miKbHints").textContent=(state.kbInline?"✓ ":"  ")+"KB hints inline";
+  if($("#chkWrap"))    $("#chkWrap").textContent   =state.wrap    ?"✓":"";
+  if($("#chkRelTime")) $("#chkRelTime").textContent=state.relTime ?"✓":"";
+  if($("#chkKbHints")) $("#chkKbHints").textContent=state.kbInline?"✓":"";
+  const hasViewActive=state.relTime||!state.kbInline||!state.wrap;
+  const bd=$("#btnViewDrop"); if(bd) bd.classList.toggle("has-active",hasViewActive);
+  const bs=$("#btnScrubDrop"); if(bs) bs.classList.toggle("has-active",state.scrub||state.scrubSelect);
+  if($("#chkScrub"))     $("#chkScrub").textContent    =state.scrub       ?"✓":"";
+  if($("#chkScrubCopy")) $("#chkScrubCopy").textContent=state.scrubSelect ?"✓":"";
+  if($("#scrubLabel"))   $("#scrubLabel").textContent  =state.scrub?"Scrubbed View":"Clear View";
+}
+function doToggleWrap(){
+  state.wrap=!state.wrap;
+  const b=$("#btnWrap"); if(b){ b.classList.toggle("active",state.wrap); b.setAttribute("aria-pressed",String(state.wrap)); }
+  $("#viewerBody").classList.toggle("nowrap",!state.wrap);
+  vsInit(); $("#viewerBody").scrollTop=0; vsRender(); refreshViewMenuChecks();
+}
+function doToggleRelTime(){
+  state.relTime=!state.relTime;
+  const b=$("#btnRelTime"); if(b){ b.classList.toggle("active",state.relTime); b.setAttribute("aria-pressed",String(state.relTime)); }
+  refreshViewMenuChecks(); vsRender();
+}
+function doToggleKbHints(){
+  state.kbInline=!state.kbInline; try{localStorage.setItem("la-kb-inline",state.kbInline?"on":"off");}catch(e){}
+  const b=$("#btnKbHints"); if(b){ b.classList.toggle("active",state.kbInline); b.setAttribute("aria-pressed",state.kbInline?"true":"false"); }
+  KB_GEN++; refreshViewMenuChecks(); vsRender();
+}
+function doToggleScrub(){
+  state.scrub=!state.scrub;
+  const b=$("#btnScrub"); if(b){ b.classList.toggle("active",state.scrub); b.setAttribute("aria-pressed",String(state.scrub)); }
+  refreshViewMenuChecks();
+  if(state.search.term) runSearch(); else vsRender();
+  renderResults();
+  toast(state.scrub?"Scrubbed View — emails, IPs, GUIDs, tokens & user paths are redacted in the view and exports.":"Clear View — showing original text.");
+}
+function doToggleHighlightSimilar(){
   if(state.highlightLogger){ state.highlightLogger=null; }
   else { if(!state.focusedLogger){ toast("Click a line first to pick its logger."); return; } state.highlightLogger=state.focusedLogger; }
   const on=!!state.highlightLogger;
-  $("#btnHighlightSimilar").classList.toggle("active",on);
-  $("#btnHighlightSimilar").textContent = on ? "Similar: "+shortLogger(state.highlightLogger) : "Highlight similar";
+  const b=$("#btnHighlightSimilar"); if(b){ b.classList.toggle("active",on); }
+  const chk=$("#chkHighlight"); if(chk) chk.textContent=on?"✓":"";
+  const lbl=on?"Similar: "+shortLogger(state.highlightLogger):"Highlight similar";
+  const lblEl=b?b.querySelector("span:last-child"):null; if(lblEl) lblEl.textContent=lbl;
   vsRender();
-});
-$("#btnPin").addEventListener("click", pinFocusedLine);   // [Pass 5.16]
-$("#btnKbHints").addEventListener("click",()=>{ state.kbInline=!state.kbInline; try{localStorage.setItem("la-kb-inline",state.kbInline?"on":"off");}catch(e){}
-  const b=$("#btnKbHints"); b.classList.toggle("active",state.kbInline); b.setAttribute("aria-pressed",state.kbInline?"true":"false"); KB_GEN++; vsRender(); });   // [Pass 5.19]
-$("#btnWrap").addEventListener("click",()=>{
-  state.wrap=!state.wrap;
-  const b=$("#btnWrap"); b.classList.toggle("active",state.wrap); b.setAttribute("aria-pressed",String(state.wrap));
-  $("#viewerBody").classList.toggle("nowrap",!state.wrap);
-  vsInit(); $("#viewerBody").scrollTop=0; vsRender();
-});
+}
+$("#btnRelTime").addEventListener("click", doToggleRelTime);       // [Pass AF]
+$("#btnWrap").addEventListener("click", doToggleWrap);             // [Pass AF]
+$("#btnKbHints").addEventListener("click", doToggleKbHints);       // [Pass AF]
+$("#btnHighlightSimilar").addEventListener("click", doToggleHighlightSimilar); // [Pass AF]
+$("#btnPin").addEventListener("click", pinFocusedLine);            // [Pass 5.16]
+$("#btnScrub").addEventListener("click", doToggleScrub);           // [Pass AF]
+$("#btnScrubCopy").addEventListener("click",()=>toggleScrubSelect()); // [Pass AF]
+/* [Pass AL] sessions panel toggle */
+$("#sessPanelToggle")&&$("#sessPanelToggle").addEventListener("click",()=>{ const body=$("#sessPanelBody"); const togBtn=$("#sessPanelToggle"); if(!body||!togBtn) return; const hide=body.style.display==="none"; body.style.display=hide?"":"none"; togBtn.textContent=(hide?"Sessions ▲":"Sessions ▼"); });
 $("#btnFullscreen").addEventListener("click",()=>{ document.body.classList.toggle("viewer-max"); requestAnimationFrame(vsRender); });
 let _rsT=null; window.addEventListener("resize",()=>{ clearTimeout(_rsT); _rsT=setTimeout(()=>requestAnimationFrame(vsRender),120); });
 
 /* [Pass 4] PII scrub · pane switch · notes · export wiring */
-$("#btnScrub").addEventListener("click",()=>{
-  state.scrub=!state.scrub;
-  const b=$("#btnScrub"); b.classList.toggle("active",state.scrub); b.setAttribute("aria-pressed",String(state.scrub)); b.textContent=state.scrub?"Scrubbed View":"Clear View";
-  // re-run search over the (now scrubbed/unscrubbed) text so highlights stay aligned
-  if(state.search.term) runSearch(); else vsRender();
-  renderResults();
-  toast(state.scrub?"Scrubbed View — emails, IPs, GUIDs, tokens & user paths are redacted in the view and exports.":"Clear View — showing original text.");
-});
-$("#btnScrubCopy").addEventListener("click",()=>toggleScrubSelect());
 $("#scrubDockClear").addEventListener("click",()=>{ state.scrubSel.clear(); updateScrubDock(); vsRender(); });
 $("#scrubDockDone").addEventListener("click",()=>toggleScrubSelect(false));
 $("#scrubDockCopy").addEventListener("click",()=>previewScrubSelection());
@@ -2873,8 +3356,10 @@ $("#notesAddLine").addEventListener("click",notesAddFocusedLine);
 $("#notesClear").addEventListener("click",()=>{ $("#notesArea").value=""; closeNotes(); });
 $("#notesExport").addEventListener("click",()=>{ closeNotes(); exportSession(); });
 $("#notesTicket").addEventListener("click", setTicket);
+$("#notesTriage").addEventListener("click",()=>showTriageCodeModal(true,true));   // [Pass AL]
 $("#notesHistory").addEventListener("click",()=>{ const p=$("#notesHistoryPanel"); const show=p.hidden; if(show) renderNotesHistory(); p.hidden=!show; });
-$("#notesScrubPins").addEventListener("click",()=>{ if(!state.pins.length){ toast("No pinned entries in this session yet."); return; } showScrubPreview(scrubPinsText(), state.pins.length+" pinned entr"+(state.pins.length===1?"y":"ies")+" (scrubbed)"); });
+// [Pass AG] notesScrubPins moved to Scrub ▾ toolbar dropdown as #btnScrubPins
+$("#btnScrubPins").addEventListener("click",()=>{ if(!state.pins.length){ toast("No pinned entries in this session yet."); return; } showScrubPreview(scrubPinsText(), state.pins.length+" pinned entr"+(state.pins.length===1?"y":"ies")+" (scrubbed)"); });
 $("#notesArea").addEventListener("input",()=>{ state.notes=$("#notesArea").value; clearTimeout(window._notesSaveT); window._notesSaveT=setTimeout(()=>persistSession(),400); });
 $("#notesReport").addEventListener("click",exportReport);
 
@@ -2883,6 +3368,7 @@ function renderSidebar(){ // [Pass 2.4]
   if(!state.loaded){ setSidebarView(state.sidebarView); return; }
   state.sidebarView==="tree" ? renderSidebarTree() : renderSidebarComponents();
   $$("#sidebarTabs button").forEach(b=>b.classList.toggle("active",b.dataset.view===state.sidebarView));
+  if(state.sidebarView==="fields") renderFieldsTab();   // [Pass AK]
 }
 function fileRow(cid,idx,f){ // [Pass 2.5] one clickable file row
   const row=document.createElement("div");
@@ -3019,6 +3505,16 @@ function renderTabs(){ // [Pass 5.0 / 5.2 / 5.2x] Timeline (when logs loaded) + 
     nt.innerHTML=`<span class="dot" style="background:var(--lvl-warning)"></span>Notes`;
     nt.addEventListener("click",e=>{ if(suppressTabClick) return; openNotes(); });
     bar.appendChild(nt);
+    // [Pass AL] CM Sessions tab — shown when cm-main logs are loaded
+    if(state.loadedData&&state.loadedData["cm-main"]&&state.loadedData["cm-main"].files.length){
+      const ct=document.createElement("div"); ct.className="tab cm-sess-tab"; ct.title="Connection Manager session events table";
+      ct.innerHTML=`<span class="dot" style="background:var(--lvl-info)"></span>CM Sessions`;
+      ct.addEventListener("click",e=>{ if(suppressTabClick) return;
+        if(state.activeCompId!=="cm-main"){ openFile("cm-main",0); setTimeout(()=>{ const sp=$("#sessPanel"); if(sp) sp.hidden=false; },300); }
+        else { const sp=$("#sessPanel"); if(sp){ sp.hidden=false; const body=$("#sessPanelBody"); const f=activeFile(); if(body&&f) renderSessionPanel(body,f,"cm-main"); } }
+      });
+      bar.appendChild(ct);
+    }
   }
   state.openLogs.forEach(o=>{                          // [Pass 5.2x] one tab per open log file
     const d=state.loadedData[o.cid]; const f=d&&d.files[o.fi]; if(!f) return;
@@ -3533,7 +4029,8 @@ $("#menuHelpPop").addEventListener("click",e=>{ const b=e.target.closest("button
   else if(a==="feedback") window.open(FEEDBACK_URL,"_blank","noopener");
   else if(a==="install") openInstall();
   else if(a==="tour") startTour(true);
-  else if(a==="hard-refresh") confirmHardRefresh(); });
+  else if(a==="hard-refresh") confirmHardRefresh();
+  else if(a==="manage-suppress") openSuppressModal(); });   // [Pass AL]
 window.addEventListener("beforeunload", persistDiagRun);   // [Pass 5.22] flush crash-safe snapshot
 document.addEventListener("visibilitychange",()=>{ if(document.visibilityState==="hidden") persistDiagRun(); });
 $("#menuFilePop").addEventListener("click",e=>{
@@ -3541,6 +4038,10 @@ $("#menuFilePop").addEventListener("click",e=>{
   if(a==="new"){ resetSession(); openWizard(); }
   else if(a==="add"){ state.product ? openWizard() : (resetSession(), openWizard()); } // keep product+staging → Analyse re-ingests
   else if(a==="spec"){ pickStandaloneSpecialist(); }
+  else if(a==="export-session"){ exportSession(); }          // [Pass AF] File menu shortcut
+  else if(a==="export-report"){  exportMarkdownReport(); }   // [Pass AF] File menu shortcut
+  else if(a==="triage-open"){ openTriageCode(); }            // [Pass AL]
+  else if(a==="triage-copy"){ showTriageCodeModal(true,true); }  // [Pass AL]
 });
 
 /* ═══════════════════════════════════════════════════════════════════════════
@@ -3584,12 +4085,17 @@ function buildTimeline(day){ // [Pass 5.2/5.3d] compact typed-array index over O
   return { comps, N, truncated, ts:tsA, comp:compA, file:fileA, line:lineA, lvl:lvlA, order,
            min:N?tsA[order[0]]:null, max:N?tsA[order[N-1]]:null };
 }
-function tlApplyFilter(){ // [Pass 5.2/5.2x2] tlView = chronological order filtered to enabled components
+function tlApplyFilter(){  // [Pass AJ] applies enabled-component + brush time-range filter
   const tl=state.tl; if(!tl){ state.tlView=new Uint32Array(0); return; }
-  const en=state.tlEnabled;
-  if(!en || en.size===tl.comps.length){ state.tlView=tl.order; return; }   // all on → reuse order, no copy
+  const en=state.tlEnabled; const bf=_tlBrushFilter;  // [Pass AJ] brush filter
+  if(!bf && (!en || en.size===tl.comps.length)){ state.tlView=tl.order; return; }  // all on, no brush → reuse
   const out=new Uint32Array(tl.N); let k=0;
-  for(let i=0;i<tl.N;i++){ const idx=tl.order[i]; if(en.has(tl.comp[idx])) out[k++]=idx; }
+  for(let i=0;i<tl.N;i++){
+    const idx=tl.order[i];
+    if(en && !en.has(tl.comp[idx])) continue;
+    if(bf && (tl.ts[idx]<bf.start||tl.ts[idx]>bf.end)) continue;   // [Pass AJ] brush range
+    out[k++]=idx;
+  }
   state.tlView=out.subarray(0,k);
 }
 function ensureTimelineDays(){ // [Pass 5.3d] cheap pass to learn which days exist (for the navigator)
@@ -3609,7 +4115,7 @@ function ensureTimeline(){ // build lazily for the SELECTED day only; rebuild wh
   diag("timeline.build", (state.tlDay||"—")+": "+state.tl.N+" event(s)"+(state.tl.truncated?" (capped)":""));
 }
 function showTlLoading(on){ const el=$("#tlLoading"); if(el) el.hidden=!on; }
-function pickTimelineDay(day){ // [Pass 5.3d] switch day → rebuild that day's index (with a brief overlay)
+function pickTimelineDay(day){ _tlBrushFilter=null;  // [Pass AJ] clear brush when switching day // [Pass 5.3d] switch day → rebuild that day's index (with a brief overlay)
   if(day===state.tlDay) return;
   state.tlDay=day; showTlLoading(true);
   requestAnimationFrame(()=>requestAnimationFrame(()=>{          // let the overlay paint before the (sync) rebuild
@@ -3643,6 +4149,8 @@ function renderTimeline(rebuild){ // [Pass 5.2] (re)build the view shell, then r
          ${tl.truncated?`<div class="tl-trunc">Showing the first ${TL_CAP.toLocaleString()} events of this day to stay memory-safe — toggle components to focus.</div>`:""}
        </div>
        <div class="tl-loading" id="tlLoading" hidden><span class="tl-spin"></span>Building day…</div>
+       <div class="tl-hist-wrap"><canvas class="tl-histogram" id="tlHistogram"></canvas><div class="tl-brush" id="tlBrush"></div></div>
+       <div class="tl-hist-label" id="tlHistLabel"><span id="tlHistRange">Click or drag a range to filter</span><span><button class="tl-hist-clear" id="tlHistClear" hidden>✕ Clear filter</button></span></div>
        <div class="tl-scroll" id="tlScroll"><div class="tl-sizer" id="tlSizer"></div><div class="tl-rows" id="tlRows"></div></div>`;
     tlRenderComps();
     renderDayNav(TL_DAYNAV, state.tlDays, state.tlDay, pickTimelineDay);   // [Pass 5.3d]
@@ -3651,6 +4159,7 @@ function renderTimeline(rebuild){ // [Pass 5.2] (re)build the view shell, then r
     sc.onclick=e=>{ const row=e.target.closest(".tl-row"); if(row) tlJump(+row.dataset.r); };
   }
   tlUpdateMeta(); tlvsInit(); tlRenderRows(); tlScrollToLast();   // [Pass 5.2x2] load at the newest entry
+  tlHistSetupEvents(); tlDrawHistogram();   // [Pass AJ] histogram
 }
 function tlRenderComps(){ // [Pass 5.2] component toggle chips (≥1 must stay on)
   const wrap=$("#tlComps"), tl=state.tl; if(!wrap||!tl) return;
@@ -3663,6 +4172,110 @@ function tlRenderComps(){ // [Pass 5.2] component toggle chips (≥1 must stay o
     if(state.tlEnabled.has(ci)){ if(state.tlEnabled.size>1) state.tlEnabled.delete(ci); else { toast("At least one component must stay on the timeline."); return; } }
     else state.tlEnabled.add(ci);
     tlApplyFilter(); tlRenderComps(); tlUpdateMeta(); tlvsInit(); tlRenderRows(); tlScrollToLast();
+  };
+}
+/* [Pass AJ] Timeline histogram — bar chart above event list, Kibana-style */
+const TL_HIST_BUCKETS=60;  // max number of bars; auto-reduces for short spans
+const TL_HIST_LVL_COLORS={ ERROR:'--lvl-error', CRITICAL:'--lvl-critical', WARNING:'--lvl-warning', INFO:'--lvl-info', VERBOSE:'--lvl-verbose', DEBUG:'--lvl-debug' };
+let _tlBrushStart=null, _tlBrushFilter=null;   // {ts} and {start,end} ts range
+
+function tlBucketSize(spanMs){
+  // pick a round bucket that gives ≤TL_HIST_BUCKETS bars
+  const targets=[1000,5000,15000,30000,60000,300000,600000,1800000,3600000,7200000,21600000,86400000];
+  for(const t of targets){ if(spanMs/t<=TL_HIST_BUCKETS) return t; }
+  return Math.ceil(spanMs/TL_HIST_BUCKETS);
+}
+function tlBuildHistogram(){
+  const tl=state.tl, v=state.tlView; if(!tl||!v||!v.length) return null;
+  const first=tl.ts[v[0]], last=tl.ts[v[v.length-1]];
+  const span=last-first; if(span<=0) return null;
+  const bsz=tlBucketSize(span);
+  const nBuckets=Math.ceil((span+1)/bsz);
+  // counts per bucket per level (ERROR/CRITICAL/WARNING/INFO lumped)
+  const err=new Int32Array(nBuckets), warn=new Int32Array(nBuckets), info=new Int32Array(nBuckets);
+  for(const idx of v){
+    const b=Math.floor((tl.ts[idx]-first)/bsz);
+    const lc=tl.lvl[idx]; const lvn=LVL_FROM_CODE[lc]||"";
+    if(lvn==="ERROR"||lvn==="CRITICAL")err[b]++;
+    else if(lvn==="WARNING")warn[b]++;
+    else info[b]++;
+  }
+  return {first,last,bsz,nBuckets,err,warn,info};
+}
+function tlDrawHistogram(){
+  const canvas=$("#tlHistogram"); if(!canvas) return;
+  const hist=tlBuildHistogram(); if(!hist){ canvas.style.display="none"; return; }
+  canvas.style.display="block";
+  const dpr=window.devicePixelRatio||1;
+  const W=canvas.offsetWidth||canvas.parentElement.offsetWidth||400, H=80;
+  canvas.width=W*dpr; canvas.height=H*dpr;
+  const ctx=canvas.getContext("2d"); ctx.scale(dpr,dpr);
+  const cs=getComputedStyle(document.documentElement);
+  const cErr=cs.getPropertyValue("--lvl-error").trim()||"#f14c4c";
+  const cWarn=cs.getPropertyValue("--lvl-warning").trim()||"#e2c08d";
+  const cInfo=cs.getPropertyValue("--lvl-info").trim()||"#89d185";
+  const cBg=cs.getPropertyValue("--editor-bg").trim()||"transparent";
+  ctx.clearRect(0,0,W,H);
+  const maxH=Math.max(1,...Array.from({length:hist.nBuckets},(_,i)=>hist.err[i]+hist.warn[i]+hist.info[i]));
+  const bw=W/hist.nBuckets;
+  // draw brush highlight if active
+  if(_tlBrushFilter){
+    const bx1=Math.floor(((_tlBrushFilter.start-hist.first)/hist.bsz)*bw);
+    const bx2=Math.ceil(((_tlBrushFilter.end-hist.first)/hist.bsz+1)*bw);
+    ctx.fillStyle="rgba(0,120,212,0.15)"; ctx.fillRect(bx1,0,bx2-bx1,H);
+  }
+  for(let i=0;i<hist.nBuckets;i++){
+    const x=i*bw, barW=Math.max(1,bw-1);
+    const total=hist.err[i]+hist.warn[i]+hist.info[i]; if(!total) continue;
+    let y=H-2;
+    const drawBar=(count,col)=>{ if(!count) return; const bh=Math.max(2,Math.round((count/maxH)*(H-4))); ctx.fillStyle=col; ctx.fillRect(x,y-bh,barW,bh); y-=bh; };
+    drawBar(hist.info[i],cInfo); drawBar(hist.warn[i],cWarn); drawBar(hist.err[i],cErr);
+  }
+  // store hist on canvas for hit-testing
+  canvas._hist=hist;
+}
+function tlHistTsAtX(canvas, x){
+  const hist=canvas._hist; if(!hist) return null;
+  const W=canvas.offsetWidth||400;
+  const b=Math.floor((x/W)*hist.nBuckets);
+  if(b<0||b>=hist.nBuckets) return null;
+  return {start:hist.first+b*hist.bsz, end:hist.first+(b+1)*hist.bsz-1, b};
+}
+function tlApplyHistFilter(filter){
+  _tlBrushFilter=filter;
+  const lbl=$("#tlHistRange"); const clr=$("#tlHistClear");
+  if(filter){
+    const s=fmtStamp(filter.start).slice(11,19), e=fmtStamp(filter.end).slice(11,19);
+    if(lbl) lbl.textContent=s+" – "+e;
+    if(clr) clr.hidden=false;
+  } else {
+    if(lbl) lbl.textContent="Click or drag a range to filter";
+    if(clr) clr.hidden=true;
+  }
+  tlApplyFilter(); tlvsInit(); tlRenderRows(); tlScrollToLast(); tlDrawHistogram();
+  // also jump the log viewer to the start of the window
+  if(filter){ const tl=state.tl, v=state.tlView; if(tl&&v&&v.length){ tlJump(0); } }
+}
+function tlHistSetupEvents(){
+  const canvas=$("#tlHistogram"); if(!canvas) return;
+  const brush=$("#tlBrush"); const clr=$("#tlHistClear");
+  if(clr) clr.onclick=e=>{ e.stopPropagation(); tlApplyHistFilter(null); };
+  let dragging=false, dragStartX=0;
+  canvas.onpointerdown=e=>{ dragging=true; dragStartX=e.offsetX; canvas.setPointerCapture(e.pointerId); if(brush){brush.style.display="block";brush.style.left=e.offsetX+"px";brush.style.width="0px";} };
+  canvas.onpointermove=e=>{ if(!dragging||!brush) return;
+    const x1=Math.min(dragStartX,e.offsetX), x2=Math.max(dragStartX,e.offsetX);
+    brush.style.left=x1+"px"; brush.style.width=(x2-x1)+"px"; };
+  canvas.onpointerup=e=>{
+    if(!dragging) return; dragging=false; if(brush) brush.style.display="none";
+    const W=canvas.offsetWidth||400;
+    const x1=Math.min(dragStartX,e.offsetX), x2=Math.max(dragStartX,e.offsetX);
+    const hist=canvas._hist; if(!hist) return;
+    if(x2-x1<3){ // click: single bucket
+      const r=tlHistTsAtX(canvas,e.offsetX); if(r) tlApplyHistFilter({start:r.start,end:r.end});
+    } else { // drag: range
+      const bStart=Math.floor((x1/W)*hist.nBuckets), bEnd=Math.ceil((x2/W)*hist.nBuckets)-1;
+      tlApplyHistFilter({start:hist.first+bStart*hist.bsz, end:hist.first+(bEnd+1)*hist.bsz-1});
+    }
   };
 }
 function tlUpdateMeta(){ // [Pass 5.2] event count + visible time range
@@ -4812,6 +5425,56 @@ const LABEL_RULES = [
   { cat:"HOST",  re:/(https?:\/\/)([A-Za-z0-9][A-Za-z0-9.\-]*)/gi,                                    parts:a=>({pre:a[1],        val:a[2], suf:""  }) },
   { cat:"HOST",  re:/\b(machinename|computername|hostname|servername|nodename)(\s*[:=]\s*"?)([A-Za-z][A-Za-z0-9.\-]*)/gi, parts:a=>({pre:a[1]+a[2], val:a[3], suf:"" }) },
   { cat:"SECRET",re:/\b(password|pwd|passwd|secret|token|apikey|api[_-]?key|authorization|bearer)\b(\s*[:=]\s*)("?)([^\s"'\[]+)\3/gi, parts:a=>({pre:a[1]+a[2]+a[3], val:a[4], suf:a[3] }) },
+  // [Pass AO] ── pre-existing rule improvements ─────────────────────────
+  // TOKEN-2. Opaque OAuth bearer tokens (non-JWT) — context-anchored to
+  //   Bearer <token>, access_token=, accessToken=, refresh_token=, refreshToken=
+  { cat:"TOKEN", re:/\b((?:Bearer|access_token|accessToken|refresh_token|refreshToken|id_token|idToken)\s*[=:\s]\s*)([A-Za-z0-9\-._~+/]{20,}={0,2})\b/gi, parts:a=>({pre:a[1], val:a[2], suf:"" }) },
+  // HASH. SHA1 (40 hex) and SHA256 (64 hex) in key=value contexts
+  //   thumbprint=, hash=, checksum=, fingerprint=, sha1=, sha256=
+  { cat:"GUID",  re:/\b((?:thumbprint|fingerprint|hash|checksum|sha1|sha256|sha512)\s*[:=]\s*)([0-9a-fA-F]{40}|[0-9a-fA-F]{64}|[0-9a-fA-F]{128})\b/gi, parts:a=>({pre:a[1], val:a[2], suf:"" }) },
+  // MAC-2. Dot-separated MAC address (Cisco/network equipment format)
+  { cat:"MAC",   re:/\b[0-9A-Fa-f]{2}(?:\.[0-9A-Fa-f]{2}){5}\b/g,              parts:a=>({pre:"", val:a[0], suf:"" }) },
+  // IP6-2. Compressed IPv6 — requires :: or 3-4-hex groups to avoid MAC collision
+  { cat:"IP6",   re:/::1\b|[0-9a-fA-F]{1,4}::(?:[0-9a-fA-F]{1,4}:)*[0-9a-fA-F]{0,4}|(?:[0-9a-fA-F]{3,4}:){2,7}[0-9a-fA-F]{0,4}/g, parts:a=>({pre:"", val:a[0], suf:"" }) },
+  //   Requires at least one hex group or known prefix to avoid matching timestamps
+  { cat:"IP6",   re:/\b(?:[0-9a-fA-F]{1,4}:){1,7}:|:(?::[0-9a-fA-F]{1,4}){1,7}|(?:[0-9a-fA-F]{1,4}:){1,6}:[0-9a-fA-F]{1,4}|(?:[0-9a-fA-F]{1,4}:){1,5}(?::[0-9a-fA-F]{1,4}){1,2}|::1\b/g, parts:a=>({pre:"", val:a[0], suf:"" }) },
+  // USER-IIS. IIS application pool identity "IIS APPPOOL\AppPoolName"
+  { cat:"USER",  re:/(IIS APPPOOL\\)([A-Za-z0-9][A-Za-z0-9._\- ]*)/g,          parts:a=>({pre:a[1], val:a[2], suf:"" }) },
+  // HOST-CEF. SS CEF syslog fields: dhost= shost= fname= (destination/source host, file name)
+  //   Also camelCase machineName from log4net JSON structured output
+  { cat:"HOST",  re:/\b((?:dhost|shost|fname|machineName|dname|sname)\s*[:=]\s*"?)([A-Za-z0-9][A-Za-z0-9.\-]*)/gi, parts:a=>({pre:a[1], val:a[2], suf:"" }) },
+  // SECRET-2. Extended keyword list: thumbprint, connectionString, access/refresh/client tokens,
+  //   private key material, passphrase — all require := delimiter (no bare-word matches)
+  { cat:"SECRET",re:/\b(thumbprint|connectionString|connection_string|accessToken|access_token|refreshToken|refresh_token|idToken|id_token|clientSecret|client_secret|privateKey|private_key|passphrase|apiSecret|api_secret)\b(\s*[:=]\s*)("?)([^\s"'\[]+)\3/gi, parts:a=>({pre:a[1]+a[2]+a[3], val:a[4], suf:a[3] }) },
+  // [Pass AM] ── new rules ────────────────────────────────────────────────
+  // 8a. [IP_N]\username  — username left visible after IP was already labelled
+  { cat:"USER",  re:/(\[IP_\d+\]\\)([A-Za-z0-9][A-Za-z0-9._-]*)/g,               parts:a=>({pre:a[1],        val:a[2], suf:"" }) },
+  // 8b. Firstname.Lastname anchored to known SS audit-log field markers
+  //     Fires only when preceded by: By User:, suser=, UserName, Performed/Created/Modified/
+  //     Edited/Deleted/Viewed/Checked Out/Approved By, or a bare "by " at end of sentence.
+  //     This eliminates false positives on .NET namespaces entirely.
+  { cat:"USER",  re:/(?<=(?:By User|suser|UserName|Performed By|Created By|Modified By|Edited By|Deleted By|Viewed By|Checked Out By|Approved By|Actioned By|User)\s*[=:,]?\s{0,3})([A-Z][a-z]{1,20}\.[A-Z][a-z]{1,20})\b/g, parts:a=>({pre:"", val:a[1], suf:"" }) },
+  { cat:"USER",  re:/\bby ([A-Z][a-z]{1,20}\.[A-Z][a-z]{1,20})\b/g, parts:a=>({pre:"by ", val:a[1], suf:"" }) },
+  // 8c. Firstname Lastname in SS group-change audit messages
+  //     Two sub-patterns: (i) after comma in ADDED/REMOVED USERS lines
+  //                       (ii) after "Removed from group:" detail lines
+  { cat:"USER",  re:/(?<=(?:ADDED USERS TO|REMOVED USERS FROM)[^\n]{0,120},\s*)([A-Z][a-z]{1,20} [A-Z][a-z]{1,20})(?=[,\n]|$)/gim, parts:a=>({pre:"", val:a[1], suf:"" }) },
+  { cat:"USER",  re:/(?<=(?:Removed from group|Added to group|removed from group|added to group)[^\n]{0,60}:\s*)([A-Z][a-z]{1,20} [A-Z][a-z]{1,20})\b/gm, parts:a=>({pre:"", val:a[1], suf:"" }) },
+  // 8d. "user: domain\account" and "User = domain\account" (WMI / SS service account messages)
+  { cat:"USER",  re:/\b(user\s*[:=]\s*)([A-Za-z0-9._-]+\\[A-Za-z0-9._-]+)/gi,    parts:a=>({pre:a[1],        val:a[2], suf:"" }) },
+  // 8e. NetBIOS DOMAIN\username — left side ≥3 chars, no dot (excludes file.ext), mixed-case OK
+  { cat:"USER",  re:/(?<!\\)\b([A-Za-z][A-Za-z0-9_]{2,19})\\([A-Za-z0-9][A-Za-z0-9_-]+)\b(?!\.[a-z]{2,4}\b)/g, parts:a=>({pre:"", val:a[1]+"\\"+a[2], suf:"" }) },
+  // 8f. FQDN / bare domain name — labels ≥3 chars (excludes SS.log, X.Y file-ext patterns)
+  //     known TLD suffix, not followed by a file extension path component
+  { cat:"HOST",  re:/\b((?:[a-z0-9][a-z0-9-]{2,62}\.){1,4}(?:com|net|org|io|local|co|uk|de|fr|au|ca|int|gov|edu|info|biz))\b(?!\.[a-z]{2,4}\b)/gi, parts:a=>({pre:"", val:a[1], suf:"" }) },
+  // 8g. Delinea/Thycotic licence keys  5×5 and 3×5 formats
+  { cat:"SECRET",re:/\b[A-Z0-9]{5}(?:-[A-Z0-9]{5}){4}\b/g,                       parts:a=>({pre:"", val:a[0], suf:"" }) },
+  { cat:"SECRET",re:/\b[A-Z0-9]{5}(?:-[A-Z0-9]{5}){2}\b/g,                       parts:a=>({pre:"", val:a[0], suf:"" }) },
+  // 8h. ADO.NET / JDBC connection strings — Data Source, Server, Initial Catalog, User ID
+  { cat:"SECRET",re:/\b((?:Data Source|Server|Address|Addr|Network Address)\s*=\s*)([^;,"'\s]{2,})/gi, parts:a=>({pre:a[1], val:a[2], suf:"" }) },
+  { cat:"SECRET",re:/\b((?:Initial Catalog|Database|Catalog)\s*=\s*)([^;,"'\s]{2,})/gi,               parts:a=>({pre:a[1], val:a[2], suf:"" }) },
+  // 8h-c. Connection string User ID / UID field (exposes service account name)
+  { cat:"USER",  re:/\b((?:User ID|UID)\s*=\s*)([^;,"'\s]{2,})/gi,                               parts:a=>({pre:a[1], val:a[2], suf:"" }) },
 ];
 function scrubLabeled(text, maps){ // maps: {CAT: Map(value→n)} mutated across files so labels stay consistent
   if(!text) return text; let out=text;
@@ -4874,9 +5537,11 @@ function buildScrubReadme(skipped, maps){ const cats=Object.keys(maps).filter(c=
     "Generated "+new Date().toISOString()+" by Log Analyser "+APP_VERSION+".","",
     "Every TEXT file from the upload was copied here with PII replaced by consistent labels:",
     "the same value always becomes the same label across all files (e.g. [IP_1] is the same IP everywhere).",
-    "Categories: EMAIL, IP, IP6, GUID, MAC, USER, HOST, SECRET, TOKEN."+(counts?"  Counts — "+counts+".":""),"",
-    "Hostnames are best-effort: only UNC paths (\\\\host), URLs, and explicit machine/host-name fields are labelled,",
-    "to avoid mangling dotted code namespaces.","",
+    "Categories used: "+(cats.length?cats.join(", ")+".":"(none).")+(counts?"  Counts — "+counts+".":""),"",
+    "HOST labels: UNC paths (\\\\host), URLs, keyword fields (machinename= etc.), SS CEF fields (dhost=/shost=/fname=),",
+    "log4net machineName, and FQDNs with known TLDs. Dotted .NET namespaces are left intact.","",
+    "USER labels: Windows/Unix home paths, IIS APPPOOL identities, NetBIOS DOMAIN\\user, WMI service accounts,",
+    "and names anchored to SS audit fields (By User:, suser=, UserName, Created/Modified By, etc.).","",
     "A mapping file (label -> original value) was offered as a SEPARATE, private download.",
     "It contains the real values — keep it private and do NOT share it with this archive.","",
     skipped.length ? ("Omitted "+skipped.length+" non-text file(s) that may contain PII this tool can't scrub:") : "No non-text files were present.",
@@ -4904,7 +5569,7 @@ function showMappingNotice(maps, base, nFiles, nSkip){ const total=Object.values
   scrim.innerHTML=`<div class="pii-modal" role="dialog" aria-modal="true">
     <h3>Scrubbed archive downloaded</h3>
     <p><b>${escapeHtml(base)}-scrubbed.zip</b> — ${nFiles} text file(s) scrubbed${nSkip?`, ${nSkip} non-text file(s) omitted (see README)`:""}.</p>
-    <p>${total} distinct value(s) were labelled. A separate <b>mapping file</b> can reverse the scrubbing (label → real value).</p>
+    <p>${total} distinct value(s) labelled across ${Object.keys(maps).length} categor${Object.keys(maps).length===1?"y":"ies"}. A separate <b>mapping file</b> can reverse the scrubbing (label → real value). See README-scrubbed.txt for category details.</p>
     <p class="warn">⚠ The mapping file contains the real PII. Keep it private — never share it alongside the scrubbed archive.</p>
     <div class="pii-actions"><button class="btn secondary" id="piiSkip">No thanks</button><button class="btn" id="piiDl">Download mapping file (private)</button></div>
   </div>`;
@@ -5123,6 +5788,7 @@ async function loadNode(nodeId, opts={}){ // release the current host, then load
   state.activeNodeId=nodeId; state.activeCompId=null; state.activeFileIndex=0;
   state.openSpecialists=[]; state.activeView="log"; state.findings=[]; state.openLogs=[]; // [Pass 5.2x]
   state.highlightLogger=null; state.focusedLineNo=null; state.focusedLogger=null; state.search={term:"",matches:[],idx:-1};
+  if(typeof _fieldFilter!=="undefined") _fieldFilter=null;   // [Pass AK] clear field filter
   // captures/events are scoped to this host
   state.specialists={evtx:node.specialists.evtx.slice(), pcap:node.specialists.pcap.slice(), har:node.specialists.har.slice()};
   // skeleton (with deferred older files) + the newest unit per component to load now
@@ -5182,6 +5848,46 @@ const PII_RULES = [
   // "Secret Server" or "anti-forgery token failed" are NOT a key=value pair and stay intact —
   // important because Delinea logs (and our KB signatures) are full of the words "Secret"/"token".
   [/\b(password|pwd|passwd|secret|token|apikey|api[_-]?key|authorization|bearer)\b(\s*[:=]\s*)("?)[^\s"']+\3/gi, "$1$2$3⟨redacted⟩$3"],
+  // [Pass AO] ── pre-existing rule improvements ─────────────────────────
+  // TOKEN-2: opaque OAuth bearer tokens (non-JWT) — context-anchored
+  [/\b(?:Bearer|access_token|accessToken|refresh_token|refreshToken|id_token|idToken)\s*[=:\s]\s*([A-Za-z0-9\-._~+/]{20,}={0,2})/gi, "⟨token⟩"],
+  // HASH: SHA1/SHA256/SHA512 hex strings in key=value
+  [/\b(?:thumbprint|fingerprint|hash|checksum|sha1|sha256|sha512)\s*[:=]\s*([0-9a-fA-F]{40}|[0-9a-fA-F]{64}|[0-9a-fA-F]{128})\b/gi, "⟨hash⟩"],
+  // MAC-2: dot-separated MAC (Cisco/network equipment format)
+  [/\b[0-9A-Fa-f]{2}(?:\.[0-9A-Fa-f]{2}){5}\b/g, "⟨mac⟩"],
+  // IP6-2: compressed IPv6 (::1, fe80::1) — requires :: or groups of 3-4 hex to avoid MAC collision
+  [/::1\b|[0-9a-fA-F]{1,4}::(?:[0-9a-fA-F]{1,4}:)*[0-9a-fA-F]{0,4}|(?:[0-9a-fA-F]{3,4}:){2,7}[0-9a-fA-F]{0,4}/g, "⟨ipv6⟩"],
+  // USER-IIS: IIS APPPOOL\AppPoolName identity
+  [/(IIS APPPOOL\\)([A-Za-z0-9][A-Za-z0-9._\- ]*)/g, "$1⟨user⟩"],
+  // HOST-CEF: dhost= shost= fname= and camelCase machineName from log4net JSON
+  [/\b((?:dhost|shost|fname|machineName|dname|sname)\s*[:=]\s*"?)([A-Za-z0-9][A-Za-z0-9.\-]*)/gi, "$1⟨host⟩"],
+  // SECRET-2: extended credential keywords
+  [/\b(thumbprint|connectionString|connection_string|accessToken|access_token|refreshToken|refresh_token|idToken|id_token|clientSecret|client_secret|privateKey|private_key|passphrase|apiSecret|api_secret)\b(\s*[:=]\s*)("?)[^\s"'\[]+\3/gi, "$1$2$3⟨redacted⟩$3"],
+  // [Pass AM] ── new rules ────────────────────────────────────────────────
+  // After IP masking, ⟨ip⟩\username still exposes the username
+  [/⟨ip⟩([/\\])([A-Za-z0-9][A-Za-z0-9._-]*)/g, "⟨ip⟩$1⟨user⟩"],
+  // Also catch [IP_N]\\user (from export paste-back)
+  [/\[IP_\d+\]([/\\])([A-Za-z0-9][A-Za-z0-9._-]*)/g, "⟨ip⟩$1⟨user⟩"],
+  // Firstname.Lastname — anchored to SS audit-log field markers only
+  [/(?<=(?:By User|suser|UserName|Performed By|Created By|Modified By|Edited By|Deleted By|Viewed By|Checked Out By|Approved By|Actioned By|User)\s*[=:,]?\s{0,3})([A-Z][a-z]{1,20}\.[A-Z][a-z]{1,20})\b/g, "⟨user⟩"],
+  [/\bby ([A-Z][a-z]{1,20}\.[A-Z][a-z]{1,20})\b/g, "by ⟨user⟩"],
+  // Firstname Lastname in SS group-change messages
+  [/(?<=(?:ADDED USERS TO|REMOVED USERS FROM)[^\n]{0,120},\s*)([A-Z][a-z]{1,20} [A-Z][a-z]{1,20})(?=[,\n]|$)/gim, "⟨person⟩"],
+  [/(?<=(?:Removed from group|Added to group)[^\n]{0,60}:\s*)([A-Z][a-z]{1,20} [A-Z][a-z]{1,20})\b/gim, "⟨person⟩"],
+  // "user: domain\account" and "User = domain\account" (WMI / service account fields)
+  [/\b(user\s*[:=]\s*)([A-Za-z0-9._-]+\\[A-Za-z0-9._-]+)/gi, "$1⟨account⟩"],
+  // NetBIOS DOMAIN\username — ≥3 chars, mixed-case, no trailing file extension
+  [/(?<!\\)\b([A-Za-z][A-Za-z0-9_]{2,19})\\([A-Za-z0-9][A-Za-z0-9_-]+)\b(?!\.[a-z]{2,4}\b)/g, "⟨domain⟩\\⟨user⟩"],
+  // FQDN / bare domain — labels ≥3 chars, known TLD, not followed by file-extension
+  [/\b((?:[a-z0-9][a-z0-9-]{2,62}\.){1,4}(?:com|net|org|io|local|co|uk|de|fr|au|ca|int|gov|edu|info|biz))\b(?!\.[a-z]{2,4}\b)/gi, "⟨domain⟩"],
+  // Delinea/Thycotic licence keys (5×5 then 3×5)
+  [/\b[A-Z0-9]{5}(?:-[A-Z0-9]{5}){4}\b/g, "⟨licence⟩"],
+  [/\b[A-Z0-9]{5}(?:-[A-Z0-9]{5}){2}\b/g, "⟨licence⟩"],
+  // ADO.NET / JDBC connection string values (host, db, user)
+  [/\b((?:Data Source|Server|Address|Addr|Network Address)\s*=\s*)([^;,"'\s]{2,})/gi, "$1⟨host⟩"],
+  [/\b((?:Initial Catalog|Database|Catalog)\s*=\s*)([^;,"'\s]{2,})/gi, "$1⟨dbname⟩"],
+  // Connection string User ID field
+  [/\b((?:User ID|UID)\s*=\s*)([^;,"'\s]{2,})/gi, "$1⟨user⟩"],
 ];
 function scrubPII(s){ if(!s) return s; let out=s; for(const [re,rep] of PII_RULES) out=out.replace(re,rep); return out; }
 
@@ -5368,6 +6074,15 @@ const KB_SIGNATURES = [
   { id:"rpc-error-96258", m:"error 96258", t:"SSH Password Change error 96258 (generic - enable All-level DE logging)", sev:"WARNING", prod:["ss"], cat:"RPC / Heartbeat", url:"https://support.delinea.com/s/article/1772039050284" },
   { id:"heartbeat-error-1330", m:"error 1330", t:"Secret Server Heartbeat encounters error 1330", sev:"WARNING", prod:["ss"], cat:"RPC / Heartbeat", url:"https://support.delinea.com/s/article/Secret-Server-Heartbeat-encounters-error-1330" },
   { id:"de-rpc-failed-800706bf", m:"0x800706BF", t:"DE 8.4.73.0 discovery crash: COMException 0x800706BF (the remote procedure call failed)", sev:"ERROR", prod:["ss"], cat:"Distributed Engine", url:"https://support.delinea.com/s/article/1763359625115" },
+  { id:"rpc-connection-error-10060", m:"Connection error 10060", t:"RPC/Heartbeat: Connection error 10060 (TCP timeout — DE cannot reach target host on required port)", sev:"WARNING", prod:["ss"], cat:"RPC / Heartbeat", url:"https://support.delinea.com/s/article/1754286296038" },
+  { id:"cannot-connect-to-bus", m:"Cannot connect to the bus", t:"Worker roles disabled: \"Cannot connect to the bus\" (RabbitMQ down or misconfigured)", sev:"ERROR", prod:["ss"], cat:"Networking / Bus", url:"https://support.delinea.com/s/article/1751605312131" },
+  { id:"de-failed-to-bring-up", m:"Failed to bring up engine", t:"Distributed Engine: \"Failed to bring up engine\" / \"Failed to configure IoC\" (load balancer session affinity missing)", sev:"ERROR", prod:["ss"], cat:"Distributed Engine", url:"https://support.delinea.com/s/article/1732209555435" },
+  { id:"sql-fulltext-not-installed", m:"Full-Text Search is not installed", t:"Secret search fails: Full-Text Search is not installed on SQL Server (set Search Indexer to Standard mode)", sev:"ERROR", prod:["ss"], cat:"Database", url:"https://support.delinea.com/s/article/1770285458260" },
+  { id:"azure-ad-mfa-rpc-block", m:"AADSTS50076", t:"KB-010390: RPC of Azure AD account blocked — AADSTS50076: MFA required but not supported for RPC/Heartbeat", sev:"WARNING", prod:["ss"], cat:"RPC / Heartbeat", url:"https://support.delinea.com/s/article/1769621150327" },
+  { id:"session-connector-token-400", m:"Failed to get Secret Server auth token", t:"Session Connector: HTTP 400 / \"Login failed\" getting auth token (RDS application account credentials stale — update registry)", sev:"ERROR", prod:["ss"], cat:"Session / Launcher", url:"https://support.delinea.com/s/article/1773969777167" },
+  { id:"avblocks-unlicensed", m:"Unlicensed feature Facility=AVBlocks", t:"Session recording / Connection Manager disconnecting: AVBlocks licence error (lms.primosoftware.com unreachable — copy cache file workaround)", sev:"ERROR", prod:["ss","cm"], cat:"Session / Launcher", url:"https://support.delinea.com/s/article/1743998756697" },
+  { id:"installer-generator-failed", m:"InstallerGeneratorWrapper - Generation failed", t:"KB-010218: DE installer download fails: \"Generation failed\" / \"directory is not empty\" (antivirus locking temp files)", sev:"ERROR", prod:["ss"], cat:"Distributed Engine", url:"https://support.delinea.com/s/article/KB-010218-The-directory-is-not-empty-error-message-when-downloading-Distributed-Engine-installer" },
+  { id:"ad-auth-blocking-call-timed-out", m:"Authentication Failed Blocking call timed out", t:"AD login fails even with correct credentials: Blocking call timed out (AD auth must complete in <30 s — check LDAP/LDAPS latency)", sev:"ERROR", prod:["ss"], cat:"Authentication", url:"https://support.delinea.com/s/article/1738602229546" },
 ];
 
 // normalise KB entries to share the heuristics' field names + precompute lowercased match
@@ -5419,7 +6134,108 @@ function gsuppressSave(){ try{ localStorage.setItem("la-suppressed-issues", JSON
 function suppressIssue(id){ if(!id) return; GSUPPRESS.add(id); gsuppressSave(); rebuildKbActive(); try{vRender(primaryView);}catch(e){} toast("Won't suggest that issue again. Reset from the bottom of Recognised issues."); scanFindings(); }
 function resetSuppressed(){ if(!GSUPPRESS.size) return; GSUPPRESS.clear(); gsuppressSave(); rebuildKbActive(); try{vRender(primaryView);}catch(e){} toast("Restored all suppressed issues."); scanFindings(); }
 
-async function scanFindings(){ // [Pass 4i] scan loaded files: curated KB + generic heuristics
+async /* [Pass AL] Shareable triage code — encode/decode location + optional session data as base64 */
+function triageEncode(includeNotes, includePins){
+  const V=primaryView; const f=V&&V.file(); const ln=f&&V.focusedLineNo!=null&&f.lines.find(l=>l.lineNo===V.focusedLineNo);
+  const obj={
+    v:1, product:state.product||"", node:(nodeById(state.activeNodeId)||{}).label||"",
+    comp:state.activeCompId||"", file:(f&&(f.path||f.name))||"", lineNo:ln?ln.lineNo:null,
+    ticket:state.sessionId||""
+  };
+  if(includeNotes) obj.notes=state.notes||"";
+  if(includePins)  obj.pins=(state.pins||[]).map(p=>({k:p.key,t:p.text,n:p.lineNo}));
+  try{ return btoa(unescape(encodeURIComponent(JSON.stringify(obj)))); }catch(e){ return null; }
+}
+function triageDecode(code){
+  try{ return JSON.parse(decodeURIComponent(escape(atob(code)))); }catch(e){ return null; }
+}
+function showTriageCodeModal(includeNotes, includePins){
+  const existing=document.getElementById("trScrim"); if(existing) existing.remove();
+  const scrim=document.createElement("div"); scrim.id="trScrim"; scrim.className="triage-scrim";
+  const updateCode=()=>{
+    const inc_n=scrim.querySelector("#trOptNotes"); const inc_p=scrim.querySelector("#trOptPins");
+    const code=triageEncode(inc_n&&inc_n.checked, inc_p&&inc_p.checked);
+    const el=scrim.querySelector(".tm-code"); if(el) el.textContent=code||"(no active line focused)";
+    return code;
+  };
+  scrim.innerHTML=`<div class="triage-modal" role="dialog" aria-modal="true" aria-labelledby="trTitle">
+    <h2 id="trTitle">Copy triage code</h2>
+    <p style="font-size:12px;color:var(--gutter-fg);margin:0 0 8px">Share this code with a colleague — they paste it into File → Open triage code… to jump to the same location.</p>
+    <div class="tm-code" id="trCode"></div>
+    <div class="tm-opts">
+      <label><input type="checkbox" id="trOptNotes"${includeNotes?" checked":""}> Include session notes</label>
+      <label><input type="checkbox" id="trOptPins"${includePins?" checked":""}> Include pins</label>
+    </div>
+    <div class="tm-footer">
+      <button class="btn secondary" id="trClose">Close</button>
+      <button class="btn" id="trCopy">Copy</button>
+    </div>
+  </div>`;
+  document.body.appendChild(scrim);
+  updateCode();
+  scrim.querySelector("#trOptNotes").onchange=updateCode;
+  scrim.querySelector("#trOptPins").onchange=updateCode;
+  scrim.querySelector("#trClose").onclick=()=>scrim.remove();
+  scrim.querySelector("#trCopy").onclick=()=>{
+    const code=updateCode(); if(!code){ toast("Focus a log line first."); return; }
+    navigator.clipboard&&navigator.clipboard.writeText(code).then(()=>{ toast("Triage code copied."); scrim.remove(); });
+  };
+  scrim.addEventListener("click",e=>{ if(e.target===scrim) scrim.remove(); });
+}
+function openTriageCode(){
+  const raw=prompt("Paste a triage code:"); if(!raw||!raw.trim()) return;
+  const obj=triageDecode(raw.trim()); if(!obj){ toast("Invalid triage code."); return; }
+  if(obj.notes&&obj.notes.trim()){ if(confirm("Restore session notes from this triage code?")) state.notes=obj.notes; }
+  toast(`Triage code: ${obj.product||""} / ${obj.comp||""} line ${obj.lineNo||"?"} — load the referenced logs then the line will be highlighted.`);
+  if(obj.lineNo) diag("triage.open",`line ${obj.lineNo} comp=${obj.comp}`);
+}
+/* [Pass AL] promote long silences as pseudo-findings into the Recognised Issues pane */
+/* [Pass AL] KB suppression management — list all suppressed KB signatures with per-item restore */
+function openSuppressModal(){
+  const existing=document.getElementById("suppScrim"); if(existing) existing.remove();
+  const scrim=document.createElement("div"); scrim.id="suppScrim"; scrim.className="triage-scrim";
+  const ids=[...GSUPPRESS];
+  const items=ids.map(id=>{
+    const sig=KB_SIGNATURES.find(s=>s.id===id);
+    const title=sig?(sig.t||sig.title||id):id;
+    const meta=sig?`${sig.sev||""} · ${sig.cat||""}`:id;
+    return `<div class="supp-item"><div class="si-info"><div class="si-title">${escapeHtml(title)}</div><div class="si-meta">${escapeHtml(meta)}</div></div><button data-restore="${escapeHtml(id)}">Restore</button></div>`;
+  }).join("");
+  scrim.innerHTML=`<div class="triage-modal supp-modal" role="dialog" aria-modal="true" aria-labelledby="suppTitle" style="max-width:560px">
+    <h2 id="suppTitle">Suppressed KB hints (${ids.length})</h2>
+    <p style="font-size:12px;color:var(--gutter-fg);margin:0 0 8px">These signatures are hidden across all logs. Restore to show them again.</p>
+    ${ids.length?`<div class="supp-list">${items}</div>`:'<p style="color:var(--gutter-fg);font-size:12px">No suppressed signatures.</p>'}
+    <div class="triage-modal tm-footer" style="display:flex;gap:10px;justify-content:space-between;margin-top:16px">
+      <button class="btn secondary" id="suppRestoreAll"${ids.length?"":" disabled"}>Restore all</button>
+      <button class="btn secondary" id="suppClose">Close</button>
+    </div>
+  </div>`;
+  document.body.appendChild(scrim);
+  scrim.querySelector("#suppClose").onclick=()=>scrim.remove();
+  scrim.querySelector("#suppRestoreAll").onclick=()=>{ resetSuppressed(); scrim.remove(); };
+  scrim.querySelector(".supp-list")&&scrim.querySelector(".supp-list").addEventListener("click",e=>{
+    const b=e.target.closest("[data-restore]"); if(!b) return;
+    GSUPPRESS.delete(b.dataset.restore); gsuppressSave(); rebuildKbActive(); try{vRender(primaryView);}catch(e){}
+    scanFindings(); b.closest(".supp-item").remove();
+    const hd=scrim.querySelector("#suppTitle"); if(hd) hd.textContent=`Suppressed KB hints (${GSUPPRESS.size})`;
+    toast("Signature restored.");
+  });
+  scrim.addEventListener("click",e=>{ if(e.target===scrim) scrim.remove(); });
+}
+function scanSilenceFindings(f){
+  if(!f) return [];
+  try{
+    const thresh=silenceThreshold(f); const gaps=topGaps(f,3).filter(g=>g.dur>=thresh);
+    return gaps.map(g=>({ kind:"silence", issue:{
+      id:"silence-"+g.ts,
+      t:"Unusual logging gap — "+fmtDur(g.dur)+" at "+fmtStamp(g.ts).slice(11),
+      title:"Unusual logging gap — "+fmtDur(g.dur)+" at "+fmtStamp(g.ts).slice(11),
+      sev:"WARNING", severity:"WARNING", cat:"Availability", url:null
+    }, count:1, lineNo:(g.ln&&g.ln.lineNo)||null,
+    compCounts:{}, firstSeen:g.ts, lastSeen:g.ts }));
+  }catch(e){ return []; }
+}
+function scanFindings(){ // [Pass 4i] scan loaded files: curated KB + generic heuristics
   rebuildKbActive();                                       // [Pass 5.19] keep inline KB badges aligned with the active product + suppression
   const prod=state.product;
   // KB: only signatures for the active product (or product-agnostic); already longest-match-first.
@@ -5468,10 +6284,11 @@ async function scanFindings(){ // [Pass 4i] scan loaded files: curated KB + gene
   const all=[...kbAcc.values(), ...heurAcc.filter(f=>f.count>0)];
   all.forEach(f=>{ delete f._seen; });                      // [Pass 5.4x] free the dedup sets after the scan
   // KB hits rank above heuristics at equal severity (kind tiebreaker: kb=0, heur=1).
-  state.findings=all.sort((a,b)=>
+  const silFindings=(()=>{ try{ const f=activeFile(); return f?scanSilenceFindings(f):[]; }catch(e){ return []; } })();  // [Pass AI]
+  state.findings=[...all.sort((a,b)=>
       (SEV_ORDER[a.issue.severity]-SEV_ORDER[b.issue.severity])
       || ((a.kind==="kb"?0:1)-(b.kind==="kb"?0:1))
-      || (b.count-a.count));
+      || (b.count-a.count)), ...silFindings];
   const total=state.findings.reduce((s,f)=>s+f.count,0);
   const kbTypes=[...kbAcc.values()].length;
   $("#issueCount").textContent=String(state.findings.length);   // [Pass 5.9] distinct recognised issues, not total occurrences
@@ -5530,7 +6347,7 @@ function renderFindings(){ // [Pass 4i / 5.1x] issues view — grouped by compon
       <div class="find-body">${detail}${samples}${it.count>it.samples.length?`<div class="find-why" style="opacity:.8">…and ${(it.count-it.samples.length).toLocaleString()} more. Use Entries + search to see the rest.</div>`:""}${suppress}</div></div>`;
   };
 
-  const hidden = GSUPPRESS.size ? `<div class="find-hidden">${GSUPPRESS.size} issue${GSUPPRESS.size===1?"":"s"} suppressed (“Don't suggest again”). <button class="find-reset">Reset all</button></div>` : "";
+  const hidden = GSUPPRESS.size ? `<div class="find-hidden">${GSUPPRESS.size} issue${GSUPPRESS.size===1?"":"s"} suppressed. <button class="find-reset">Reset all</button> <button class="find-manage" style="margin-left:4px">Manage…</button></div>` : "";
   body.innerHTML=arr.map(c=>
     `<div class="find-comp"><div class="find-comp-head">${escapeHtml(c.name)}<span class="fc-count">${c.total.toLocaleString()}</span></div>${c.items.map(it=>issueHtml(c,it)).join("")}</div>`
   ).join("") + hidden;
@@ -5539,6 +6356,7 @@ function renderFindings(){ // [Pass 4i / 5.1x] issues view — grouped by compon
     const sup=e.target.closest(".find-suppress"); if(sup){ e.stopPropagation(); suppressIssue(sup.dataset.suppress); return; }   // [Pass 5.9]
     const fpin=e.target.closest(".find-pin"); if(fpin){ e.stopPropagation(); togglePin({kind:"issue", sigId:fpin.dataset.pinSig, title:fpin.dataset.pinTitle}); renderFindings(); return; }   // [Pass 5.16]
     const rst=e.target.closest(".find-reset"); if(rst){ resetSuppressed(); return; }
+    const mgr=e.target.closest(".find-manage"); if(mgr){ openSuppressModal(); return; }   // [Pass AL]
     const samp=e.target.closest(".find-sample");
     if(samp){ jumpToFinding(samp.dataset.cid,+samp.dataset.fi,+samp.dataset.li); return; }
     const head=e.target.closest(".find-head");
@@ -5653,6 +6471,7 @@ function showLineMenu(V,r,x,y){ closeLineMenu();
     {label:(curHl&&curHl===ln.logger)?"Clear similar highlight":"Highlight similar (same logger)", dis:!ln.logger, act:()=>highlightSimilarFor(V,ln)},
     {label:"Copy line text", act:()=>{ copyText(ln.text||""); toast("Line copied."); }},
     {label:"Copy location (path : line)", act:()=>{ copyText(pinLocation(pin)); toast("Location copied: "+pinLocation(pin)); }},
+    {label:"🔗 Copy triage code…", act:()=>showTriageCodeModal(false,false)},   // [Pass AL]
   ];
   const m=document.createElement("div"); m.className="line-menu"; m.id="lineMenu";
   m.innerHTML=items.map((it,i)=>`<button class="lm-item" data-i="${i}"${it.dis?" disabled":""}>${escapeHtml(it.label)}</button>`).join("");
